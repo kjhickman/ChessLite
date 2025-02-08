@@ -1,0 +1,16 @@
+# .NET
+[Oo]bj/
+[Bb]in/
+.nuget/
+_ReSharper.*
+packages/
+artifacts/
+*.user
+*.suo
+*.userprefs
+*DS_Store
+*.sln.ide
+
+# IDEs
+.idea
+.vscode
