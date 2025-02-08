@@ -10,6 +10,12 @@ public readonly struct Move : IEquatable<Move>
         if ((from | to) >> 6 != 0) // Ensure from and to are in 0..63
             throw new ArgumentOutOfRangeException();
 
+        // Detect castling (if king moves two squares)
+        if (moveType == MoveType.Quiet && ((from == 4 && to is 2 or 6) || (from == 60 && to is 58 or 62)))
+        {
+            moveType = MoveType.Castling;
+        }
+
         var typeValue = (ushort)((byte)moveType & 0xF);
         _packed = (ushort)((from & 0x3F) | ((to & 0x3F) << 6) | (typeValue << 12));
     }
@@ -27,6 +33,12 @@ public readonly struct Move : IEquatable<Move>
 
         // Default to a quiet move
         var moveType = MoveType.Quiet;
+
+        // Detect castling (if king moves two squares)
+        if ((from == 4 && to is 2 or 6) || (from == 60 && to is 58 or 62))
+        {
+            moveType = MoveType.Castling;
+        }
 
         // If the move has a 5th character (promotion), determine its type
         if (uciMove.Length == 5)
