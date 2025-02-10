@@ -7,4 +7,6 @@ public struct MoveUndo
     public Bitboard ToSquare;      // Bitboard with only the moved piece at its new position
     public Move Move;              // The move that was made
     public ushort PreviousCastlingRights;
+    public int PreviousEnPassantTarget;
+    public PieceType CapturedPieceType;
 }

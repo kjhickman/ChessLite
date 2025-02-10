@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace Zugfish.Engine;
 
 public class Board
@@ -38,6 +36,7 @@ public class Board
 
     private readonly Stack<MoveUndo> _moveHistory = new();
     public ushort CastlingRights { get; private set; }
+    public int EnPassantTarget { get; private set; } = -1;
 
     public Board()
     {
@@ -130,16 +129,16 @@ public class Board
 
         // Parse en passant square
         var enPassantSquare = fen[enumerator.Current]; enumerator.MoveNext();
-        // if (enPassantSquare is not "-")
-        // {
-        //     int file = enPassantSquare[0] - 'a';
-        //     int rank = enPassantSquare[1] - '1';
-        //     EnPassantTarget = 1UL << (rank * 8 + file);
-        // }
-        // else
-        // {
-        //     EnPassantTarget = 0;
-        // }
+        if (enPassantSquare is not "-")
+        {
+            var file = enPassantSquare[0];
+            var rank = enPassantSquare[1];
+            EnPassantTarget = 8 * (rank - '1') + (file - 'a');
+        }
+        else
+        {
+            EnPassantTarget = -1;
+        }
 
         var halfmoveClock = fen[enumerator.Current]; enumerator.MoveNext();
 
@@ -155,17 +154,95 @@ public class Board
         BlackPieces = BlackPawns | BlackKnights | BlackBishops | BlackRooks | BlackQueens | BlackKing;
         AllPieces = WhitePieces | BlackPieces;
     }
-    
+
+    public void MakeMove(ReadOnlySpan<char> uciMove)
+    {
+        if (uciMove.Length is < 4 or > 5)
+            throw new ArgumentException("Invalid UCI move format.", nameof(uciMove));
+
+        var from = SquareIndexFromUci(uciMove[0], uciMove[1]);
+        var to = SquareIndexFromUci(uciMove[2], uciMove[3]);
+
+        if ((from | to) >> 6 != 0) // Ensure indices are valid
+            throw new ArgumentOutOfRangeException(nameof(uciMove), "Square index out of range.");
+
+        // Default to a quiet move
+        var moveType = MoveType.Quiet;
+
+        var isPawnMove = (WhitePawns & (1UL << from)) != 0 || (BlackPawns & (1UL << from)) != 0;
+
+        // Detect castling (if king moves two squares)
+        if ((from == 4 && to is 2 or 6) || (from == 60 && to is 58 or 62))
+        {
+            moveType = MoveType.Castling;
+        }
+        else if (uciMove.Length == 5) // If the move has a 5th character (promotion), determine its type
+        {
+            moveType = uciMove[4] switch
+            {
+                'q' => MoveType.PromoteToQueen,
+                'r' => MoveType.PromoteToRook,
+                'b' => MoveType.PromoteToBishop,
+                'n' => MoveType.PromoteToKnight,
+                _ => throw new ArgumentException("Invalid promotion piece.", nameof(uciMove))
+            };
+        }
+        else if (isPawnMove && EnPassantTarget == to) // Detect En Passant
+        {
+            moveType = MoveType.EnPassant;
+        }
+        else if (isPawnMove && Math.Abs(from - to) == 16) // Detect double pawn move
+        {
+            moveType = MoveType.DoublePawnPush;
+        }
+
+        var move = new Move(from, to, moveType);
+        MakeMove(move);
+    }
+
+    // Helper method to convert UCI square notation (e.g., "e2") to bitboard index
+    private static int SquareIndexFromUci(char file, char rank)
+    {
+        if (file < 'a' || file > 'h' || rank < '1' || rank > '8')
+            throw new ArgumentException("Invalid UCI square.", nameof(file));
+
+        return (rank - '1') * 8 + (file - 'a');
+    }
+
     public void MakeMove(Move move)
     {
         var from = move.From;
         var to = move.To;
+        var moveType = move.GetMoveType();
 
         var fromMask = new Bitboard(1UL << from);
         var toMask = new Bitboard(1UL << to);
 
         // Identify which piece moved
         var capturedPieceMask = AllPieces & toMask;
+        if (moveType == MoveType.EnPassant)
+        {
+            var capturedPawnSquare = to + (EnPassantTarget < to ? -8 : 8);
+            capturedPieceMask = new Bitboard(1UL << capturedPawnSquare);
+        }
+
+        var capturedPieceType = PieceType.None;
+        if (capturedPieceMask != 0)
+        {
+            capturedPieceType = GetPieceTypeWithOverlap(capturedPieceMask);
+        }
+
+        // Save undo information
+        _moveHistory.Push(new MoveUndo
+        {
+            CapturedPiece = capturedPieceMask,
+            FromSquare = fromMask,
+            ToSquare = toMask,
+            Move = move,
+            PreviousCastlingRights = CastlingRights,
+            PreviousEnPassantTarget = EnPassantTarget,
+            CapturedPieceType = capturedPieceType
+        });
 
         // Move the correct piece
         ref var pieceBitboard = ref GetPieceBitboard(fromMask);
@@ -192,7 +269,7 @@ public class Board
         }
 
         // Need to move the rook for castling
-        if (move.Flag == (int)MoveType.Castling)
+        if (moveType == MoveType.Castling)
         {
             switch (to)
             {
@@ -229,18 +306,32 @@ public class Board
                 break;
         }
 
-        // Save undo information
-        _moveHistory.Push(new MoveUndo
+        // Handle double pawn push (set En Passant target)
+        if (moveType == MoveType.DoublePawnPush)
         {
-            CapturedPiece = capturedPieceMask,
-            FromSquare = fromMask,
-            ToSquare = toMask,
-            Move = move,
-            PreviousCastlingRights = CastlingRights
-        });
+            EnPassantTarget = (from + to) / 2; // The middle square behind the pawn
+        }
+        else
+        {
+            EnPassantTarget = -1; // Reset En Passant target
+        }
 
         // Recalculate combined bitboards
         DeriveCombinedBitboards();
+    }
+
+    private PieceType GetPieceTypeWithOverlap(Bitboard capturedPieceMask)
+    {
+        if ((WhitePawns &  capturedPieceMask) != 0) return PieceType.WhitePawn;
+        if ((WhiteKnights & capturedPieceMask) != 0) return PieceType.WhiteKnight;
+        if ((WhiteBishops & capturedPieceMask) != 0) return PieceType.WhiteBishop;
+        if ((WhiteRooks  & capturedPieceMask) != 0) return PieceType.WhiteRook;
+        if ((WhiteQueens & capturedPieceMask) != 0) return PieceType.WhiteQueen;
+        if ((BlackPawns &  capturedPieceMask) != 0) return PieceType.BlackPawn;
+        if ((BlackKnights & capturedPieceMask) != 0) return PieceType.BlackKnight;
+        if ((BlackBishops & capturedPieceMask) != 0) return PieceType.BlackBishop;
+        if ((BlackRooks  & capturedPieceMask) != 0) return PieceType.BlackRook;
+        return PieceType.BlackQueen;
     }
 
     public void UnmakeMove()
@@ -249,6 +340,7 @@ public class Board
             throw new InvalidOperationException("No move to unmake.");
 
         var lastMove = _moveHistory.Pop();
+        var lastMoveType = lastMove.Move.GetMoveType();
 
         // Restore the moved piece to its original position
         ref var movedPieceBitboard = ref GetPieceBitboard(lastMove.ToSquare);
@@ -258,13 +350,27 @@ public class Board
         // Restore captured piece (if any)
         if (lastMove.CapturedPiece != 0)
         {
-            ref var capturedPieceBitboard = ref GetPieceBitboard(lastMove.CapturedPiece);
+            ref var capturedPieceBitboard = ref GetPieceBitboard(lastMove.CapturedPieceType);
             capturedPieceBitboard |= lastMove.CapturedPiece;
+        }
+
+        // Restore En Passant target
+        EnPassantTarget = lastMove.PreviousEnPassantTarget;
+
+        // Special handling for En Passant undo
+        if (lastMoveType == MoveType.EnPassant)
+        {
+            var capturedPawnSquare = lastMove.Move.To + (lastMove.PreviousEnPassantTarget < lastMove.Move.To ? -8 : 8);
+            var capturedPawnMask = new Bitboard(1UL << capturedPawnSquare);
+
+            // Restore the captured pawn
+            ref var capturedPawnBitboard = ref GetPieceBitboard(capturedPawnMask);
+            capturedPawnBitboard |= capturedPawnMask;
         }
 
         CastlingRights = lastMove.PreviousCastlingRights;
 
-        if (lastMove.Move.Flag == (int)MoveType.Castling)
+        if (lastMoveType == MoveType.Castling)
         {
             switch (lastMove.Move.To)
             {
@@ -291,7 +397,7 @@ public class Board
             }
         }
 
-        CastlingRights = lastMove.Move.Flag == (int)MoveType.Castling ? (ushort)(CastlingRights | lastMove.Move.Flag) : CastlingRights;
+        CastlingRights = lastMoveType == MoveType.Castling ? (ushort)(CastlingRights | lastMove.Move.Type) : CastlingRights;
 
         // Recalculate combined bitboards
         DeriveCombinedBitboards();
@@ -316,4 +422,22 @@ public class Board
         throw new InvalidOperationException("No matching piece found for given bitboard.");
     }
 
+    private ref Bitboard GetPieceBitboard(PieceType pieceType)
+    {
+        switch (pieceType)
+        {
+            case PieceType.WhitePawn: return ref _whitePawns;
+            case PieceType.WhiteKnight: return ref _whiteKnights;
+            case PieceType.WhiteBishop: return ref _whiteBishops;
+            case PieceType.WhiteRook: return ref _whiteRooks;
+            case PieceType.WhiteQueen: return ref _whiteQueens;
+            case PieceType.BlackPawn: return ref _blackPawns;
+            case PieceType.BlackKnight: return ref _blackKnights;
+            case PieceType.BlackBishop: return ref _blackBishops;
+            case PieceType.BlackRook: return ref _blackRooks;
+            case PieceType.BlackQueen: return ref _blackQueens;
+            case PieceType.None:
+            default: throw new InvalidOperationException("No matching piece found for given piece type.");
+        }
+    }
 }
