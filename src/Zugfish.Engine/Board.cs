@@ -2,6 +2,7 @@ namespace Zugfish.Engine;
 
 public class Board
 {
+    #region fields
     private bool IsWhiteTurn { get; set; }
     private Bitboard _whitePawns;
     private Bitboard _whiteKnights;
@@ -38,6 +39,7 @@ public class Board
     private readonly Stack<MoveUndo> _moveHistory = new(); // TODO: initialize stack with capacity matching max depth
     public ushort CastlingRights { get; private set; }
     public int EnPassantTarget { get; private set; } = -1;
+    #endregion
 
     public Board()
     {
@@ -208,7 +210,6 @@ public class Board
         MakeMove(move);
     }
 
-    // Helper method to convert UCI square notation (e.g., "e2") to bitboard index
     private static int SquareIndexFromUci(char file, char rank)
     {
         if (file < 'a' || file > 'h' || rank < '1' || rank > '8')
