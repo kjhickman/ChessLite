@@ -221,7 +221,7 @@ public class Board
     {
         var from = move.From;
         var to = move.To;
-        var moveType = move.GetMoveType(); // TODO: switch based on move type for simplicity
+        var moveType = move.Type; // TODO: switch based on move type for simplicity
 
         var fromMask = new Bitboard(1UL << from);
         var toMask = new Bitboard(1UL << to);
@@ -372,6 +372,7 @@ public class Board
 
         // Recalculate combined bitboards
         DeriveCombinedBitboards();
+        IsWhiteTurn = !IsWhiteTurn;
     }
 
     private PieceType GetPieceTypeWithOverlap(Bitboard capturedPieceMask)
@@ -394,7 +395,7 @@ public class Board
             throw new InvalidOperationException("No move to unmake.");
 
         var lastMove = _moveHistory.Pop();
-        var lastMoveType = lastMove.Move.GetMoveType();
+        var lastMoveType = lastMove.Move.Type;
 
         // Restore the moved piece to its original position
         if ((int)lastMoveType >= 5 && (int)lastMoveType <= 8) // Promotion
@@ -494,12 +495,10 @@ public class Board
                     break;
             }
         }
-
-        // TODO: suspicious of this line
-        CastlingRights = lastMoveType == MoveType.Castling ? (ushort)(CastlingRights | lastMove.Move.Type) : CastlingRights;
-
+        
         // Recalculate combined bitboards
         DeriveCombinedBitboards();
+        IsWhiteTurn = !IsWhiteTurn;
     }
 
     private ref Bitboard GetPieceBitboard(Bitboard bitboard)

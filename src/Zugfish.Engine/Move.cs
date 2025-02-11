@@ -16,7 +16,7 @@ public readonly struct Move : IEquatable<Move>
 
     public int From => _packed & 0x3F;
     public int To => (_packed >> 6) & 0x3F;
-    public int Type => (_packed >> 12) & 0xF;
+    public MoveType Type => (MoveType)(_packed >> 12);
     public override string ToString() => $"From: {From}, To: {To}, Move Type: {Type}";
     public bool Equals(Move other) => _packed == other._packed;
     public override bool Equals(object? obj) => obj is Move other && Equals(other);
@@ -31,7 +31,4 @@ public readonly struct Move : IEquatable<Move>
     {
         return !(left == right);
     }
-    
-    // public MoveType GetMoveType() => (MoveType)(Type & 0x7);
-    public MoveType GetMoveType() => (MoveType)Type;
 }
