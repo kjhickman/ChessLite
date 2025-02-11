@@ -32,5 +32,6 @@ public readonly struct Move : IEquatable<Move>
         return !(left == right);
     }
     
-    public MoveType GetMoveType() => (MoveType)(Type & 0x7);
+    // public MoveType GetMoveType() => (MoveType)(Type & 0x7);
+    public MoveType GetMoveType() => (MoveType)Type;
 }

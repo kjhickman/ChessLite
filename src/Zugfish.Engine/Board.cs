@@ -2,6 +2,7 @@ namespace Zugfish.Engine;
 
 public class Board
 {
+    private bool IsWhiteTurn { get; set; }
     private Bitboard _whitePawns;
     private Bitboard _whiteKnights;
     private Bitboard _whiteBishops;
@@ -34,7 +35,7 @@ public class Board
     public Bitboard BlackPieces { get; private set; }
     public Bitboard AllPieces { get; private set; }
 
-    private readonly Stack<MoveUndo> _moveHistory = new();
+    private readonly Stack<MoveUndo> _moveHistory = new(); // TODO: initialize stack with capacity matching max depth
     public ushort CastlingRights { get; private set; }
     public int EnPassantTarget { get; private set; } = -1;
 
@@ -53,6 +54,7 @@ public class Board
         BlackQueens = new Bitboard(0x800000000000000);
         BlackKing = new Bitboard(0x1000000000000000);
         CastlingRights = 0b1111;
+        IsWhiteTurn = true;
         DeriveCombinedBitboards();
     }
 
@@ -118,6 +120,12 @@ public class Board
         }
 
         var activeColor = fen[enumerator.Current]; enumerator.MoveNext();
+        IsWhiteTurn = activeColor[0] switch
+        {
+            'w' => true,
+            'b' => false,
+            _ => throw new ArgumentException("Invalid active color.")
+        };
 
         // Parse castling rights
         var castlingRights = fen[enumerator.Current]; enumerator.MoveNext();
@@ -213,7 +221,7 @@ public class Board
     {
         var from = move.From;
         var to = move.To;
-        var moveType = move.GetMoveType();
+        var moveType = move.GetMoveType(); // TODO: switch based on move type for simplicity
 
         var fromMask = new Bitboard(1UL << from);
         var toMask = new Bitboard(1UL << to);
@@ -247,7 +255,53 @@ public class Board
         // Move the correct piece
         ref var pieceBitboard = ref GetPieceBitboard(fromMask);
         pieceBitboard &= ~fromMask;
-        pieceBitboard |= toMask;
+
+        switch (moveType)
+        {
+            case MoveType.PromoteToBishop:
+                if (to > 55)
+                {
+                    WhiteBishops |= toMask;
+                }
+                else
+                {
+                    BlackBishops |= toMask;
+                }
+                break;
+            case MoveType.PromoteToKnight:
+                if(to > 55)
+                {
+                    WhiteKnights |= toMask;
+                }
+                else
+                {
+                    BlackKnights |= toMask;
+                }
+                break;
+            case MoveType.PromoteToQueen:
+                if (to > 55)
+                {
+                    WhiteQueens |= toMask;
+                }
+                else
+                {
+                    BlackQueens |= toMask;
+                }
+                break;
+            case MoveType.PromoteToRook:
+                if (to > 55)
+                {
+                    WhiteRooks |= toMask;
+                }
+                else
+                {
+                    BlackRooks |= toMask;
+                }
+                break;
+            default:
+                pieceBitboard |= toMask;
+                break;
+        }
 
         // Remove captured piece
         if (capturedPieceMask != 0)
@@ -343,9 +397,53 @@ public class Board
         var lastMoveType = lastMove.Move.GetMoveType();
 
         // Restore the moved piece to its original position
-        ref var movedPieceBitboard = ref GetPieceBitboard(lastMove.ToSquare);
-        movedPieceBitboard &= ~lastMove.ToSquare;
-        movedPieceBitboard |= lastMove.FromSquare;
+        if ((int)lastMoveType >= 5 && (int)lastMoveType <= 8) // Promotion
+        {
+            if (IsWhiteTurn)
+            {
+                ref var movedPieceBitboard = ref GetPieceBitboard(PieceType.BlackPawn);
+                movedPieceBitboard |= lastMove.FromSquare;
+            }
+            else
+            {
+                ref var movedPieceBitboard = ref GetPieceBitboard(PieceType.WhitePawn);
+                movedPieceBitboard |= lastMove.FromSquare;
+            }
+
+            switch (lastMoveType) // TODO: Gross, fix this please
+            {
+                case MoveType.PromoteToKnight:
+                    ref var whiteKnightBoard = ref GetPieceBitboard(PieceType.WhiteKnight);
+                    ref var blackKnightBoard = ref GetPieceBitboard(PieceType.BlackKnight);
+                    whiteKnightBoard &= ~lastMove.ToSquare;
+                    blackKnightBoard &= ~lastMove.ToSquare;
+                    break;
+                case MoveType.PromoteToBishop:
+                    ref var whiteBishopBoard = ref GetPieceBitboard(PieceType.WhiteBishop);
+                    ref var blackBishopBoard = ref GetPieceBitboard(PieceType.BlackBishop);
+                    whiteBishopBoard &= ~lastMove.ToSquare;
+                    blackBishopBoard &= ~lastMove.ToSquare;
+                    break;
+                case MoveType.PromoteToRook:
+                    ref var whiteRookBoard = ref GetPieceBitboard(PieceType.WhiteRook);
+                    ref var blackRookBoard = ref GetPieceBitboard(PieceType.BlackRook);
+                    whiteRookBoard &= ~lastMove.ToSquare;
+                    blackRookBoard &= ~lastMove.ToSquare;
+                    break;
+                case MoveType.PromoteToQueen:
+                    ref var whiteQueenBoard = ref GetPieceBitboard(PieceType.WhiteQueen);
+                    ref var blackQueenBoard = ref GetPieceBitboard(PieceType.BlackQueen);
+                    whiteQueenBoard &= ~lastMove.ToSquare;
+                    blackQueenBoard &= ~lastMove.ToSquare;
+                    break;
+            }
+        }
+        else
+        {
+            ref var movedPieceBitboard = ref GetPieceBitboard(lastMove.ToSquare);
+            movedPieceBitboard |= lastMove.FromSquare;
+            movedPieceBitboard &= ~lastMove.ToSquare;
+        }
 
         // Restore captured piece (if any)
         if (lastMove.CapturedPiece != 0)
@@ -397,6 +495,7 @@ public class Board
             }
         }
 
+        // TODO: suspicious of this line
         CastlingRights = lastMoveType == MoveType.Castling ? (ushort)(CastlingRights | lastMove.Move.Type) : CastlingRights;
 
         // Recalculate combined bitboards
