@@ -1,6 +1,6 @@
 namespace Zugfish.Engine;
 
-public struct MoveUndo
+public struct MoveHistory
 {
     public Bitboard CapturedPiece; // Bitboard with only the captured piece
     public Bitboard FromSquare;    // Bitboard with only the moved piece at its original position
@@ -9,4 +9,5 @@ public struct MoveUndo
     public ushort PreviousCastlingRights;
     public int PreviousEnPassantTarget;
     public PieceType CapturedPieceType;
+    public int PreviousHalfmoveClock;
 }

@@ -5,7 +5,7 @@ namespace Zugfish.Engine;
 public class Board
 {
     #region Fields and Properties
-    private bool IsWhiteTurn { get; set; }
+
     private Bitboard _whitePawns;
     private Bitboard _whiteKnights;
     private Bitboard _whiteBishops;
@@ -38,10 +38,12 @@ public class Board
     public Bitboard BlackPieces { get; private set; }
     public Bitboard AllPieces { get; private set; }
 
-    private readonly Stack<MoveUndo> _moveHistory = new(512);
+    private readonly Stack<MoveHistory> _moveHistory = new(512);
 
+    public bool IsWhiteTurn { get; set; }
     public ushort CastlingRights { get; private set; }
     public int EnPassantTarget { get; private set; } = -1;
+    public int HalfmoveClock { get; private set; }
     #endregion
 
     /// <summary>
@@ -160,8 +162,7 @@ public class Board
         }
 
         var halfmoveClock = fen[enumerator.Current]; enumerator.MoveNext();
-
-        var fullmoveNumber = fen[enumerator.Current]; enumerator.MoveNext();
+        HalfmoveClock = int.Parse(halfmoveClock);
 
         // Update combined bitboards
         DeriveCombinedBitboards();
@@ -265,6 +266,13 @@ public class Board
         // Set en passant target (if a double pawn push) or clear it.
         EnPassantTarget = move.Type == MoveType.DoublePawnPush ? (from + to) / 2 : -1;
 
+        // Update the halfmove clock
+        var isPawnMove = (WhitePawns & fromMask) != 0 || (BlackPawns & fromMask) != 0;
+        if (isPawnMove || capturedPieceMask != 0)
+            HalfmoveClock = 0;
+        else
+            HalfmoveClock++;
+
         // Recalculate combined bitboards.
         DeriveCombinedBitboards();
         IsWhiteTurn = !IsWhiteTurn;
@@ -292,7 +300,7 @@ public class Board
             capturedType = GetPieceTypeWithOverlap(capturedPieceMask);
         }
 
-        _moveHistory.Push(new MoveUndo
+        _moveHistory.Push(new MoveHistory
         {
             CapturedPiece = capturedPieceMask,
             FromSquare = fromMask,
@@ -300,6 +308,7 @@ public class Board
             Move = move,
             PreviousCastlingRights = CastlingRights,
             PreviousEnPassantTarget = EnPassantTarget,
+            PreviousHalfmoveClock = HalfmoveClock,
             CapturedPieceType = capturedType
         });
     }
@@ -408,7 +417,7 @@ public class Board
         }
     }
 
-    public void UnmakeMove()
+    public void UndoMove()
     {
         if (_moveHistory.Count == 0)
             throw new InvalidOperationException("No move to unmake.");
@@ -451,25 +460,26 @@ public class Board
 
         EnPassantTarget = lastUndo.PreviousEnPassantTarget;
         CastlingRights = lastUndo.PreviousCastlingRights;
+        HalfmoveClock = lastUndo.PreviousHalfmoveClock;
 
         DeriveCombinedBitboards();
         IsWhiteTurn = !IsWhiteTurn;
     }
 
-    private void UndoQuietOrCaptureMove(MoveUndo lastUndo)
+    private void UndoQuietOrCaptureMove(MoveHistory lastHistory)
     {
-        ref var movedPieceBoard = ref GetPieceBitboard(lastUndo.ToSquare);
-        movedPieceBoard &= ~lastUndo.ToSquare;
-        movedPieceBoard |= lastUndo.FromSquare;
+        ref var movedPieceBoard = ref GetPieceBitboard(lastHistory.ToSquare);
+        movedPieceBoard &= ~lastHistory.ToSquare;
+        movedPieceBoard |= lastHistory.FromSquare;
     }
 
-    private void UndoCastlingMove(MoveUndo lastUndo)
+    private void UndoCastlingMove(MoveHistory lastHistory)
     {
-        ref var kingBoard = ref GetPieceBitboard(lastUndo.ToSquare);
-        kingBoard &= ~lastUndo.ToSquare;
-        kingBoard |= lastUndo.FromSquare;
+        ref var kingBoard = ref GetPieceBitboard(lastHistory.ToSquare);
+        kingBoard &= ~lastHistory.ToSquare;
+        kingBoard |= lastHistory.FromSquare;
 
-        switch (lastUndo.Move.To)
+        switch (lastHistory.Move.To)
         {
             case 2:
                 WhiteRooks &= ~(1UL << 3);
@@ -490,52 +500,52 @@ public class Board
         }
     }
 
-    private void UndoDoublePawnPushMove(MoveUndo lastUndo)
+    private void UndoDoublePawnPushMove(MoveHistory lastHistory)
     {
-        UndoQuietOrCaptureMove(lastUndo);
+        UndoQuietOrCaptureMove(lastHistory);
     }
 
-    private void UndoEnPassantMove(MoveUndo lastUndo)
+    private void UndoEnPassantMove(MoveHistory lastHistory)
     {
         // First, undo the moving pawn's relocation.
-        UndoQuietOrCaptureMove(lastUndo);
+        UndoQuietOrCaptureMove(lastHistory);
 
         // Calculate the square of the captured pawn.
-        var capturedPawnSquare = lastUndo.Move.To + (lastUndo.Move.To > lastUndo.Move.From ? -8 : 8);
+        var capturedPawnSquare = lastHistory.Move.To + (lastHistory.Move.To > lastHistory.Move.From ? -8 : 8);
         Bitboard capturedPawnMask = 1UL << capturedPawnSquare;
 
         // Use the captured pawn type from the undo record.
-        ref var pawnBoard = ref GetPieceBitboard(lastUndo.CapturedPieceType);
+        ref var pawnBoard = ref GetPieceBitboard(lastHistory.CapturedPieceType);
         pawnBoard |= capturedPawnMask;
     }
 
-    private void UndoPromotionMove(MoveUndo lastUndo)
+    private void UndoPromotionMove(MoveHistory lastHistory)
     {
-        var isWhite = lastUndo.Move.To > 55;
+        var isWhite = lastHistory.Move.To > 55;
         if (isWhite)
         {
             ref var pawnBoard = ref GetPieceBitboard(PieceType.WhitePawn);
-            pawnBoard |= lastUndo.FromSquare;
+            pawnBoard |= lastHistory.FromSquare;
         }
         else
         {
             ref var pawnBoard = ref GetPieceBitboard(PieceType.BlackPawn);
-            pawnBoard |= lastUndo.FromSquare;
+            pawnBoard |= lastHistory.FromSquare;
         }
 
-        switch (lastUndo.Move.Type)
+        switch (lastHistory.Move.Type)
         {
             case MoveType.PromoteToKnight:
-                if (isWhite) WhiteKnights &= ~lastUndo.ToSquare; else BlackKnights &= ~lastUndo.ToSquare;
+                if (isWhite) WhiteKnights &= ~lastHistory.ToSquare; else BlackKnights &= ~lastHistory.ToSquare;
                 break;
             case MoveType.PromoteToBishop:
-                if (isWhite) WhiteBishops &= ~lastUndo.ToSquare; else BlackBishops &= ~lastUndo.ToSquare;
+                if (isWhite) WhiteBishops &= ~lastHistory.ToSquare; else BlackBishops &= ~lastHistory.ToSquare;
                 break;
             case MoveType.PromoteToRook:
-                if (isWhite) WhiteRooks &= ~lastUndo.ToSquare; else BlackRooks &= ~lastUndo.ToSquare;
+                if (isWhite) WhiteRooks &= ~lastHistory.ToSquare; else BlackRooks &= ~lastHistory.ToSquare;
                 break;
             case MoveType.PromoteToQueen:
-                if (isWhite) WhiteQueens &= ~lastUndo.ToSquare; else BlackQueens &= ~lastUndo.ToSquare;
+                if (isWhite) WhiteQueens &= ~lastHistory.ToSquare; else BlackQueens &= ~lastHistory.ToSquare;
                 break;
         }
     }
