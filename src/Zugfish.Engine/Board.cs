@@ -1,3 +1,5 @@
+using static Zugfish.Engine.Translation;
+
 namespace Zugfish.Engine;
 
 public class Board
@@ -157,21 +159,14 @@ public class Board
         // Update combined bitboards
         DeriveCombinedBitboards();
     }
-    
-    private void DeriveCombinedBitboards()
-    {
-        WhitePieces = WhitePawns | WhiteKnights | WhiteBishops | WhiteRooks | WhiteQueens | WhiteKing;
-        BlackPieces = BlackPawns | BlackKnights | BlackBishops | BlackRooks | BlackQueens | BlackKing;
-        AllPieces = WhitePieces | BlackPieces;
-    }
 
     public void MakeMove(ReadOnlySpan<char> uciMove)
     {
         if (uciMove.Length is < 4 or > 5)
             throw new ArgumentException("Invalid UCI move format.", nameof(uciMove));
 
-        var from = SquareIndexFromUci(uciMove[0], uciMove[1]);
-        var to = SquareIndexFromUci(uciMove[2], uciMove[3]);
+        var from = SquareFromUci(uciMove[0], uciMove[1]);
+        var to = SquareFromUci(uciMove[2], uciMove[3]);
 
         if ((from | to) >> 6 != 0) // Ensure indices are valid
             throw new ArgumentOutOfRangeException(nameof(uciMove), "Square index out of range.");
@@ -210,14 +205,6 @@ public class Board
         MakeMove(move);
     }
 
-    private static int SquareIndexFromUci(char file, char rank)
-    {
-        if (file < 'a' || file > 'h' || rank < '1' || rank > '8')
-            throw new ArgumentException("Invalid UCI square.", nameof(file));
-
-        return (rank - '1') * 8 + (file - 'a');
-    }
-
     public void MakeMove(Move move)
     {
         var from = move.From;
@@ -231,7 +218,7 @@ public class Board
         var capturedPieceMask = AllPieces & toMask;
         if (moveType == MoveType.EnPassant)
         {
-            var capturedPawnSquare = to + (EnPassantTarget < to ? -8 : 8);
+            var capturedPawnSquare = to + (to > from ? -8 : 8);
             capturedPieceMask = new Bitboard(1UL << capturedPawnSquare);
         }
 
@@ -350,14 +337,23 @@ public class Board
         switch (from)
         {
             // Update castling rights (if king or rook moves)
-            case 4 or 60:
-                CastlingRights &= 0b1100; // King moved
+            case 4: // White king moved
+                CastlingRights &= 0b1100;
                 break;
-            case 0 or 56:
-                CastlingRights &= 0b1110; // Queen-side rook moved
+            case 60: // Black king moved
+                CastlingRights &= 0b0011;
                 break;
-            case 7 or 63:
-                CastlingRights &= 0b1101; // King-side rook moved
+            case 0: // a1 (white queenside rook)
+                CastlingRights &= 0b1101;
+                break;
+            case 7: // h1 (white kingside rook)
+                CastlingRights &= 0b1110;
+                break;
+            case 56: // a8 (black queenside rook)
+                CastlingRights &= 0b0111;
+                break;
+            case 63: // h8 (black kingside rook)
+                CastlingRights &= 0b1011;
                 break;
         }
 
@@ -374,20 +370,6 @@ public class Board
         // Recalculate combined bitboards
         DeriveCombinedBitboards();
         IsWhiteTurn = !IsWhiteTurn;
-    }
-
-    private PieceType GetPieceTypeWithOverlap(Bitboard capturedPieceMask)
-    {
-        if ((WhitePawns &  capturedPieceMask) != 0) return PieceType.WhitePawn;
-        if ((WhiteKnights & capturedPieceMask) != 0) return PieceType.WhiteKnight;
-        if ((WhiteBishops & capturedPieceMask) != 0) return PieceType.WhiteBishop;
-        if ((WhiteRooks  & capturedPieceMask) != 0) return PieceType.WhiteRook;
-        if ((WhiteQueens & capturedPieceMask) != 0) return PieceType.WhiteQueen;
-        if ((BlackPawns &  capturedPieceMask) != 0) return PieceType.BlackPawn;
-        if ((BlackKnights & capturedPieceMask) != 0) return PieceType.BlackKnight;
-        if ((BlackBishops & capturedPieceMask) != 0) return PieceType.BlackBishop;
-        if ((BlackRooks  & capturedPieceMask) != 0) return PieceType.BlackRook;
-        return PieceType.BlackQueen;
     }
 
     public void UnmakeMove()
@@ -460,7 +442,7 @@ public class Board
         // Special handling for En Passant undo
         if (lastMoveType == MoveType.EnPassant)
         {
-            var capturedPawnSquare = lastMove.Move.To + (lastMove.PreviousEnPassantTarget < lastMove.Move.To ? -8 : 8);
+            var capturedPawnSquare = lastMove.Move.To + (lastMove.Move.To > lastMove.Move.From ? -8 : 8);
             var capturedPawnMask = new Bitboard(1UL << capturedPawnSquare);
 
             // Restore the captured pawn
@@ -502,6 +484,20 @@ public class Board
         IsWhiteTurn = !IsWhiteTurn;
     }
 
+    private PieceType GetPieceTypeWithOverlap(Bitboard capturedPieceMask)
+    {
+        if ((WhitePawns &  capturedPieceMask) != 0) return PieceType.WhitePawn;
+        if ((WhiteKnights & capturedPieceMask) != 0) return PieceType.WhiteKnight;
+        if ((WhiteBishops & capturedPieceMask) != 0) return PieceType.WhiteBishop;
+        if ((WhiteRooks  & capturedPieceMask) != 0) return PieceType.WhiteRook;
+        if ((WhiteQueens & capturedPieceMask) != 0) return PieceType.WhiteQueen;
+        if ((BlackPawns &  capturedPieceMask) != 0) return PieceType.BlackPawn;
+        if ((BlackKnights & capturedPieceMask) != 0) return PieceType.BlackKnight;
+        if ((BlackBishops & capturedPieceMask) != 0) return PieceType.BlackBishop;
+        if ((BlackRooks  & capturedPieceMask) != 0) return PieceType.BlackRook;
+        return PieceType.BlackQueen;
+    }
+
     private ref Bitboard GetPieceBitboard(Bitboard bitboard)
     {
         if ((WhitePawns & bitboard) != 0) return ref _whitePawns;
@@ -538,5 +534,12 @@ public class Board
             case PieceType.None:
             default: throw new InvalidOperationException("No matching piece found for given piece type.");
         }
+    }
+
+    private void DeriveCombinedBitboards()
+    {
+        WhitePieces = WhitePawns | WhiteKnights | WhiteBishops | WhiteRooks | WhiteQueens | WhiteKing;
+        BlackPieces = BlackPawns | BlackKnights | BlackBishops | BlackRooks | BlackQueens | BlackKing;
+        AllPieces = WhitePieces | BlackPieces;
     }
 }
