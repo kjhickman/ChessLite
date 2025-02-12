@@ -4,7 +4,7 @@ namespace Zugfish.Engine;
 
 public class Board
 {
-    #region fields
+    #region Fields and Properties
     private bool IsWhiteTurn { get; set; }
     private Bitboard _whitePawns;
     private Bitboard _whiteKnights;
@@ -38,25 +38,32 @@ public class Board
     public Bitboard BlackPieces { get; private set; }
     public Bitboard AllPieces { get; private set; }
 
-    private readonly Stack<MoveUndo> _moveHistory = new(); // TODO: initialize stack with capacity matching max depth
+    private readonly Stack<MoveUndo> _moveHistory = new(512);
+
     public ushort CastlingRights { get; private set; }
     public int EnPassantTarget { get; private set; } = -1;
     #endregion
 
+    /// <summary>
+    /// Default constructor: sets up the standard starting position.
+    /// </summary>
     public Board()
     {
-        WhitePawns = new Bitboard(0xFF00);
-        WhiteKnights = new Bitboard(0x42);
-        WhiteBishops = new Bitboard(0x24);
-        WhiteRooks = new Bitboard(0x81);
-        WhiteQueens = new Bitboard(0x8);
-        WhiteKing = new Bitboard(0x10);
-        BlackPawns = new Bitboard(0xFF000000000000);
-        BlackKnights = new Bitboard(0x4200000000000000);
-        BlackBishops = new Bitboard(0x2400000000000000);
-        BlackRooks = new Bitboard(0x8100000000000000);
-        BlackQueens = new Bitboard(0x800000000000000);
-        BlackKing = new Bitboard(0x1000000000000000);
+        // Hard-coded bit masks for the initial position.
+        WhitePawns   = new Bitboard(0xFF00UL);
+        WhiteKnights = new Bitboard(0x42UL);
+        WhiteBishops = new Bitboard(0x24UL);
+        WhiteRooks   = new Bitboard(0x81UL);
+        WhiteQueens  = new Bitboard(0x8UL);
+        WhiteKing    = new Bitboard(0x10UL);
+
+        BlackPawns   = new Bitboard(0xFF000000000000UL);
+        BlackKnights = new Bitboard(0x4200000000000000UL);
+        BlackBishops = new Bitboard(0x2400000000000000UL);
+        BlackRooks   = new Bitboard(0x8100000000000000UL);
+        BlackQueens  = new Bitboard(0x800000000000000UL);
+        BlackKing    = new Bitboard(0x1000000000000000UL);
+
         CastlingRights = 0b1111;
         IsWhiteTurn = true;
         DeriveCombinedBitboards();
@@ -225,13 +232,11 @@ public class Board
         {
             case MoveType.Quiet:
             case MoveType.Capture:
+            case MoveType.DoublePawnPush:
                 HandleQuietOrCaptureMove(ref movingPieceBoard, toMask);
                 break;
             case MoveType.Castling:
                 HandleCastlingMove(move, ref movingPieceBoard, toMask);
-                break;
-            case MoveType.DoublePawnPush:
-                HandleDoublePawnPushMove(ref movingPieceBoard, toMask);
                 break;
             case MoveType.EnPassant:
                 HandleEnPassantMove(move, from, to, toMask);
@@ -257,9 +262,10 @@ public class Board
 
         UpdateCastlingRightsAfterMove(from);
 
+        // Set en passant target (if a double pawn push) or clear it.
         EnPassantTarget = move.Type == MoveType.DoublePawnPush ? (from + to) / 2 : -1;
 
-        // Recalculate combined bitboards
+        // Recalculate combined bitboards.
         DeriveCombinedBitboards();
         IsWhiteTurn = !IsWhiteTurn;
     }
@@ -328,11 +334,6 @@ public class Board
                 BlackRooks |= 1UL << 61;  // Place rook on f8
                 break;
         }
-    }
-
-    private void HandleDoublePawnPushMove(ref Bitboard pieceBoard, Bitboard toMask)
-    {
-        pieceBoard |= toMask;
     }
 
     private void HandleEnPassantMove(Move move, int from, int to, Bitboard toMask)
