@@ -180,8 +180,8 @@ public class Board
         if (uciMove.Length is < 4 or > 5)
             throw new ArgumentException("Invalid UCI move format.", nameof(uciMove));
 
-        var from = SquareFromUci(uciMove[0], uciMove[1]);
-        var to = SquareFromUci(uciMove[2], uciMove[3]);
+        var from = SquareFromUci(uciMove[..2]);
+        var to = SquareFromUci(uciMove[2..4]);
 
         if ((from | to) >> 6 != 0) // Ensure indices are valid
             throw new ArgumentOutOfRangeException(nameof(uciMove), "Square index out of range.");
