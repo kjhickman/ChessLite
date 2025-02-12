@@ -1,3 +1,4 @@
+using System.Numerics;
 using static Zugfish.Engine.Translation;
 
 namespace Zugfish.Engine;
@@ -38,12 +39,16 @@ public class Board
     public Bitboard BlackPieces { get; private set; }
     public Bitboard AllPieces { get; private set; }
 
-    private readonly Stack<MoveHistory> _moveHistory = new(512);
-
     public bool IsWhiteTurn { get; set; }
     public ushort CastlingRights { get; private set; }
     public int EnPassantTarget { get; private set; } = -1;
     public int HalfmoveClock { get; private set; }
+    public ulong ZobristHash { get; private set; }
+
+    // TODO: Move to a wrapping BoardState class?
+    private readonly Stack<MoveHistory> _moveHistory = new(512);
+    private readonly Dictionary<ulong, int> _repetitionTable = new();
+
     #endregion
 
     /// <summary>
@@ -69,6 +74,7 @@ public class Board
         CastlingRights = 0b1111;
         IsWhiteTurn = true;
         DeriveCombinedBitboards();
+        ZobristHash = ComputeZobristHash();
     }
 
     public Board(ReadOnlySpan<char> fen)
@@ -166,6 +172,7 @@ public class Board
 
         // Update combined bitboards
         DeriveCombinedBitboards();
+        ZobristHash = ComputeZobristHash();
     }
 
     public void MakeMove(ReadOnlySpan<char> uciMove)
@@ -273,9 +280,17 @@ public class Board
         else
             HalfmoveClock++;
 
-        // Recalculate combined bitboards.
         DeriveCombinedBitboards();
         IsWhiteTurn = !IsWhiteTurn;
+        ZobristHash = ComputeZobristHash();
+        if (_repetitionTable.TryGetValue(ZobristHash, out var value))
+        {
+            _repetitionTable[ZobristHash] = ++value;
+        }
+        else
+        {
+            _repetitionTable.Add(ZobristHash, 1);
+        }
     }
 
     private Bitboard DetermineCapturedPiece(MoveType moveType, int from, int to, Bitboard toMask)
@@ -306,10 +321,11 @@ public class Board
             FromSquare = fromMask,
             ToSquare = toMask,
             Move = move,
+            CapturedPieceType = capturedType,
             PreviousCastlingRights = CastlingRights,
             PreviousEnPassantTarget = EnPassantTarget,
             PreviousHalfmoveClock = HalfmoveClock,
-            CapturedPieceType = capturedType
+            PreviousZobristHash = ZobristHash
         });
     }
 
@@ -464,6 +480,8 @@ public class Board
 
         DeriveCombinedBitboards();
         IsWhiteTurn = !IsWhiteTurn;
+        _repetitionTable[ZobristHash]--;
+        ZobristHash = lastUndo.PreviousZobristHash;
     }
 
     private void UndoQuietOrCaptureMove(MoveHistory lastHistory)
@@ -607,5 +625,59 @@ public class Board
         WhitePieces = WhitePawns | WhiteKnights | WhiteBishops | WhiteRooks | WhiteQueens | WhiteKing;
         BlackPieces = BlackPawns | BlackKnights | BlackBishops | BlackRooks | BlackQueens | BlackKing;
         AllPieces = WhitePieces | BlackPieces;
+    }
+
+    /// <summary>
+    /// Computes the Zobrist hash for the current board state.
+    /// </summary>
+    private ulong ComputeZobristHash()
+    {
+        ulong hash = 0;
+
+        // For each piece type, iterate over the bits in its bitboard.
+        // The piece key indices are defined as:
+        // 0: White Pawn, 1: White Knight, 2: White Bishop,
+        // 3: White Rook, 4: White Queen, 5: White King,
+        // 6: Black Pawn, 7: Black Knight, 8: Black Bishop,
+        // 9: Black Rook, 10: Black Queen, 11: Black King.
+        AddPieceHash(ref hash, _whitePawns,   0);
+        AddPieceHash(ref hash, _whiteKnights,  1);
+        AddPieceHash(ref hash, _whiteBishops,  2);
+        AddPieceHash(ref hash, _whiteRooks,    3);
+        AddPieceHash(ref hash, _whiteQueens,   4);
+        AddPieceHash(ref hash, _whiteKing,     5);
+
+        AddPieceHash(ref hash, _blackPawns,    6);
+        AddPieceHash(ref hash, _blackKnights,  7);
+        AddPieceHash(ref hash, _blackBishops,  8);
+        AddPieceHash(ref hash, _blackRooks,    9);
+        AddPieceHash(ref hash, _blackQueens,   10);
+        AddPieceHash(ref hash, _blackKing,     11);
+
+        // Incorporate castling rights.
+        hash ^= Zobrist.CastlingKeys[CastlingRights];
+
+        // Incorporate en passant square if available.
+        if (EnPassantTarget != -1)
+            hash ^= Zobrist.EnPassantKeys[EnPassantTarget];
+
+        // Incorporate side to move: XOR the side key if it's Black's turn.
+        if (!IsWhiteTurn)
+            hash ^= Zobrist.SideKey;
+
+        return hash;
+    }
+
+    /// <summary>
+    /// Helper method to XOR the piece key for every set bit in the bitboard.
+    /// </summary>
+    private void AddPieceHash(ref ulong hash, Bitboard board, int pieceIndex)
+    {
+        while (board != 0)
+        {
+            var square = BitOperations.TrailingZeroCount(board);
+            hash ^= Zobrist.PieceKeys[pieceIndex, square];
+            board &= board - 1;
+        }
     }
 }
