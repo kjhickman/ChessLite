@@ -412,111 +412,131 @@ public class Board
         if (_moveHistory.Count == 0)
             throw new InvalidOperationException("No move to unmake.");
 
-        var lastMove = _moveHistory.Pop();
-        var lastMoveType = lastMove.Move.Type;
+        var lastUndo = _moveHistory.Pop();
+        var move = lastUndo.Move;
 
-        // Restore the moved piece to its original position
-        if ((int)lastMoveType >= 5 && (int)lastMoveType <= 8) // Promotion
+        // Dispatch undo handling based on move type
+        switch (move.Type)
         {
-            if (IsWhiteTurn)
-            {
-                ref var movedPieceBitboard = ref GetPieceBitboard(PieceType.BlackPawn);
-                movedPieceBitboard |= lastMove.FromSquare;
-            }
-            else
-            {
-                ref var movedPieceBitboard = ref GetPieceBitboard(PieceType.WhitePawn);
-                movedPieceBitboard |= lastMove.FromSquare;
-            }
+            case MoveType.Quiet:
+            case MoveType.Capture:
+                UndoQuietOrCaptureMove(lastUndo);
+                break;
+            case MoveType.Castling:
+                UndoCastlingMove(lastUndo);
+                break;
+            case MoveType.DoublePawnPush:
+                UndoDoublePawnPushMove(lastUndo);
+                break;
+            case MoveType.EnPassant:
+                UndoEnPassantMove(lastUndo);
+                break;
+            case MoveType.PromoteToKnight:
+            case MoveType.PromoteToBishop:
+            case MoveType.PromoteToRook:
+            case MoveType.PromoteToQueen:
+                UndoPromotionMove(lastUndo);
+                break;
+            default:
+                throw new InvalidOperationException("Unhandled move type during undo");
+        }
 
-            switch (lastMoveType) // TODO: Gross, fix this please
-            {
-                case MoveType.PromoteToKnight:
-                    ref var whiteKnightBoard = ref GetPieceBitboard(PieceType.WhiteKnight);
-                    ref var blackKnightBoard = ref GetPieceBitboard(PieceType.BlackKnight);
-                    whiteKnightBoard &= ~lastMove.ToSquare;
-                    blackKnightBoard &= ~lastMove.ToSquare;
-                    break;
-                case MoveType.PromoteToBishop:
-                    ref var whiteBishopBoard = ref GetPieceBitboard(PieceType.WhiteBishop);
-                    ref var blackBishopBoard = ref GetPieceBitboard(PieceType.BlackBishop);
-                    whiteBishopBoard &= ~lastMove.ToSquare;
-                    blackBishopBoard &= ~lastMove.ToSquare;
-                    break;
-                case MoveType.PromoteToRook:
-                    ref var whiteRookBoard = ref GetPieceBitboard(PieceType.WhiteRook);
-                    ref var blackRookBoard = ref GetPieceBitboard(PieceType.BlackRook);
-                    whiteRookBoard &= ~lastMove.ToSquare;
-                    blackRookBoard &= ~lastMove.ToSquare;
-                    break;
-                case MoveType.PromoteToQueen:
-                    ref var whiteQueenBoard = ref GetPieceBitboard(PieceType.WhiteQueen);
-                    ref var blackQueenBoard = ref GetPieceBitboard(PieceType.BlackQueen);
-                    whiteQueenBoard &= ~lastMove.ToSquare;
-                    blackQueenBoard &= ~lastMove.ToSquare;
-                    break;
-            }
+        // Restore captured piece if any
+        if (lastUndo.CapturedPiece != 0)
+        {
+            ref var capturedBoard = ref GetPieceBitboard(lastUndo.CapturedPieceType);
+            capturedBoard |= lastUndo.CapturedPiece;
+        }
+
+        EnPassantTarget = lastUndo.PreviousEnPassantTarget;
+        CastlingRights = lastUndo.PreviousCastlingRights;
+
+        DeriveCombinedBitboards();
+        IsWhiteTurn = !IsWhiteTurn;
+    }
+
+    private void UndoQuietOrCaptureMove(MoveUndo lastUndo)
+    {
+        ref var movedPieceBoard = ref GetPieceBitboard(lastUndo.ToSquare);
+        movedPieceBoard &= ~lastUndo.ToSquare;
+        movedPieceBoard |= lastUndo.FromSquare;
+    }
+
+    private void UndoCastlingMove(MoveUndo lastUndo)
+    {
+        ref var kingBoard = ref GetPieceBitboard(lastUndo.ToSquare);
+        kingBoard &= ~lastUndo.ToSquare;
+        kingBoard |= lastUndo.FromSquare;
+
+        switch (lastUndo.Move.To)
+        {
+            case 2:
+                WhiteRooks &= ~(1UL << 3);
+                WhiteRooks |= 1UL << 0;
+                break;
+            case 6:
+                WhiteRooks &= ~(1UL << 5);
+                WhiteRooks |= 1UL << 7;
+                break;
+            case 58:
+                BlackRooks &= ~(1UL << 59);
+                BlackRooks |= 1UL << 56;
+                break;
+            case 62:
+                BlackRooks &= ~(1UL << 61);
+                BlackRooks |= 1UL << 63;
+                break;
+        }
+    }
+
+    private void UndoDoublePawnPushMove(MoveUndo lastUndo)
+    {
+        UndoQuietOrCaptureMove(lastUndo);
+    }
+
+    private void UndoEnPassantMove(MoveUndo lastUndo)
+    {
+        // First, undo the moving pawn's relocation.
+        UndoQuietOrCaptureMove(lastUndo);
+
+        // Calculate the square of the captured pawn.
+        var capturedPawnSquare = lastUndo.Move.To + (lastUndo.Move.To > lastUndo.Move.From ? -8 : 8);
+        Bitboard capturedPawnMask = 1UL << capturedPawnSquare;
+
+        // Use the captured pawn type from the undo record.
+        ref var pawnBoard = ref GetPieceBitboard(lastUndo.CapturedPieceType);
+        pawnBoard |= capturedPawnMask;
+    }
+
+    private void UndoPromotionMove(MoveUndo lastUndo)
+    {
+        var isWhite = lastUndo.Move.To > 55;
+        if (isWhite)
+        {
+            ref var pawnBoard = ref GetPieceBitboard(PieceType.WhitePawn);
+            pawnBoard |= lastUndo.FromSquare;
         }
         else
         {
-            ref var movedPieceBitboard = ref GetPieceBitboard(lastMove.ToSquare);
-            movedPieceBitboard |= lastMove.FromSquare;
-            movedPieceBitboard &= ~lastMove.ToSquare;
+            ref var pawnBoard = ref GetPieceBitboard(PieceType.BlackPawn);
+            pawnBoard |= lastUndo.FromSquare;
         }
 
-        // Restore captured piece (if any)
-        if (lastMove.CapturedPiece != 0)
+        switch (lastUndo.Move.Type)
         {
-            ref var capturedPieceBitboard = ref GetPieceBitboard(lastMove.CapturedPieceType);
-            capturedPieceBitboard |= lastMove.CapturedPiece;
+            case MoveType.PromoteToKnight:
+                if (isWhite) WhiteKnights &= ~lastUndo.ToSquare; else BlackKnights &= ~lastUndo.ToSquare;
+                break;
+            case MoveType.PromoteToBishop:
+                if (isWhite) WhiteBishops &= ~lastUndo.ToSquare; else BlackBishops &= ~lastUndo.ToSquare;
+                break;
+            case MoveType.PromoteToRook:
+                if (isWhite) WhiteRooks &= ~lastUndo.ToSquare; else BlackRooks &= ~lastUndo.ToSquare;
+                break;
+            case MoveType.PromoteToQueen:
+                if (isWhite) WhiteQueens &= ~lastUndo.ToSquare; else BlackQueens &= ~lastUndo.ToSquare;
+                break;
         }
-
-        // Restore En Passant target
-        EnPassantTarget = lastMove.PreviousEnPassantTarget;
-
-        // Special handling for En Passant undo
-        if (lastMoveType == MoveType.EnPassant)
-        {
-            var capturedPawnSquare = lastMove.Move.To + (lastMove.Move.To > lastMove.Move.From ? -8 : 8);
-            var capturedPawnMask = new Bitboard(1UL << capturedPawnSquare);
-
-            // Restore the captured pawn
-            ref var capturedPawnBitboard = ref GetPieceBitboard(capturedPawnMask);
-            capturedPawnBitboard |= capturedPawnMask;
-        }
-
-        CastlingRights = lastMove.PreviousCastlingRights;
-
-        if (lastMoveType == MoveType.Castling)
-        {
-            switch (lastMove.Move.To)
-            {
-                // White Queen-side
-                case 2:
-                    WhiteRooks &= ~(1UL << 3); // Remove rook from d1
-                    WhiteRooks |= (1UL << 0);  // Restore rook to a1
-                    break;
-                // White King-side
-                case 6:
-                    WhiteRooks &= ~(1UL << 5); // Remove rook from f1
-                    WhiteRooks |= (1UL << 7);  // Restore rook to h1
-                    break;
-                // Black Queen-side
-                case 58:
-                    BlackRooks &= ~(1UL << 59); // Remove rook from d8
-                    BlackRooks |= (1UL << 56);  // Restore rook to a8
-                    break;
-                // Black King-side
-                case 62:
-                    BlackRooks &= ~(1UL << 61); // Remove rook from f8
-                    BlackRooks |= (1UL << 63);  // Restore rook to h8
-                    break;
-            }
-        }
-        
-        // Recalculate combined bitboards
-        DeriveCombinedBitboards();
-        IsWhiteTurn = !IsWhiteTurn;
     }
 
     private PieceType GetPieceTypeWithOverlap(Bitboard capturedPieceMask)
