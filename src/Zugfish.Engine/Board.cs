@@ -209,26 +209,83 @@ public class Board
     {
         var from = move.From;
         var to = move.To;
-        var moveType = move.Type; // TODO: switch based on move type for simplicity
+        Bitboard fromMask = 1UL << from;
+        Bitboard toMask = 1UL << to;
 
-        var fromMask = new Bitboard(1UL << from);
-        var toMask = new Bitboard(1UL << to);
-
-        // Identify which piece moved
-        var capturedPieceMask = AllPieces & toMask;
-        if (moveType == MoveType.EnPassant)
-        {
-            var capturedPawnSquare = to + (to > from ? -8 : 8);
-            capturedPieceMask = new Bitboard(1UL << capturedPawnSquare);
-        }
-
-        var capturedPieceType = PieceType.None;
-        if (capturedPieceMask != 0)
-        {
-            capturedPieceType = GetPieceTypeWithOverlap(capturedPieceMask);
-        }
+        // Determine captured piece
+        var capturedPieceMask = DetermineCapturedPiece(move.Type, from, to, toMask);
 
         // Save undo information
+        SaveMoveUndo(move, fromMask, toMask, capturedPieceMask);
+
+        // Get the moving piece's bitboard
+        ref var movingPieceBoard = ref GetPieceBitboard(fromMask);
+
+        switch (move.Type)
+        {
+            case MoveType.Quiet:
+            case MoveType.Capture:
+                HandleQuietOrCaptureMove(ref movingPieceBoard, toMask);
+                break;
+            case MoveType.Castling:
+                HandleCastlingMove(move, ref movingPieceBoard, toMask);
+                break;
+            case MoveType.DoublePawnPush:
+                HandleDoublePawnPushMove(ref movingPieceBoard, toMask);
+                break;
+            case MoveType.EnPassant:
+                HandleEnPassantMove(move, from, to, toMask);
+                break;
+            case MoveType.PromoteToKnight:
+            case MoveType.PromoteToBishop:
+            case MoveType.PromoteToRook:
+            case MoveType.PromoteToQueen:
+                HandlePromotionMove(move, to, toMask);
+                break;
+            default:
+                throw new InvalidOperationException("Unhandled move type");
+        }
+
+        // Remove the moving piece from its original square
+        movingPieceBoard &= ~fromMask;
+
+        // Remove any captured piece and update castling rights if necessary
+        if (capturedPieceMask != 0)
+        {
+            HandleCapturedPiece(capturedPieceMask);
+        }
+
+        UpdateCastlingRightsAfterMove(from);
+
+        EnPassantTarget = move.Type == MoveType.DoublePawnPush ? (from + to) / 2 : -1;
+
+        // Recalculate combined bitboards
+        DeriveCombinedBitboards();
+        IsWhiteTurn = !IsWhiteTurn;
+    }
+
+    private Bitboard DetermineCapturedPiece(MoveType moveType, int from, int to, Bitboard toMask)
+    {
+        var captured = AllPieces & toMask;
+        if (moveType != MoveType.EnPassant)
+        {
+            return captured;
+        }
+
+        // En Passant capture
+        var capturedPawnSquare = to + (to > from ? -8 : 8);
+        captured = 1UL << capturedPawnSquare;
+        return captured;
+    }
+
+    private void SaveMoveUndo(Move move, Bitboard fromMask, Bitboard toMask, Bitboard capturedPieceMask)
+    {
+        var capturedType = PieceType.None;
+        if (capturedPieceMask != 0)
+        {
+            capturedType = GetPieceTypeWithOverlap(capturedPieceMask);
+        }
+
         _moveHistory.Push(new MoveUndo
         {
             CapturedPiece = capturedPieceMask,
@@ -237,139 +294,117 @@ public class Board
             Move = move,
             PreviousCastlingRights = CastlingRights,
             PreviousEnPassantTarget = EnPassantTarget,
-            CapturedPieceType = capturedPieceType
+            CapturedPieceType = capturedType
         });
+    }
 
-        // Move the correct piece
-        ref var pieceBitboard = ref GetPieceBitboard(fromMask);
-        pieceBitboard &= ~fromMask;
+    private void HandleQuietOrCaptureMove(ref Bitboard pieceBoard, Bitboard toMask)
+    {
+        pieceBoard |= toMask;
+    }
 
-        switch (moveType)
+    private void HandleCastlingMove(Move move, ref Bitboard pieceBoard, Bitboard toMask)
+    {
+        // Move the king
+        pieceBoard |= toMask;
+
+        // Move the rook based on destination square
+        switch (move.To)
         {
-            case MoveType.PromoteToBishop:
-                if (to > 55)
-                {
-                    WhiteBishops |= toMask;
-                }
-                else
-                {
-                    BlackBishops |= toMask;
-                }
+            case 2: // White Queen-side castling
+                WhiteRooks &= ~(1UL << 0); // Remove rook from a1
+                WhiteRooks |= 1UL << 3;  // Place rook on d1
                 break;
+            case 6: // White King-side castling
+                WhiteRooks &= ~(1UL << 7); // Remove rook from h1
+                WhiteRooks |= 1UL << 5;  // Place rook on f1
+                break;
+            case 58: // Black Queen-side castling
+                BlackRooks &= ~(1UL << 56); // Remove rook from a8
+                BlackRooks |= 1UL << 59;  // Place rook on d8
+                break;
+            case 62: // Black King-side castling
+                BlackRooks &= ~(1UL << 63); // Remove rook from h8
+                BlackRooks |= 1UL << 61;  // Place rook on f8
+                break;
+        }
+    }
+
+    private void HandleDoublePawnPushMove(ref Bitboard pieceBoard, Bitboard toMask)
+    {
+        pieceBoard |= toMask;
+    }
+
+    private void HandleEnPassantMove(Move move, int from, int to, Bitboard toMask)
+    {
+        ref var pawnBoard = ref GetPieceBitboard(1UL << from);
+        pawnBoard |= toMask;
+        // Removal of the captured pawn is handled by the captured piece logic.
+    }
+
+    private void HandlePromotionMove(Move move, int to, Bitboard toMask)
+    {
+        bool isWhite = to > 55; // Adjust based on your board representation
+        switch (move.Type)
+        {
             case MoveType.PromoteToKnight:
-                if(to > 55)
-                {
-                    WhiteKnights |= toMask;
-                }
-                else
-                {
-                    BlackKnights |= toMask;
-                }
+                if (isWhite) WhiteKnights |= toMask; else BlackKnights |= toMask;
                 break;
-            case MoveType.PromoteToQueen:
-                if (to > 55)
-                {
-                    WhiteQueens |= toMask;
-                }
-                else
-                {
-                    BlackQueens |= toMask;
-                }
+            case MoveType.PromoteToBishop:
+                if (isWhite) WhiteBishops |= toMask; else BlackBishops |= toMask;
                 break;
             case MoveType.PromoteToRook:
-                if (to > 55)
-                {
-                    WhiteRooks |= toMask;
-                }
-                else
-                {
-                    BlackRooks |= toMask;
-                }
+                if (isWhite) WhiteRooks |= toMask; else BlackRooks |= toMask;
+                break;
+            case MoveType.PromoteToQueen:
+                if (isWhite) WhiteQueens |= toMask; else BlackQueens |= toMask;
                 break;
             default:
-                pieceBitboard |= toMask;
-                break;
+                throw new InvalidOperationException("Invalid promotion move type");
         }
+    }
 
-        // Remove captured piece
-        if (capturedPieceMask != 0)
+    private void HandleCapturedPiece(Bitboard capturedPieceMask)
+    {
+        ref var capturedBoard = ref GetPieceBitboard(capturedPieceMask);
+        capturedBoard &= ~capturedPieceMask;
+
+        // Update castling rights if a rook was captured
+        if ((capturedPieceMask & WhiteRooks) != 0)
         {
-            ref var capturedBitboard = ref GetPieceBitboard(capturedPieceMask);
-            capturedBitboard &= ~capturedPieceMask;
-
-            // Detect if a rook was captured and update castling rights
-            if ((capturedPieceMask & WhiteRooks) != 0) // White rook captured
-            {
-                if ((capturedPieceMask & (1UL << 0)) != 0) CastlingRights &= 0b1101; // White queenside rook captured
-                if ((capturedPieceMask & (1UL << 7)) != 0) CastlingRights &= 0b1110; // White kingside rook captured
-            }
-            else if ((capturedPieceMask & BlackRooks) != 0) // Black rook captured
-            {
-                if ((capturedPieceMask & (1UL << 56)) != 0) CastlingRights &= 0b0111; // Black queenside rook captured
-                if ((capturedPieceMask & (1UL << 63)) != 0) CastlingRights &= 0b1011; // Black kingside rook captured
-            }
+            if ((capturedPieceMask & (1UL << 0)) != 0) CastlingRights &= 0b1101;
+            if ((capturedPieceMask & (1UL << 7)) != 0) CastlingRights &= 0b1110;
         }
-
-        // Need to move the rook for castling
-        if (moveType == MoveType.Castling)
+        else if ((capturedPieceMask & BlackRooks) != 0)
         {
-            switch (to)
-            {
-                case 2: // White Queen-side castling
-                    WhiteRooks &= ~(1UL << 0); // Remove rook from a1
-                    WhiteRooks |= 1UL << 3;  // Place rook on d1
-                    break;
-                case 6: // White King-side castling
-                    WhiteRooks &= ~(1UL << 7); // Remove rook from h1
-                    WhiteRooks |= 1UL << 5;  // Place rook on f1
-                    break;
-                case 58: // Black Queen-side castling
-                    BlackRooks &= ~(1UL << 56); // Remove rook from a8
-                    BlackRooks |= 1UL << 59;  // Place rook on d8
-                    break;
-                case 62: // Black King-side castling
-                    BlackRooks &= ~(1UL << 63); // Remove rook from h8
-                    BlackRooks |= 1UL << 61;  // Place rook on f8
-                    break;
-            }
+            if ((capturedPieceMask & (1UL << 56)) != 0) CastlingRights &= 0b0111;
+            if ((capturedPieceMask & (1UL << 63)) != 0) CastlingRights &= 0b1011;
         }
+    }
 
+    private void UpdateCastlingRightsAfterMove(int from)
+    {
         switch (from)
         {
-            // Update castling rights (if king or rook moves)
-            case 4: // White king moved
+            case 4:
                 CastlingRights &= 0b1100;
                 break;
-            case 60: // Black king moved
+            case 60:
                 CastlingRights &= 0b0011;
                 break;
-            case 0: // a1 (white queenside rook)
+            case 0:
                 CastlingRights &= 0b1101;
                 break;
-            case 7: // h1 (white kingside rook)
+            case 7:
                 CastlingRights &= 0b1110;
                 break;
-            case 56: // a8 (black queenside rook)
+            case 56:
                 CastlingRights &= 0b0111;
                 break;
-            case 63: // h8 (black kingside rook)
+            case 63:
                 CastlingRights &= 0b1011;
                 break;
         }
-
-        // Handle double pawn push (set En Passant target)
-        if (moveType == MoveType.DoublePawnPush)
-        {
-            EnPassantTarget = (from + to) / 2; // The middle square behind the pawn
-        }
-        else
-        {
-            EnPassantTarget = -1; // Reset En Passant target
-        }
-
-        // Recalculate combined bitboards
-        DeriveCombinedBitboards();
-        IsWhiteTurn = !IsWhiteTurn;
     }
 
     public void UnmakeMove()
