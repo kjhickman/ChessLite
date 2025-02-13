@@ -687,6 +687,12 @@ public class Board
         }
     }
 
+    public bool IsInCheck()
+    {
+        var kingSquare = WhiteToMove ? _whiteKing : _blackKing;
+        return IsSquareAttacked(BitOperations.TrailingZeroCount(kingSquare), WhiteToMove);
+    }
+
     public bool IsSquareAttacked(int square, bool byWhite)
     {
         var file = square % 8;

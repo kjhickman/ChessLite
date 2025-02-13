@@ -2,11 +2,18 @@ namespace Zugfish.Engine;
 
 public static class Search
 {
-    public static Move FindBestMove(MoveGenerator moveGenerator, Board board, int depth)
+    public static Move? FindBestMove(MoveGenerator moveGenerator, Board board, int depth)
     {
-        var isMaximizing = board.WhiteToMove;
         Span<Move> movesBuffer = stackalloc Move[218];
         var moveCount = moveGenerator.GenerateLegalMoves(board, movesBuffer);
+
+        if (moveCount == 0)
+        {
+            // checkmate or stalemate
+            return null;
+        }
+
+        var isMaximizing = board.WhiteToMove;
         var bestMove = movesBuffer[0];
         var bestScore = board.WhiteToMove ? int.MinValue : int.MaxValue;
         var alpha = int.MinValue;
@@ -16,7 +23,7 @@ public static class Search
         {
             var move = movesBuffer[i];
             board.MakeMove(move);
-            var score = Minimax(moveGenerator, board, depth - 1, alpha, beta, !isMaximizing);
+            var score = Minimax(moveGenerator, board, depth - 1, alpha, beta, !isMaximizing).Score;
             board.UndoMove();
 
             if (isMaximizing)
@@ -49,22 +56,44 @@ public static class Search
         return bestMove;
     }
 
-    private static int Minimax(MoveGenerator moveGenerator, Board board, int depth, int alpha, int beta, bool isMaximizing)
+    private static EvaluationResult Minimax(MoveGenerator moveGenerator, Board board, int depth, int alpha, int beta, bool isMaximizing)
     {
-        if (depth == 0)
+        // if halfmove clock is 100 or more, the game is a draw
+        if (board.HalfmoveClock >= 100)
         {
-            return board.Evaluate();
+            return new EvaluationResult(0, GameState.DrawFiftyMove);
         }
+
+        // if the position is a draw by insufficient material, the game is a draw
+        // if (board.IsDrawByInsufficientMaterial())
+        // {
+        //     return new EvaluationResult(0, GameState.DrawInsufficientMaterial);
+        // }
+
+        // todo: if the position is a draw by repetition, the game is a draw
 
         Span<Move> movesBuffer = stackalloc Move[218];
         var moveCount = moveGenerator.GenerateLegalMoves(board, movesBuffer);
+
+        if (moveCount == 0)
+        {
+            return board.IsInCheck()
+                ? new EvaluationResult(isMaximizing ? int.MinValue : int.MaxValue, GameState.Checkmate)
+                : new EvaluationResult(0, GameState.Stalemate);
+        }
+
+        if (depth == 0)
+        {
+            return new EvaluationResult(board.Evaluate(), GameState.Ongoing);
+        }
+
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;
 
         for (var i = 0; i < moveCount; i++)
         {
             var move = movesBuffer[i];
             board.MakeMove(move);
-            var score = Minimax(moveGenerator, board, depth - 1, alpha, beta, !isMaximizing);
+            var score = Minimax(moveGenerator, board, depth - 1, alpha, beta, !isMaximizing).Score;
             board.UndoMove();
 
             if (isMaximizing)
@@ -84,6 +113,6 @@ public static class Search
             }
         }
 
-        return bestScore;
+        return new EvaluationResult(bestScore, GameState.Ongoing);
     }
 }
