@@ -119,6 +119,7 @@ public class MoveGenerator
 
     private void GenerateKnightMoves(Board board, ref int bufferIndex, Span<Move> movesBuffer)
     {
+        Span<int> knightOffsets = [17, 15, 10, 6, -6, -10, -15, -17];
         var knights = board.WhiteToMove ? board.WhiteKnights : board.BlackKnights;
         var friendlyPieces = board.WhiteToMove ? board.WhitePieces : board.BlackPieces;
         var enemyPieces = board.WhiteToMove ? board.BlackPieces : board.WhitePieces;
@@ -129,10 +130,10 @@ public class MoveGenerator
             var from = TrailingZeroCount(currentKnights);
             var fromFile = from % 8;
             var fromRank = from / 8;
-            int[] knightMoves = [17, 15, 10, 6, -6, -10, -15, -17];
-            for (var i = 0; i < knightMoves.Length; i++)
+
+            for (var i = 0;  i < knightOffsets.Length; i++)
             {
-                var to = from + knightMoves[i];
+                var to = from + knightOffsets[i];
                 if (to is < 0 or >= 64)
                 {
                     // Out of bounds
@@ -177,6 +178,10 @@ public class MoveGenerator
 
     private void GenerateBishopMoves(Board board, ref int bufferIndex, Span<Move> movesBuffer)
     {
+        Span<(int fileDirection, int rankDirection)> bishopDirections =
+        [
+            (1, 1), (-1, 1), (1, -1), (-1, -1)
+        ];
         var bishops = board.WhiteToMove ? board.WhiteBishops : board.BlackBishops;
         var friendlyPieces = board.WhiteToMove ? board.WhitePieces : board.BlackPieces;
         var enemyPieces = board.WhiteToMove ? board.BlackPieces : board.WhitePieces;
@@ -187,7 +192,7 @@ public class MoveGenerator
             var from = TrailingZeroCount(currentBishops);
             var fromFile = from % 8;
             var fromRank = from / 8;
-            (int fileDirection, int rankDirection)[] bishopDirections = [(1, 1), (-1, 1), (1, -1), (-1, -1)];
+
             for (var i = 0; i < bishopDirections.Length; i++)
             {
                 var currentFile = fromFile;
@@ -238,6 +243,10 @@ public class MoveGenerator
 
     private void GenerateRookMoves(Board board, ref int bufferIndex, Span<Move> movesBuffer)
     {
+        Span<(int fileDirection, int rankDirection)> rookDirections =
+        [
+            (1, 0), (-1, 0), (0, 1), (0, -1)
+        ];
         var rooks = board.WhiteToMove ? board.WhiteRooks : board.BlackRooks;
         var friendlyPieces = board.WhiteToMove ? board.WhitePieces : board.BlackPieces;
         var enemyPieces = board.WhiteToMove ? board.BlackPieces : board.WhitePieces;
@@ -248,7 +257,7 @@ public class MoveGenerator
             var from = TrailingZeroCount(currentRooks);
             var fromFile = from % 8;
             var fromRank = from / 8;
-            (int fileDirection, int rankDirection)[] rookDirections = [(1, 0), (-1, 0), (0, 1), (0, -1)];
+
             for (var i = 0; i < rookDirections.Length; i++)
             {
                 var currentFile = fromFile;
@@ -300,6 +309,11 @@ public class MoveGenerator
 
     private void GenerateQueenMoves(Board board, ref int bufferIndex, Span<Move> movesBuffer)
     {
+        Span<(int fileDirection, int rankDirection)> queenDirections =
+        [
+            (1, 1), (-1, 1), (1, -1), (-1, -1),
+            (1, 0), (-1, 0), (0, 1), (0, -1)
+        ];
         var queens = board.WhiteToMove ? board.WhiteQueens : board.BlackQueens;
         var friendlyPieces = board.WhiteToMove ? board.WhitePieces : board.BlackPieces;
         var enemyPieces = board.WhiteToMove ? board.BlackPieces : board.WhitePieces;
@@ -310,18 +324,6 @@ public class MoveGenerator
             var from = TrailingZeroCount(currentQueens);
             var fromFile = from % 8;
             var fromRank = from / 8;
-
-            (int fileDirection, int rankDirection)[] queenDirections =
-            [
-                (1, 1),
-                (-1, 1),
-                (1, -1),
-                (-1, -1),
-                (1, 0),
-                (-1, 0),
-                (0, 1),
-                (0, -1)
-            ];
 
             for (var i = 0; i < queenDirections.Length; i++)
             {
