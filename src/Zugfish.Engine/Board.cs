@@ -39,15 +39,15 @@ public class Board
     public Bitboard BlackPieces { get; private set; }
     public Bitboard AllPieces { get; private set; }
 
-    public bool IsWhiteTurn { get; set; }
+    public bool WhiteToMove { get; set; }
     public ushort CastlingRights { get; private set; }
     public int EnPassantTarget { get; private set; } = -1;
     public int HalfmoveClock { get; private set; }
-    public ulong ZobristHash { get; private set; }
+    // public ulong ZobristHash { get; private set; }
 
     // TODO: Move to a wrapping BoardState class?
     private readonly Stack<MoveHistory> _moveHistory = new(512);
-    private readonly Dictionary<ulong, int> _repetitionTable = new();
+    // private readonly Dictionary<ulong, int> _repetitionTable = new();
 
     #endregion
 
@@ -72,14 +72,14 @@ public class Board
         BlackKing    = new Bitboard(0x1000000000000000UL);
 
         CastlingRights = 0b1111;
-        IsWhiteTurn = true;
+        WhiteToMove = true;
         DeriveCombinedBitboards();
-        ZobristHash = ComputeZobristHash();
+        // ZobristHash = ComputeZobristHash();
     }
 
     public Board(ReadOnlySpan<char> fen)
     {
-        var enumerator = fen.Split(' ');
+        MemoryExtensions.SpanSplitEnumerator<char> enumerator = fen.Split(' ');
         enumerator.MoveNext();
 
         // Parse piece placement
@@ -139,7 +139,7 @@ public class Board
         }
 
         var activeColor = fen[enumerator.Current]; enumerator.MoveNext();
-        IsWhiteTurn = activeColor[0] switch
+        WhiteToMove = activeColor[0] switch
         {
             'w' => true,
             'b' => false,
@@ -172,7 +172,7 @@ public class Board
 
         // Update combined bitboards
         DeriveCombinedBitboards();
-        ZobristHash = ComputeZobristHash();
+        // ZobristHash = ComputeZobristHash();
     }
 
     public void MakeMove(ReadOnlySpan<char> uciMove)
@@ -215,6 +215,10 @@ public class Board
         {
             moveType = MoveType.DoublePawnPush;
         }
+        else if ((Bitboard.Mask(to) & AllPieces) != 0) // Detect capture
+        {
+            moveType = MoveType.Capture;
+        }
 
         var move = new Move(from, to, moveType);
         MakeMove(move);
@@ -229,6 +233,10 @@ public class Board
 
         // Determine captured piece
         var capturedPieceMask = DetermineCapturedPiece(move.Type, from, to, toMask);
+        Bitboard dummyCapturedPiece = default;
+        ref var capturedPieceBoard = ref capturedPieceMask != 0
+            ? ref GetPieceBitboard(capturedPieceMask)
+            : ref dummyCapturedPiece;
 
         // Save undo information
         SaveMoveUndo(move, fromMask, toMask, capturedPieceMask);
@@ -247,7 +255,7 @@ public class Board
                 HandleCastlingMove(move, ref movingPieceBoard, toMask);
                 break;
             case MoveType.EnPassant:
-                HandleEnPassantMove(move, from, to, toMask);
+                HandleEnPassantMove(from, toMask);
                 break;
             case MoveType.PromoteToKnight:
             case MoveType.PromoteToBishop:
@@ -265,7 +273,7 @@ public class Board
         // Remove any captured piece and update castling rights if necessary
         if (capturedPieceMask != 0)
         {
-            HandleCapturedPiece(capturedPieceMask);
+            HandleCapturedPiece(capturedPieceMask, ref capturedPieceBoard);
         }
 
         UpdateCastlingRightsAfterMove(from);
@@ -281,16 +289,16 @@ public class Board
             HalfmoveClock++;
 
         DeriveCombinedBitboards();
-        IsWhiteTurn = !IsWhiteTurn;
-        ZobristHash = ComputeZobristHash();
-        if (_repetitionTable.TryGetValue(ZobristHash, out var value))
-        {
-            _repetitionTable[ZobristHash] = ++value;
-        }
-        else
-        {
-            _repetitionTable.Add(ZobristHash, 1);
-        }
+        WhiteToMove = !WhiteToMove;
+        // ZobristHash = ComputeZobristHash();
+        // if (_repetitionTable.TryGetValue(ZobristHash, out var value))
+        // {
+        //     _repetitionTable[ZobristHash] = ++value;
+        // }
+        // else
+        // {
+        //     _repetitionTable.Add(ZobristHash, 1);
+        // }
     }
 
     private Bitboard DetermineCapturedPiece(MoveType moveType, int from, int to, Bitboard toMask)
@@ -315,6 +323,8 @@ public class Board
             capturedType = GetPieceTypeWithOverlap(capturedPieceMask);
         }
 
+        var movingPieceType = GetPieceTypeWithOverlap(fromMask);
+
         _moveHistory.Push(new MoveHistory
         {
             CapturedPiece = capturedPieceMask,
@@ -322,10 +332,11 @@ public class Board
             ToSquare = toMask,
             Move = move,
             CapturedPieceType = capturedType,
+            MovedPieceType = movingPieceType,
             PreviousCastlingRights = CastlingRights,
             PreviousEnPassantTarget = EnPassantTarget,
             PreviousHalfmoveClock = HalfmoveClock,
-            PreviousZobristHash = ZobristHash
+            // PreviousZobristHash = ZobristHash
         });
     }
 
@@ -361,7 +372,7 @@ public class Board
         }
     }
 
-    private void HandleEnPassantMove(Move move, int from, int to, Bitboard toMask)
+    private void HandleEnPassantMove(int from, Bitboard toMask)
     {
         ref var pawnBoard = ref GetPieceBitboard(1UL << from);
         pawnBoard |= toMask;
@@ -370,7 +381,7 @@ public class Board
 
     private void HandlePromotionMove(Move move, int to, Bitboard toMask)
     {
-        bool isWhite = to > 55; // Adjust based on your board representation
+        var isWhite = to > 55; // Adjust based on your board representation
         switch (move.Type)
         {
             case MoveType.PromoteToKnight:
@@ -390,9 +401,8 @@ public class Board
         }
     }
 
-    private void HandleCapturedPiece(Bitboard capturedPieceMask)
+    private void HandleCapturedPiece(Bitboard capturedPieceMask, ref Bitboard capturedBoard)
     {
-        ref var capturedBoard = ref GetPieceBitboard(capturedPieceMask);
         capturedBoard &= ~capturedPieceMask;
 
         // Update castling rights if a rook was captured
@@ -446,13 +456,11 @@ public class Board
         {
             case MoveType.Quiet:
             case MoveType.Capture:
+            case MoveType.DoublePawnPush:
                 UndoQuietOrCaptureMove(lastUndo);
                 break;
             case MoveType.Castling:
                 UndoCastlingMove(lastUndo);
-                break;
-            case MoveType.DoublePawnPush:
-                UndoDoublePawnPushMove(lastUndo);
                 break;
             case MoveType.EnPassant:
                 UndoEnPassantMove(lastUndo);
@@ -468,7 +476,7 @@ public class Board
         }
 
         // Restore captured piece if any
-        if (lastUndo.CapturedPiece != 0)
+        if (lastUndo.CapturedPiece != 0 && move.Type != MoveType.EnPassant)
         {
             ref var capturedBoard = ref GetPieceBitboard(lastUndo.CapturedPieceType);
             capturedBoard |= lastUndo.CapturedPiece;
@@ -479,23 +487,21 @@ public class Board
         HalfmoveClock = lastUndo.PreviousHalfmoveClock;
 
         DeriveCombinedBitboards();
-        IsWhiteTurn = !IsWhiteTurn;
-        _repetitionTable[ZobristHash]--;
-        ZobristHash = lastUndo.PreviousZobristHash;
+        WhiteToMove = !WhiteToMove;
+        // _repetitionTable[ZobristHash]--;
+        // ZobristHash = lastUndo.PreviousZobristHash;
     }
 
     private void UndoQuietOrCaptureMove(MoveHistory lastHistory)
     {
-        ref var movedPieceBoard = ref GetPieceBitboard(lastHistory.ToSquare);
+        ref var movedPieceBoard = ref GetPieceBitboard(lastHistory.MovedPieceType);
         movedPieceBoard &= ~lastHistory.ToSquare;
         movedPieceBoard |= lastHistory.FromSquare;
     }
 
     private void UndoCastlingMove(MoveHistory lastHistory)
     {
-        ref var kingBoard = ref GetPieceBitboard(lastHistory.ToSquare);
-        kingBoard &= ~lastHistory.ToSquare;
-        kingBoard |= lastHistory.FromSquare;
+        UndoQuietOrCaptureMove(lastHistory);
 
         switch (lastHistory.Move.To)
         {
@@ -516,11 +522,6 @@ public class Board
                 BlackRooks |= 1UL << 63;
                 break;
         }
-    }
-
-    private void UndoDoublePawnPushMove(MoveHistory lastHistory)
-    {
-        UndoQuietOrCaptureMove(lastHistory);
     }
 
     private void UndoEnPassantMove(MoveHistory lastHistory)
@@ -575,11 +576,14 @@ public class Board
         if ((WhiteBishops & capturedPieceMask) != 0) return PieceType.WhiteBishop;
         if ((WhiteRooks  & capturedPieceMask) != 0) return PieceType.WhiteRook;
         if ((WhiteQueens & capturedPieceMask) != 0) return PieceType.WhiteQueen;
+        if ((WhiteKing & capturedPieceMask) != 0) return PieceType.WhiteKing;
         if ((BlackPawns &  capturedPieceMask) != 0) return PieceType.BlackPawn;
         if ((BlackKnights & capturedPieceMask) != 0) return PieceType.BlackKnight;
         if ((BlackBishops & capturedPieceMask) != 0) return PieceType.BlackBishop;
         if ((BlackRooks  & capturedPieceMask) != 0) return PieceType.BlackRook;
-        return PieceType.BlackQueen;
+        if ((BlackQueens & capturedPieceMask) != 0) return PieceType.BlackQueen;
+        if ((BlackKing & capturedPieceMask) != 0) return PieceType.BlackKing;
+        return PieceType.None;
     }
 
     private ref Bitboard GetPieceBitboard(Bitboard bitboard)
@@ -610,11 +614,13 @@ public class Board
             case PieceType.WhiteBishop: return ref _whiteBishops;
             case PieceType.WhiteRook: return ref _whiteRooks;
             case PieceType.WhiteQueen: return ref _whiteQueens;
+            case PieceType.WhiteKing: return ref _whiteKing;
             case PieceType.BlackPawn: return ref _blackPawns;
             case PieceType.BlackKnight: return ref _blackKnights;
             case PieceType.BlackBishop: return ref _blackBishops;
             case PieceType.BlackRook: return ref _blackRooks;
             case PieceType.BlackQueen: return ref _blackQueens;
+            case PieceType.BlackKing: return ref _blackKing;
             case PieceType.None:
             default: throw new InvalidOperationException("No matching piece found for given piece type.");
         }
@@ -662,7 +668,7 @@ public class Board
             hash ^= Zobrist.EnPassantKeys[EnPassantTarget];
 
         // Incorporate side to move: XOR the side key if it's Black's turn.
-        if (!IsWhiteTurn)
+        if (!WhiteToMove)
             hash ^= Zobrist.SideKey;
 
         return hash;
@@ -679,5 +685,131 @@ public class Board
             hash ^= Zobrist.PieceKeys[pieceIndex, square];
             board &= board - 1;
         }
+    }
+
+    public bool IsSquareAttacked(int square, bool byWhite)
+    {
+        var file = square % 8;
+        var rank = square / 8;
+
+        // Pawn attacks
+        if (byWhite)
+        {
+            if (file > 0)
+            {
+                var pawnSquare = square - 9;
+                if (pawnSquare >= 0 && (WhitePawns & (1UL << pawnSquare)) != 0) return true;
+            }
+
+            if (file < 7)
+            {
+                var pawnSquare = square - 7;
+                if (pawnSquare >= 0 && (WhitePawns & (1UL << pawnSquare)) != 0) return true;
+            }
+        }
+        else
+        {
+            if (file < 7)
+            {
+                var pawnSquare = square + 9;
+                if (pawnSquare < 64 && (BlackPawns & (1UL << pawnSquare)) != 0) return true;
+            }
+
+            if (file > 0)
+            {
+                var pawnSquare = square + 7;
+                if (pawnSquare < 64 && (BlackPawns & (1UL << pawnSquare)) != 0) return true;
+            }
+        }
+
+        // Knight attacks
+        Span<int> knightOffsets = [-17, -15, -10, -6, 6, 10, 15, 17];
+        var knights = byWhite ? WhiteKnights : BlackKnights;
+        for (var i = 0; i < knightOffsets.Length; i++)
+        {
+            var offset = knightOffsets[i];
+            var attackerSquare = square + offset;
+            if (attackerSquare is < 0 or >= 64) continue;
+
+            var attackerFile = attackerSquare % 8;
+            if (Math.Abs(attackerFile - file) > 2) continue;
+
+            if ((knights & (1UL << attackerSquare)) != 0) return true;
+        }
+
+        // King attacks
+        Span<int> kingOffsets = [-9, -8, -7, -1, 1, 7, 8, 9];
+        var king = byWhite ? WhiteKing : BlackKing;
+        for (var i = 0; i < kingOffsets.Length; i++)
+        {
+            var offset = kingOffsets[i];
+            var attackerSquare = square + offset;
+            if (attackerSquare is < 0 or >= 64) continue;
+
+            var attackerFile = attackerSquare % 8;
+            if (Math.Abs(attackerFile - file) > 1) continue;
+
+            if ((king & (1UL << attackerSquare)) != 0) return true;
+        }
+
+        // Sliding piece attacks
+        Span<(int, int)> diagonalDirections = [(1, 1), (-1, 1), (1, -1), (-1, -1)];
+        for (var i = 0; i < diagonalDirections.Length; i++)
+        {
+            var (fileDirection, rankDirection) = diagonalDirections[i];
+            var currentFile = file;
+            var currentRank = rank;
+            while (true)
+            {
+                currentFile += fileDirection;
+                currentRank += rankDirection;
+                if (currentFile < 0 || currentFile >= 8 || currentRank < 0 || currentRank >= 8) break;
+                var toMask = Bitboard.Mask(currentRank * 8 + currentFile);
+
+                if ((AllPieces & toMask) == 0) continue;
+
+                // If a piece is blocking further movement, check if it's an attacker.
+                if (byWhite)
+                {
+                    if (((WhiteBishops | WhiteQueens) & toMask) != 0) return true;
+                }
+                else
+                {
+                    if (((BlackBishops | BlackQueens) & toMask) != 0) return true;
+                }
+
+                break;
+            }
+        }
+
+        Span<(int, int)> straightDirections = [(1, 0), (-1, 0), (0, 1), (0, -1)];
+        for (var i = 0; i < straightDirections.Length; i++)
+        {
+            var (fileDirection, rankDirection) = straightDirections[i];
+            var currentFile = file;
+            var currentRank = rank;
+            while (true)
+            {
+                currentFile += fileDirection;
+                currentRank += rankDirection;
+                if (currentFile < 0 || currentFile >= 8 || currentRank < 0 || currentRank >= 8) break;
+                var toMask = Bitboard.Mask(currentRank * 8 + currentFile);
+                if ((AllPieces & toMask) == 0) continue;
+
+                // If a piece is blocking further movement, check if it's an attacker.
+                if (byWhite)
+                {
+                    if (((WhiteRooks | WhiteQueens) & toMask) != 0) return true;
+                }
+                else
+                {
+                    if (((BlackRooks | BlackQueens) & toMask) != 0) return true;
+                }
+
+                break;
+            }
+        }
+
+        return false;
     }
 }

@@ -21,4 +21,11 @@ public static class Translation
 
         return (rank - '1') * 8 + (file - 'a');
     }
+
+    public static string UciFromSquare(int square)
+    {
+        var file = (char)('a' + (square & 7));
+        var rank = (char)('1' + (square >> 3));
+        return $"{file}{rank}";
+    }
 }

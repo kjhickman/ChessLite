@@ -1,4 +1,6 @@
-﻿namespace Zugfish.Engine;
+﻿using System.Runtime.CompilerServices;
+
+namespace Zugfish.Engine;
 
 /// <summary>
 /// Represents a 64‐bit board for chess pieces.
@@ -8,6 +10,9 @@ public readonly struct Bitboard : IEquatable<Bitboard>
     public readonly ulong Value;
 
     public Bitboard(ulong value) => Value = value;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Bitboard Mask(int square) => 1UL << square;
 
     // Implicit conversions for ease of use.
     public static implicit operator ulong(Bitboard b) => b.Value;

@@ -9,9 +9,11 @@ public enum PieceType
     WhiteBishop,
     WhiteRook,
     WhiteQueen,
+    WhiteKing,
     BlackPawn,
     BlackKnight,
     BlackBishop,
     BlackRook,
-    BlackQueen
+    BlackQueen,
+    BlackKing
 }
