@@ -1,6 +1,7 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Numerics;
+using System.Runtime.CompilerServices;
 
-namespace Zugfish.Engine;
+namespace Zugfish.Engine.Models;
 
 /// <summary>
 /// Represents a 64‐bit board for chess pieces.
@@ -30,4 +31,37 @@ public readonly struct Bitboard : IEquatable<Bitboard>
     public override bool Equals(object? obj) => obj is Bitboard other && Equals(other);
     public override int GetHashCode() => Value.GetHashCode();
     public override string ToString() => Convert.ToString((long)Value, 2).PadLeft(64, '0');
+
+    #region Helper methods
+
+    /// <summary>
+    /// Returns true if no bits are set.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IsEmpty() => Value == 0;
+
+    /// <summary>
+    /// Returns the number of set bits.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int Count() => BitOperations.PopCount(Value);
+
+    /// <summary>
+    /// Returns true if the given square is set in the bitboard.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IsSet(int square) => (Value & (1UL << square)) != 0;
+
+    /// <summary>
+    /// Returns a new Bitboard with the bit for the given square set.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bitboard Set(int square) => new(Value | (1UL << square));
+
+    /// <summary>
+    /// Returns a new Bitboard with the bit for the given square cleared.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bitboard Clear(int square) => new(Value & ~(1UL << square));
+    #endregion
 }

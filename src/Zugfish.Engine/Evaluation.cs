@@ -1,3 +1,4 @@
+using Zugfish.Engine.Models;
 using static System.Numerics.BitOperations;
 
 namespace Zugfish.Engine;
@@ -82,38 +83,38 @@ public static class Evaluation
          20, 30, 10,  0,  0, 10, 30, 20
     ];
 
-    public static int Evaluate(this Board board)
+    public static int Evaluate(this Position position)
     {
-        return EvaluateMaterial(board) + EvaluatePosition(board);
+        return EvaluateMaterial(position) + EvaluatePosition(position);
     }
 
-    private static int EvaluateMaterial(Board board)
+    private static int EvaluateMaterial(Position position)
     {
-        var materialScore = PawnValue * PopCount(board.WhitePawns) - PawnValue * PopCount(board.BlackPawns);
-        materialScore += KnightValue * PopCount(board.WhiteKnights) - KnightValue * PopCount(board.BlackKnights);
-        materialScore += BishopValue * PopCount(board.WhiteBishops) - BishopValue * PopCount(board.BlackBishops);
-        materialScore += RookValue * PopCount(board.WhiteRooks) - RookValue * PopCount(board.BlackRooks);
-        materialScore += QueenValue * PopCount(board.WhiteQueens) - QueenValue * PopCount(board.BlackQueens);
+        var materialScore = PawnValue * PopCount(position.WhitePawns) - PawnValue * PopCount(position.BlackPawns);
+        materialScore += KnightValue * PopCount(position.WhiteKnights) - KnightValue * PopCount(position.BlackKnights);
+        materialScore += BishopValue * PopCount(position.WhiteBishops) - BishopValue * PopCount(position.BlackBishops);
+        materialScore += RookValue * PopCount(position.WhiteRooks) - RookValue * PopCount(position.BlackRooks);
+        materialScore += QueenValue * PopCount(position.WhiteQueens) - QueenValue * PopCount(position.BlackQueens);
 
         return materialScore;
     }
 
-    private static int EvaluatePosition(Board board)
+    private static int EvaluatePosition(Position position)
     {
         var positionalScore = 0;
-        positionalScore += EvaluatePiecePositions(board.WhitePawns, PawnTable, true);
-        positionalScore += EvaluatePiecePositions(board.WhiteKnights, KnightTable, true);
-        positionalScore += EvaluatePiecePositions(board.WhiteBishops, BishopTable, true);
-        positionalScore += EvaluatePiecePositions(board.WhiteRooks, RookTable, true);
-        positionalScore += EvaluatePiecePositions(board.WhiteQueens, QueenTable, true);
-        positionalScore += EvaluatePiecePositions(board.WhiteKing, KingTable, true);
+        positionalScore += EvaluatePiecePositions(position.WhitePawns, PawnTable, true);
+        positionalScore += EvaluatePiecePositions(position.WhiteKnights, KnightTable, true);
+        positionalScore += EvaluatePiecePositions(position.WhiteBishops, BishopTable, true);
+        positionalScore += EvaluatePiecePositions(position.WhiteRooks, RookTable, true);
+        positionalScore += EvaluatePiecePositions(position.WhiteQueens, QueenTable, true);
+        positionalScore += EvaluatePiecePositions(position.WhiteKing, KingTable, true);
 
-        positionalScore -= EvaluatePiecePositions(board.BlackPawns, PawnTable, false);
-        positionalScore -= EvaluatePiecePositions(board.BlackKnights, KnightTable, false);
-        positionalScore -= EvaluatePiecePositions(board.BlackBishops, BishopTable, false);
-        positionalScore -= EvaluatePiecePositions(board.BlackRooks, RookTable, false);
-        positionalScore -= EvaluatePiecePositions(board.BlackQueens, QueenTable, false);
-        positionalScore -= EvaluatePiecePositions(board.BlackKing, KingTable, false);
+        positionalScore -= EvaluatePiecePositions(position.BlackPawns, PawnTable, false);
+        positionalScore -= EvaluatePiecePositions(position.BlackKnights, KnightTable, false);
+        positionalScore -= EvaluatePiecePositions(position.BlackBishops, BishopTable, false);
+        positionalScore -= EvaluatePiecePositions(position.BlackRooks, RookTable, false);
+        positionalScore -= EvaluatePiecePositions(position.BlackQueens, QueenTable, false);
+        positionalScore -= EvaluatePiecePositions(position.BlackKing, KingTable, false);
 
         return positionalScore;
     }

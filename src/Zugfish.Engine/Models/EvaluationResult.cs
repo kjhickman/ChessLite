@@ -1,4 +1,4 @@
-﻿namespace Zugfish.Engine;
+﻿namespace Zugfish.Engine.Models;
 
 public struct EvaluationResult
 {

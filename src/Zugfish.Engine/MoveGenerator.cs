@@ -1,30 +1,31 @@
+using Zugfish.Engine.Models;
 using static System.Numerics.BitOperations;
 
 namespace Zugfish.Engine;
 
 public class MoveGenerator
 {
-    public int GenerateLegalMoves(Board board, Span<Move> movesBuffer)
+    public int GenerateLegalMoves(Position position, Span<Move> movesBuffer)
     {
         var moveCount = 0;
 
-        GeneratePawnMoves(board, ref moveCount, movesBuffer);
-        GenerateKnightMoves(board, ref moveCount, movesBuffer);
-        GenerateBishopMoves(board, ref moveCount, movesBuffer);
-        GenerateRookMoves(board, ref moveCount, movesBuffer);
-        GenerateQueenMoves(board, ref moveCount, movesBuffer);
-        GenerateKingMoves(board, ref moveCount, movesBuffer);
+        GeneratePawnMoves(position, ref moveCount, movesBuffer);
+        GenerateKnightMoves(position, ref moveCount, movesBuffer);
+        GenerateBishopMoves(position, ref moveCount, movesBuffer);
+        GenerateRookMoves(position, ref moveCount, movesBuffer);
+        GenerateQueenMoves(position, ref moveCount, movesBuffer);
+        GenerateKingMoves(position, ref moveCount, movesBuffer);
 
         return moveCount;
     }
 
-    private void GeneratePawnMoves(Board board, ref int bufferIndex, Span<Move> movesBuffer)
+    private void GeneratePawnMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
-        var isWhite = board.WhiteToMove;
-        var pawns = isWhite ? board.WhitePawns : board.BlackPawns;
+        var isWhite = position.WhiteToMove;
+        var pawns = isWhite ? position.WhitePawns : position.BlackPawns;
         var direction = isWhite ? 8 : -8;
-        var enemyPieces = isWhite ? board.BlackPieces : board.WhitePieces;
-        var allPieces = board.AllPieces;
+        var enemyPieces = isWhite ? position.BlackPieces : position.WhitePieces;
+        var allPieces = position.AllPieces;
 
         const ulong secondRank = 0xFF00;
         const ulong seventhRank = 0xFF000000000000;
@@ -51,7 +52,7 @@ public class MoveGenerator
                     move = new Move(from, oneStep, MoveType.Quiet);
                 }
 
-                if (IsMoveLegal(board, move))
+                if (IsMoveLegal(position, move))
                 {
                     movesBuffer[bufferIndex++] = move;
                 }
@@ -63,7 +64,7 @@ public class MoveGenerator
             if (twoSteps is >= 0 and < 64 && (allPieces & twoStepsMask) == 0 && (startingRank & (1UL << from)) != 0)
             {
                 var move = new Move(from, twoSteps, MoveType.DoublePawnPush);
-                if (IsMoveLegal(board, move))
+                if (IsMoveLegal(position, move))
                 {
                     movesBuffer[bufferIndex++] = move;
                 }
@@ -85,7 +86,7 @@ public class MoveGenerator
                     move = new Move(from, leftCaptureTo, MoveType.Capture);
                 }
 
-                if (IsMoveLegal(board, move))
+                if (IsMoveLegal(position, move))
                 {
                     movesBuffer[bufferIndex++] = move;
                 }
@@ -106,7 +107,7 @@ public class MoveGenerator
                     move = new Move(from, rightCaptureTo, MoveType.Capture);
                 }
 
-                if (IsMoveLegal(board, move))
+                if (IsMoveLegal(position, move))
                 {
                     movesBuffer[bufferIndex++] = move;
                 }
@@ -117,12 +118,12 @@ public class MoveGenerator
         }
     }
 
-    private void GenerateKnightMoves(Board board, ref int bufferIndex, Span<Move> movesBuffer)
+    private void GenerateKnightMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
         Span<int> knightOffsets = [17, 15, 10, 6, -6, -10, -15, -17];
-        var knights = board.WhiteToMove ? board.WhiteKnights : board.BlackKnights;
-        var friendlyPieces = board.WhiteToMove ? board.WhitePieces : board.BlackPieces;
-        var enemyPieces = board.WhiteToMove ? board.BlackPieces : board.WhitePieces;
+        var knights = position.WhiteToMove ? position.WhiteKnights : position.BlackKnights;
+        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
 
         var currentKnights = knights;
         while (currentKnights != 0)
@@ -166,7 +167,7 @@ public class MoveGenerator
                     move = new Move(from, to, MoveType.Quiet);
                 }
 
-                if (IsMoveLegal(board, move))
+                if (IsMoveLegal(position, move))
                 {
                     movesBuffer[bufferIndex++] = move;
                 }
@@ -176,15 +177,15 @@ public class MoveGenerator
         }
     }
 
-    private void GenerateBishopMoves(Board board, ref int bufferIndex, Span<Move> movesBuffer)
+    private void GenerateBishopMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
         Span<(int fileDirection, int rankDirection)> bishopDirections =
         [
             (1, 1), (-1, 1), (1, -1), (-1, -1)
         ];
-        var bishops = board.WhiteToMove ? board.WhiteBishops : board.BlackBishops;
-        var friendlyPieces = board.WhiteToMove ? board.WhitePieces : board.BlackPieces;
-        var enemyPieces = board.WhiteToMove ? board.BlackPieces : board.WhitePieces;
+        var bishops = position.WhiteToMove ? position.WhiteBishops : position.BlackBishops;
+        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
 
         var currentBishops = bishops;
         while (currentBishops != 0)
@@ -221,7 +222,7 @@ public class MoveGenerator
                     if ((enemyPieces & toMask) != 0)
                     {
                         var captureMove = new Move(from, to, MoveType.Capture);
-                        if (IsMoveLegal(board, captureMove))
+                        if (IsMoveLegal(position, captureMove))
                         {
                             movesBuffer[bufferIndex++] = captureMove;
                         }
@@ -230,7 +231,7 @@ public class MoveGenerator
                     }
 
                     var quietMove = new Move(from, to, MoveType.Quiet);
-                    if (IsMoveLegal(board, quietMove))
+                    if (IsMoveLegal(position, quietMove))
                     {
                         movesBuffer[bufferIndex++] = quietMove;
                     }
@@ -241,15 +242,15 @@ public class MoveGenerator
         }
     }
 
-    private void GenerateRookMoves(Board board, ref int bufferIndex, Span<Move> movesBuffer)
+    private void GenerateRookMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
         Span<(int fileDirection, int rankDirection)> rookDirections =
         [
             (1, 0), (-1, 0), (0, 1), (0, -1)
         ];
-        var rooks = board.WhiteToMove ? board.WhiteRooks : board.BlackRooks;
-        var friendlyPieces = board.WhiteToMove ? board.WhitePieces : board.BlackPieces;
-        var enemyPieces = board.WhiteToMove ? board.BlackPieces : board.WhitePieces;
+        var rooks = position.WhiteToMove ? position.WhiteRooks : position.BlackRooks;
+        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
 
         var currentRooks = rooks;
         while (currentRooks != 0)
@@ -286,7 +287,7 @@ public class MoveGenerator
                     if ((enemyPieces & toMask) != 0)
                     {
                         var captureMove = new Move(from, to, MoveType.Capture);
-                        if (IsMoveLegal(board, captureMove))
+                        if (IsMoveLegal(position, captureMove))
                         {
                             movesBuffer[bufferIndex++] = captureMove;
                         }
@@ -295,7 +296,7 @@ public class MoveGenerator
                     }
 
                     var quietMove = new Move(from, to, MoveType.Quiet);
-                    if (IsMoveLegal(board, quietMove))
+                    if (IsMoveLegal(position, quietMove))
                     {
                         movesBuffer[bufferIndex++] = quietMove;
                     }
@@ -307,16 +308,16 @@ public class MoveGenerator
         }
     }
 
-    private void GenerateQueenMoves(Board board, ref int bufferIndex, Span<Move> movesBuffer)
+    private void GenerateQueenMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
         Span<(int fileDirection, int rankDirection)> queenDirections =
         [
             (1, 1), (-1, 1), (1, -1), (-1, -1),
             (1, 0), (-1, 0), (0, 1), (0, -1)
         ];
-        var queens = board.WhiteToMove ? board.WhiteQueens : board.BlackQueens;
-        var friendlyPieces = board.WhiteToMove ? board.WhitePieces : board.BlackPieces;
-        var enemyPieces = board.WhiteToMove ? board.BlackPieces : board.WhitePieces;
+        var queens = position.WhiteToMove ? position.WhiteQueens : position.BlackQueens;
+        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
 
         var currentQueens = queens;
         while (currentQueens != 0)
@@ -353,7 +354,7 @@ public class MoveGenerator
                     if ((enemyPieces & toMask) != 0)
                     {
                         var captureMove = new Move(from, to, MoveType.Capture);
-                        if (IsMoveLegal(board, captureMove))
+                        if (IsMoveLegal(position, captureMove))
                         {
                             movesBuffer[bufferIndex++] = captureMove;
                         }
@@ -362,7 +363,7 @@ public class MoveGenerator
                     }
 
                     var quietMove = new Move(from, to, MoveType.Quiet);
-                    if (IsMoveLegal(board, quietMove))
+                    if (IsMoveLegal(position, quietMove))
                     {
                         movesBuffer[bufferIndex++] = quietMove;
                     }
@@ -374,11 +375,11 @@ public class MoveGenerator
         }
     }
 
-    private void GenerateKingMoves(Board board, ref int bufferIndex, Span<Move> movesBuffer)
+    private void GenerateKingMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
-        var king = board.WhiteToMove ? board.WhiteKing : board.BlackKing;
-        var friendlyPieces = board.WhiteToMove ? board.WhitePieces : board.BlackPieces;
-        var enemyPieces = board.WhiteToMove ? board.BlackPieces : board.WhitePieces;
+        var king = position.WhiteToMove ? position.WhiteKing : position.BlackKing;
+        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
 
         var from = TrailingZeroCount(king);
         var fromFile = from % 8;
@@ -422,7 +423,7 @@ public class MoveGenerator
                     move = new Move(from, to, MoveType.Quiet);
                 }
 
-                if (IsMoveLegal(board, move))
+                if (IsMoveLegal(position, move))
                 {
                     movesBuffer[bufferIndex++] = move;
                 }
@@ -430,20 +431,20 @@ public class MoveGenerator
         }
 
         // Castling moves
-        if (board.WhiteToMove)
+        if (position.WhiteToMove)
         {
             if (from != 4) return;
 
             // --- White kingside castling (e1 -> g1) ---
-            if ((board.CastlingRights & 0b0001) != 0)
+            if ((position.CastlingRights & 0b0001) != 0)
             {
                 // Squares f1 (5) and g1 (6) must be empty.
                 const ulong kingsideEmptySquares = (1UL << 5) | (1UL << 6);
-                if ((board.AllPieces & kingsideEmptySquares) == 0 &&
+                if ((position.AllPieces & kingsideEmptySquares) == 0 &&
                     // The king's start square and the squares it passes through must not be attacked.
-                    !board.IsSquareAttacked(4, false) &&
-                    !board.IsSquareAttacked(5, false) &&
-                    !board.IsSquareAttacked(6, false))
+                    !position.IsSquareAttacked(4, false) &&
+                    !position.IsSquareAttacked(5, false) &&
+                    !position.IsSquareAttacked(6, false))
                 {
                     // Add the kingside castling move (king moves from 4 to 6).
                     movesBuffer[bufferIndex++] = new Move(4, 6, MoveType.Castling);
@@ -451,14 +452,14 @@ public class MoveGenerator
             }
 
             // --- White queenside castling (e1 -> c1) ---
-            if ((board.CastlingRights & 0b0010) != 0)
+            if ((position.CastlingRights & 0b0010) != 0)
             {
                 // Squares between the king and rook must be empty: b1 (1), c1 (2), and d1 (3).
                 const ulong queensideEmptySquares = (1UL << 1) | (1UL << 2) | (1UL << 3);
-                if ((board.AllPieces & queensideEmptySquares) == 0 &&
-                    !board.IsSquareAttacked(4, false) &&
-                    !board.IsSquareAttacked(3, false) && // d1 must not be attacked
-                    !board.IsSquareAttacked(2, false))   // c1 must not be attacked
+                if ((position.AllPieces & queensideEmptySquares) == 0 &&
+                    !position.IsSquareAttacked(4, false) &&
+                    !position.IsSquareAttacked(3, false) && // d1 must not be attacked
+                    !position.IsSquareAttacked(2, false))   // c1 must not be attacked
                 {
                     // Add the queenside castling move (king moves from 4 to 2).
                     movesBuffer[bufferIndex++] = new Move(4, 2, MoveType.Castling);
@@ -470,14 +471,14 @@ public class MoveGenerator
             if (from != 60) return;
 
             // --- Black kingside castling (e8 -> g8) ---
-            if ((board.CastlingRights & 0b0100) != 0)
+            if ((position.CastlingRights & 0b0100) != 0)
             {
                 // Squares f8 (61) and g8 (62) must be empty.
                 var kingsideEmptySquares = (1UL << 61) | (1UL << 62);
-                if ((board.AllPieces & kingsideEmptySquares) == 0 &&
-                    !board.IsSquareAttacked(60, true) &&
-                    !board.IsSquareAttacked(61, true) &&
-                    !board.IsSquareAttacked(62, true))
+                if ((position.AllPieces & kingsideEmptySquares) == 0 &&
+                    !position.IsSquareAttacked(60, true) &&
+                    !position.IsSquareAttacked(61, true) &&
+                    !position.IsSquareAttacked(62, true))
                 {
                     // Add the kingside castling move (king moves from 60 to 62).
                     movesBuffer[bufferIndex++] = new Move(60, 62, MoveType.Castling);
@@ -485,14 +486,14 @@ public class MoveGenerator
             }
 
             // --- Black queenside castling (e8 -> c8) ---
-            if ((board.CastlingRights & 0b1000) != 0)
+            if ((position.CastlingRights & 0b1000) != 0)
             {
                 // Squares between king and rook: b8 (57), c8 (58), and d8 (59) must be empty.
                 var queensideEmptySquares = (1UL << 57) | (1UL << 58) | (1UL << 59);
-                if ((board.AllPieces & queensideEmptySquares) == 0 &&
-                    !board.IsSquareAttacked(60, true) &&
-                    !board.IsSquareAttacked(59, true) &&
-                    !board.IsSquareAttacked(58, true))
+                if ((position.AllPieces & queensideEmptySquares) == 0 &&
+                    !position.IsSquareAttacked(60, true) &&
+                    !position.IsSquareAttacked(59, true) &&
+                    !position.IsSquareAttacked(58, true))
                 {
                     // Add the queenside castling move (king moves from 60 to 58).
                     movesBuffer[bufferIndex++] = new Move(60, 58, MoveType.Castling);
@@ -501,12 +502,12 @@ public class MoveGenerator
         }
     }
 
-    private bool IsMoveLegal(Board board, Move move)
+    private bool IsMoveLegal(Position position, Move move)
     {
-        board.MakeMove(move);
-        var kingSquare = TrailingZeroCount(board.WhiteToMove ? board.BlackKing : board.WhiteKing);
-        var isLegal = !board.IsSquareAttacked(kingSquare, board.WhiteToMove);
-        board.UndoMove();
+        position.MakeMove(move);
+        var kingSquare = TrailingZeroCount(position.WhiteToMove ? position.BlackKing : position.WhiteKing);
+        var isLegal = !position.IsSquareAttacked(kingSquare, position.WhiteToMove);
+        position.UndoMove();
         return isLegal;
     }
 }

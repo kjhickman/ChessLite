@@ -1,11 +1,13 @@
+using Zugfish.Engine.Models;
+
 namespace Zugfish.Engine;
 
 public static class Search
 {
-    public static Move? FindBestMove(MoveGenerator moveGenerator, Board board, int depth)
+    public static Move? FindBestMove(MoveGenerator moveGenerator, Position position, int depth)
     {
         Span<Move> movesBuffer = stackalloc Move[218];
-        var moveCount = moveGenerator.GenerateLegalMoves(board, movesBuffer);
+        var moveCount = moveGenerator.GenerateLegalMoves(position, movesBuffer);
 
         if (moveCount == 0)
         {
@@ -13,18 +15,18 @@ public static class Search
             return null;
         }
 
-        var isMaximizing = board.WhiteToMove;
+        var isMaximizing = position.WhiteToMove;
         var bestMove = movesBuffer[0];
-        var bestScore = board.WhiteToMove ? int.MinValue : int.MaxValue;
+        var bestScore = position.WhiteToMove ? int.MinValue : int.MaxValue;
         var alpha = int.MinValue;
         var beta = int.MaxValue;
 
         for (var i = 0; i < moveCount; i++)
         {
             var move = movesBuffer[i];
-            board.MakeMove(move);
-            var score = Minimax(moveGenerator, board, depth - 1, alpha, beta, !isMaximizing).Score;
-            board.UndoMove();
+            position.MakeMove(move);
+            var score = Minimax(moveGenerator, position, depth - 1, alpha, beta, !isMaximizing).Score;
+            position.UndoMove();
 
             if (isMaximizing)
             {
@@ -56,35 +58,39 @@ public static class Search
         return bestMove;
     }
 
-    private static EvaluationResult Minimax(MoveGenerator moveGenerator, Board board, int depth, int alpha, int beta, bool isMaximizing)
+    private static EvaluationResult Minimax(MoveGenerator moveGenerator, Position position, int depth, int alpha, int beta, bool isMaximizing)
     {
         // if halfmove clock is 100 or more, the game is a draw
-        if (board.HalfmoveClock >= 100)
+        if (position.HalfmoveClock >= 100)
         {
             return new EvaluationResult(0, GameState.DrawFiftyMove);
         }
 
         // if the position is a draw by insufficient material, the game is a draw
-        // if (board.IsDrawByInsufficientMaterial())
-        // {
-        //     return new EvaluationResult(0, GameState.DrawInsufficientMaterial);
-        // }
+        if (position.IsDrawByInsufficientMaterial())
+        {
+            return new EvaluationResult(0, GameState.DrawInsufficientMaterial);
+        }
 
         // todo: if the position is a draw by repetition, the game is a draw
+        if (position.IsDrawByRepetition())
+        {
+            return new EvaluationResult(0, GameState.DrawRepetition);
+        }
 
         Span<Move> movesBuffer = stackalloc Move[218];
-        var moveCount = moveGenerator.GenerateLegalMoves(board, movesBuffer);
+        var moveCount = moveGenerator.GenerateLegalMoves(position, movesBuffer);
 
         if (moveCount == 0)
         {
-            return board.IsInCheck()
+            return position.IsInCheck()
                 ? new EvaluationResult(isMaximizing ? int.MinValue : int.MaxValue, GameState.Checkmate)
                 : new EvaluationResult(0, GameState.Stalemate);
         }
 
         if (depth == 0)
         {
-            return new EvaluationResult(board.Evaluate(), GameState.Ongoing);
+            return new EvaluationResult(position.Evaluate(), GameState.Ongoing);
         }
 
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;
@@ -92,9 +98,9 @@ public static class Search
         for (var i = 0; i < moveCount; i++)
         {
             var move = movesBuffer[i];
-            board.MakeMove(move);
-            var score = Minimax(moveGenerator, board, depth - 1, alpha, beta, !isMaximizing).Score;
-            board.UndoMove();
+            position.MakeMove(move);
+            var score = Minimax(moveGenerator, position, depth - 1, alpha, beta, !isMaximizing).Score;
+            position.UndoMove();
 
             if (isMaximizing)
             {
