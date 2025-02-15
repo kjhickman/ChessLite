@@ -50,7 +50,9 @@ public class Position
 
     // TODO: Move these out of this class?
     private readonly Stack<MoveHistory> _moveHistory = new(256);
-    private readonly Dictionary<ulong, int> _repetitionTable = new(128);
+    // private readonly Dictionary<ulong, int> _repetitionTable = new(128);
+    private readonly ulong[] _repetitionTable = new ulong[256];
+    private int _currentPly = 0;
 
     #endregion
 
@@ -176,6 +178,7 @@ public class Position
         // Update combined bitboards
         DeriveCombinedBitboards();
         ZobristHash = ComputeZobristHash();
+        _repetitionTable[_currentPly++] = ZobristHash;
     }
 
     public void MakeMove(Move move)
@@ -245,7 +248,8 @@ public class Position
         DeriveCombinedBitboards();
         WhiteToMove = !WhiteToMove;
         ZobristHash = ComputeZobristHash();
-        _repetitionTable.IncrementOrAdd(ZobristHash);
+        _repetitionTable[_currentPly++] = ZobristHash;
+
     }
 
     private Bitboard DetermineCapturedPiece(MoveType moveType, int from, int to, Bitboard toMask)
@@ -435,7 +439,7 @@ public class Position
 
         DeriveCombinedBitboards();
         WhiteToMove = !WhiteToMove;
-        _repetitionTable[ZobristHash]--;
+        if (_currentPly > 0) _currentPly--;
         ZobristHash = lastUndo.PreviousZobristHash;
     }
 
@@ -768,7 +772,19 @@ public class Position
 
     public bool IsDrawByRepetition()
     {
-        return _repetitionTable.TryGetValue(ZobristHash, out var count) && count >= 3;
+        var count = 0;
+        for (var i = 0; i < _currentPly; i++)
+        {
+            if (_repetitionTable[i] != ZobristHash) continue;
+
+            count++;
+            if (count >= 3)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public bool IsDrawByInsufficientMaterial()
