@@ -3,9 +3,9 @@ using static System.Numerics.BitOperations;
 
 namespace Zugfish.Engine;
 
-public class MoveGenerator
+public static class MoveGenerator
 {
-    public int GenerateLegalMoves(Position position, Span<Move> movesBuffer)
+    public static int GenerateLegalMoves(Position position, Span<Move> movesBuffer)
     {
         var moveCount = 0;
 
@@ -19,7 +19,7 @@ public class MoveGenerator
         return moveCount;
     }
 
-    private void GeneratePawnMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
+    private static void GeneratePawnMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
         var isWhite = position.WhiteToMove;
         var pawns = isWhite ? position.WhitePawns : position.BlackPawns;
@@ -118,7 +118,7 @@ public class MoveGenerator
         }
     }
 
-    private void GenerateKnightMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
+    private static void GenerateKnightMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
         Span<int> knightOffsets = [17, 15, 10, 6, -6, -10, -15, -17];
         var knights = position.WhiteToMove ? position.WhiteKnights : position.BlackKnights;
@@ -177,7 +177,7 @@ public class MoveGenerator
         }
     }
 
-    private void GenerateBishopMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
+    private static void GenerateBishopMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
         Span<(int fileDirection, int rankDirection)> bishopDirections =
         [
@@ -242,7 +242,7 @@ public class MoveGenerator
         }
     }
 
-    private void GenerateRookMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
+    private static void GenerateRookMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
         Span<(int fileDirection, int rankDirection)> rookDirections =
         [
@@ -308,7 +308,7 @@ public class MoveGenerator
         }
     }
 
-    private void GenerateQueenMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
+    private static void GenerateQueenMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
         Span<(int fileDirection, int rankDirection)> queenDirections =
         [
@@ -375,7 +375,7 @@ public class MoveGenerator
         }
     }
 
-    private void GenerateKingMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
+    private static void GenerateKingMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
         var king = position.WhiteToMove ? position.WhiteKing : position.BlackKing;
         var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
@@ -502,7 +502,7 @@ public class MoveGenerator
         }
     }
 
-    private bool IsMoveLegal(Position position, Move move)
+    private static bool IsMoveLegal(Position position, Move move)
     {
         position.MakeMove(move);
         var kingSquare = TrailingZeroCount(position.WhiteToMove ? position.BlackKing : position.WhiteKing);

@@ -2,12 +2,14 @@ using Zugfish.Engine.Models;
 
 namespace Zugfish.Engine;
 
-public static class Search
+public class Search
 {
-    public static Move? FindBestMove(MoveGenerator moveGenerator, Position position, int depth)
+    private readonly TranspositionTable _transpositionTable = new(1 << 20); // 1,048,576
+
+    public Move? FindBestMove(Position position, int depth)
     {
         Span<Move> movesBuffer = stackalloc Move[218];
-        var moveCount = moveGenerator.GenerateLegalMoves(position, movesBuffer);
+        var moveCount = MoveGenerator.GenerateLegalMoves(position, movesBuffer);
 
         if (moveCount == 0)
         {
@@ -25,7 +27,7 @@ public static class Search
         {
             var move = movesBuffer[i];
             position.MakeMove(move);
-            var score = Minimax(moveGenerator, position, depth - 1, alpha, beta, !isMaximizing).Score;
+            var score = Minimax(position, depth - 1, alpha, beta, !isMaximizing).Score;
             position.UndoMove();
 
             if (isMaximizing)
@@ -58,7 +60,7 @@ public static class Search
         return bestMove;
     }
 
-    private static EvaluationResult Minimax(MoveGenerator moveGenerator, Position position, int depth, int alpha, int beta, bool isMaximizing)
+    private EvaluationResult Minimax(Position position, int depth, int alpha, int beta, bool isMaximizing)
     {
         // if halfmove clock is 100 or more, the game is a draw
         if (position.HalfmoveClock >= 100)
@@ -79,7 +81,7 @@ public static class Search
         }
 
         Span<Move> movesBuffer = stackalloc Move[218];
-        var moveCount = moveGenerator.GenerateLegalMoves(position, movesBuffer);
+        var moveCount = MoveGenerator.GenerateLegalMoves(position, movesBuffer);
 
         if (moveCount == 0)
         {
@@ -93,13 +95,31 @@ public static class Search
             return new EvaluationResult(position.Evaluate(), GameState.Ongoing);
         }
 
+        if (_transpositionTable.TryGet(position.ZobristHash, out var entry) && entry.Depth >= depth)
+        {
+            switch (entry.Flag)
+            {
+                case NodeType.Exact:
+                    return new EvaluationResult(entry.Score, GameState.Ongoing);
+                case NodeType.Alpha:
+                    alpha = Math.Max(alpha, entry.Score);
+                    break;
+                case NodeType.Beta:
+                    beta = Math.Min(beta, entry.Score);
+                    break;
+            }
+            if (alpha >= beta)
+                return new EvaluationResult(entry.Score, GameState.Ongoing);
+        }
+
+        var originalAlpha = alpha;
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;
 
         for (var i = 0; i < moveCount; i++)
         {
             var move = movesBuffer[i];
             position.MakeMove(move);
-            var score = Minimax(moveGenerator, position, depth - 1, alpha, beta, !isMaximizing).Score;
+            var score = Minimax(position, depth - 1, alpha, beta, !isMaximizing).Score;
             position.UndoMove();
 
             if (isMaximizing)
@@ -118,6 +138,16 @@ public static class Search
                 break;
             }
         }
+
+        NodeType flag;
+        if (bestScore <= originalAlpha)
+            flag = NodeType.Beta;
+        else if (bestScore >= beta)
+            flag = NodeType.Alpha;
+        else
+            flag = NodeType.Exact;
+
+        _transpositionTable.Store(position.ZobristHash, depth, bestScore, flag, new Move());
 
         return new EvaluationResult(bestScore, GameState.Ongoing);
     }
