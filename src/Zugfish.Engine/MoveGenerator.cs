@@ -1,3 +1,5 @@
+using System.Numerics;
+using System.Runtime.CompilerServices;
 using Zugfish.Engine.Models;
 using static System.Numerics.BitOperations;
 
@@ -52,10 +54,7 @@ public static class MoveGenerator
                     move = new Move(from, oneStep, MoveType.Quiet);
                 }
 
-                if (IsMoveLegal(position, move))
-                {
-                    movesBuffer[bufferIndex++] = move;
-                }
+                AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
             }
 
             // Two squares forward
@@ -64,10 +63,7 @@ public static class MoveGenerator
             if (twoSteps is >= 0 and < 64 && (allPieces & twoStepsMask) == 0 && (startingRank & (1UL << from)) != 0)
             {
                 var move = new Move(from, twoSteps, MoveType.DoublePawnPush);
-                if (IsMoveLegal(position, move))
-                {
-                    movesBuffer[bufferIndex++] = move;
-                }
+                AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
             }
 
             // Left capture
@@ -86,10 +82,7 @@ public static class MoveGenerator
                     move = new Move(from, leftCaptureTo, MoveType.Capture);
                 }
 
-                if (IsMoveLegal(position, move))
-                {
-                    movesBuffer[bufferIndex++] = move;
-                }
+                AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
             }
 
             // Right capture
@@ -107,10 +100,7 @@ public static class MoveGenerator
                     move = new Move(from, rightCaptureTo, MoveType.Capture);
                 }
 
-                if (IsMoveLegal(position, move))
-                {
-                    movesBuffer[bufferIndex++] = move;
-                }
+                AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
             }
 
             // Clear the least significant bit
@@ -167,10 +157,7 @@ public static class MoveGenerator
                     move = new Move(from, to, MoveType.Quiet);
                 }
 
-                if (IsMoveLegal(position, move))
-                {
-                    movesBuffer[bufferIndex++] = move;
-                }
+                AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
             }
 
             currentKnights &= currentKnights - 1;
@@ -179,133 +166,16 @@ public static class MoveGenerator
 
     private static void GenerateBishopMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
-        Span<(int fileDirection, int rankDirection)> bishopDirections =
-        [
-            (1, 1), (-1, 1), (1, -1), (-1, -1)
-        ];
+        Span<(int fileDirection, int rankDirection)> bishopDirections = [(1, 1), (-1, 1), (1, -1), (-1, -1)];
         var bishops = position.WhiteToMove ? position.WhiteBishops : position.BlackBishops;
-        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
-        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
-
-        var currentBishops = bishops;
-        while (currentBishops != 0)
-        {
-            var from = TrailingZeroCount(currentBishops);
-            var fromFile = from % 8;
-            var fromRank = from / 8;
-
-            for (var i = 0; i < bishopDirections.Length; i++)
-            {
-                var currentFile = fromFile;
-                var currentRank = fromRank;
-
-                while (true)
-                {
-                    currentFile += bishopDirections[i].fileDirection;
-                    currentRank += bishopDirections[i].rankDirection;
-
-                    if (currentFile is < 0 or >= 8 || currentRank is < 0 or >= 8)
-                    {
-                        // Out of bounds
-                        break;
-                    }
-
-                    var to = currentFile + currentRank * 8;
-                    var toMask = Bitboard.Mask(to);
-
-                    if ((friendlyPieces & toMask) != 0)
-                    {
-                        // Friendly piece at the target square
-                        break;
-                    }
-
-                    if ((enemyPieces & toMask) != 0)
-                    {
-                        var captureMove = new Move(from, to, MoveType.Capture);
-                        if (IsMoveLegal(position, captureMove))
-                        {
-                            movesBuffer[bufferIndex++] = captureMove;
-                        }
-
-                        break;
-                    }
-
-                    var quietMove = new Move(from, to, MoveType.Quiet);
-                    if (IsMoveLegal(position, quietMove))
-                    {
-                        movesBuffer[bufferIndex++] = quietMove;
-                    }
-                }
-            }
-
-            currentBishops &= currentBishops - 1;
-        }
+        GenerateSlidingMoves(bishops, position, ref bufferIndex, movesBuffer, bishopDirections);
     }
 
     private static void GenerateRookMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
-        Span<(int fileDirection, int rankDirection)> rookDirections =
-        [
-            (1, 0), (-1, 0), (0, 1), (0, -1)
-        ];
+        Span<(int fileDirection, int rankDirection)> rookDirections = [(1, 0), (-1, 0), (0, 1), (0, -1)];
         var rooks = position.WhiteToMove ? position.WhiteRooks : position.BlackRooks;
-        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
-        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
-
-        var currentRooks = rooks;
-        while (currentRooks != 0)
-        {
-            var from = TrailingZeroCount(currentRooks);
-            var fromFile = from % 8;
-            var fromRank = from / 8;
-
-            for (var i = 0; i < rookDirections.Length; i++)
-            {
-                var currentFile = fromFile;
-                var currentRank = fromRank;
-
-                while (true)
-                {
-                    currentFile += rookDirections[i].fileDirection;
-                    currentRank += rookDirections[i].rankDirection;
-
-                    if (currentFile is < 0 or >= 8 || currentRank is < 0 or >= 8)
-                    {
-                        // Out of bounds
-                        break;
-                    }
-
-                    var to = currentFile + currentRank * 8;
-                    var toMask = Bitboard.Mask(to);
-
-                    if ((friendlyPieces & toMask) != 0)
-                    {
-                        // Friendly piece at the target square
-                        break;
-                    }
-
-                    if ((enemyPieces & toMask) != 0)
-                    {
-                        var captureMove = new Move(from, to, MoveType.Capture);
-                        if (IsMoveLegal(position, captureMove))
-                        {
-                            movesBuffer[bufferIndex++] = captureMove;
-                        }
-
-                        break;
-                    }
-
-                    var quietMove = new Move(from, to, MoveType.Quiet);
-                    if (IsMoveLegal(position, quietMove))
-                    {
-                        movesBuffer[bufferIndex++] = quietMove;
-                    }
-                }
-            }
-
-
-            currentRooks &= currentRooks - 1;
-        }
+        GenerateSlidingMoves(rooks, position, ref bufferIndex, movesBuffer, rookDirections);
     }
 
     private static void GenerateQueenMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
@@ -316,63 +186,7 @@ public static class MoveGenerator
             (1, 0), (-1, 0), (0, 1), (0, -1)
         ];
         var queens = position.WhiteToMove ? position.WhiteQueens : position.BlackQueens;
-        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
-        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
-
-        var currentQueens = queens;
-        while (currentQueens != 0)
-        {
-            var from = TrailingZeroCount(currentQueens);
-            var fromFile = from % 8;
-            var fromRank = from / 8;
-
-            for (var i = 0; i < queenDirections.Length; i++)
-            {
-                var currentFile = fromFile;
-                var currentRank = fromRank;
-
-                while (true)
-                {
-                    currentFile += queenDirections[i].fileDirection;
-                    currentRank += queenDirections[i].rankDirection;
-
-                    if (currentFile is < 0 or >= 8 || currentRank is < 0 or >= 8)
-                    {
-                        // Out of bounds
-                        break;
-                    }
-
-                    var to = currentFile + currentRank * 8;
-                    var toMask = Bitboard.Mask(to);
-
-                    if ((friendlyPieces & toMask) != 0)
-                    {
-                        // Friendly piece at the target square
-                        break;
-                    }
-
-                    if ((enemyPieces & toMask) != 0)
-                    {
-                        var captureMove = new Move(from, to, MoveType.Capture);
-                        if (IsMoveLegal(position, captureMove))
-                        {
-                            movesBuffer[bufferIndex++] = captureMove;
-                        }
-
-                        break;
-                    }
-
-                    var quietMove = new Move(from, to, MoveType.Quiet);
-                    if (IsMoveLegal(position, quietMove))
-                    {
-                        movesBuffer[bufferIndex++] = quietMove;
-                    }
-                }
-            }
-
-            // Remove the queen we just processed.
-            currentQueens &= currentQueens - 1;
-        }
+        GenerateSlidingMoves(queens, position, ref bufferIndex, movesBuffer, queenDirections);
     }
 
     private static void GenerateKingMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
@@ -423,10 +237,7 @@ public static class MoveGenerator
                     move = new Move(from, to, MoveType.Quiet);
                 }
 
-                if (IsMoveLegal(position, move))
-                {
-                    movesBuffer[bufferIndex++] = move;
-                }
+                AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
             }
         }
 
@@ -502,6 +313,63 @@ public static class MoveGenerator
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void GenerateSlidingMoves(
+        Bitboard pieces,
+        Position position,
+        ref int bufferIndex,
+        Span<Move> movesBuffer,
+        ReadOnlySpan<(int fileDirection, int rankDirection)> directions)
+    {
+        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
+
+        while (pieces != 0)
+        {
+            var from = TrailingZeroCount(pieces);
+            var fromFile = from % 8;
+            var fromRank = from / 8;
+
+            foreach (var (fileDirection, rankDirection) in directions)
+            {
+                int currentFile = fromFile;
+                int currentRank = fromRank;
+                while (true)
+                {
+                    currentFile += fileDirection;
+                    currentRank += rankDirection;
+                    if (currentFile is < 0 or >= 8 || currentRank is < 0 or >= 8)
+                        break;
+                    var to = currentRank * 8 + currentFile;
+                    var toMask = Bitboard.Mask(to);
+                    if ((friendlyPieces & toMask) != 0)
+                        break;
+
+                    if ((enemyPieces & toMask) != 0)
+                    {
+                        var captureMove = new Move(from, to, MoveType.Capture);
+                        AddMoveIfLegal(position, ref bufferIndex, movesBuffer, captureMove);
+                        break;
+                    }
+
+                    var quietMove = new Move(from, to, MoveType.Quiet);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, quietMove);
+                }
+            }
+            pieces &= pieces - 1; // Clear the lowest set bit
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void AddMoveIfLegal(Position position, ref int bufferIndex, Span<Move> movesBuffer, Move move)
+    {
+        if (IsMoveLegal(position, move))
+        {
+            movesBuffer[bufferIndex++] = move;
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsMoveLegal(Position position, Move move)
     {
         position.MakeMove(move);

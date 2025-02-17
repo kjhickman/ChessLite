@@ -1,5 +1,4 @@
 using System.Numerics;
-using Zugfish.Engine.Extensions;
 using Zugfish.Engine.Models;
 
 namespace Zugfish.Engine;
@@ -79,7 +78,7 @@ public class Position
         CastlingRights = 0b1111;
         WhiteToMove = true;
         DeriveCombinedBitboards();
-        ZobristHash = ComputeZobristHash();
+        ZobristHash = Zobrist.ComputeHash(this);
     }
 
     public Position(ReadOnlySpan<char> fen)
@@ -177,7 +176,7 @@ public class Position
 
         // Update combined bitboards
         DeriveCombinedBitboards();
-        ZobristHash = ComputeZobristHash();
+        ZobristHash = Zobrist.ComputeHash(this);
         _repetitionTable[_currentPly++] = ZobristHash;
     }
 
@@ -191,7 +190,7 @@ public class Position
         // Determine captured piece
         var capturedPieceMask = DetermineCapturedPiece(move.Type, from, to, toMask);
         Bitboard dummyCapturedPiece = default;
-        ref var capturedPieceBoard = ref capturedPieceMask != 0
+        ref var capturedPieceBoard = ref capturedPieceMask.IsNotEmpty()
             ? ref GetPieceBitboard(capturedPieceMask)
             : ref dummyCapturedPiece;
 
@@ -209,7 +208,7 @@ public class Position
                 HandleQuietOrCaptureMove(ref movingPieceBoard, toMask);
                 break;
             case MoveType.Castling:
-                HandleCastlingMove(move, ref movingPieceBoard, toMask);
+                HandleCastlingMove(move.To, ref movingPieceBoard);
                 break;
             case MoveType.EnPassant:
                 HandleEnPassantMove(fromMask, toMask);
@@ -225,10 +224,10 @@ public class Position
         }
 
         // Remove the moving piece from its original square
-        movingPieceBoard &= ~fromMask;
+        movingPieceBoard = movingPieceBoard.Clear(from);
 
         // Remove any captured piece and update castling rights if necessary
-        if (capturedPieceMask != 0)
+        if (capturedPieceMask.IsNotEmpty())
         {
             HandleCapturedPiece(capturedPieceMask, ref capturedPieceBoard);
         }
@@ -239,15 +238,15 @@ public class Position
         EnPassantTarget = move.Type == MoveType.DoublePawnPush ? (from + to) / 2 : -1;
 
         // Update the halfmove clock
-        var isPawnMove = (WhitePawns & fromMask) != 0 || (BlackPawns & fromMask) != 0;
-        if (isPawnMove || capturedPieceMask != 0)
+        var isPawnMove = (WhitePawns & fromMask).IsNotEmpty() || (BlackPawns & fromMask).IsNotEmpty();
+        if (isPawnMove || capturedPieceMask.IsNotEmpty())
             HalfmoveClock = 0;
         else
             HalfmoveClock++;
 
         DeriveCombinedBitboards();
         WhiteToMove = !WhiteToMove;
-        ZobristHash = ComputeZobristHash();
+        ZobristHash = Zobrist.ComputeHash(this);
         _repetitionTable[_currentPly++] = ZobristHash;
 
     }
@@ -269,7 +268,7 @@ public class Position
     private void SaveMoveUndo(Move move, Bitboard fromMask, Bitboard toMask, Bitboard capturedPieceMask)
     {
         var capturedType = PieceType.None;
-        if (capturedPieceMask != 0)
+        if (capturedPieceMask.IsNotEmpty())
         {
             capturedType = GetPieceTypeWithOverlap(capturedPieceMask);
         }
@@ -293,32 +292,32 @@ public class Position
 
     private void HandleQuietOrCaptureMove(ref Bitboard pieceBoard, Bitboard toMask)
     {
-        pieceBoard |= toMask;
+        pieceBoard = pieceBoard.Set(toMask);
     }
 
-    private void HandleCastlingMove(Move move, ref Bitboard pieceBoard, Bitboard toMask)
+    private void HandleCastlingMove(int to, ref Bitboard kingBoard)
     {
         // Move the king
-        pieceBoard |= toMask;
+        kingBoard = kingBoard.Set(to);
 
         // Move the rook based on destination square
-        switch (move.To)
+        switch (to)
         {
             case 2: // White Queen-side castling
-                WhiteRooks &= ~(1UL << 0); // Remove rook from a1
-                WhiteRooks |= 1UL << 3;  // Place rook on d1
+                WhiteRooks = WhiteRooks.Clear(0);
+                WhiteRooks = WhiteRooks.Set(3);
                 break;
             case 6: // White King-side castling
-                WhiteRooks &= ~(1UL << 7); // Remove rook from h1
-                WhiteRooks |= 1UL << 5;  // Place rook on f1
+                WhiteRooks = WhiteRooks.Clear(7);
+                WhiteRooks = WhiteRooks.Set(5);
                 break;
             case 58: // Black Queen-side castling
-                BlackRooks &= ~(1UL << 56); // Remove rook from a8
-                BlackRooks |= 1UL << 59;  // Place rook on d8
+                BlackRooks = WhiteRooks.Clear(56);
+                BlackRooks = WhiteRooks.Set(59);
                 break;
             case 62: // Black King-side castling
-                BlackRooks &= ~(1UL << 63); // Remove rook from h8
-                BlackRooks |= 1UL << 61;  // Place rook on f8
+                BlackRooks = WhiteRooks.Clear(59);
+                BlackRooks = WhiteRooks.Set(61);
                 break;
         }
     }
@@ -326,7 +325,7 @@ public class Position
     private void HandleEnPassantMove(Bitboard fromMask, Bitboard toMask)
     {
         ref var pawnBoard = ref GetPieceBitboard(fromMask);
-        pawnBoard |= toMask;
+        pawnBoard = pawnBoard.Set(toMask);
         // Removal of the captured pawn is handled by the captured piece logic.
     }
 
@@ -336,10 +335,10 @@ public class Position
         switch (move.Type)
         {
             case MoveType.PromoteToKnight:
-                if (isWhite) WhiteKnights |= toMask; else BlackKnights |= toMask;
+                if (isWhite) WhiteKnights = WhiteKnights.Set(toMask); else BlackKnights = BlackKnights.Set(toMask);
                 break;
             case MoveType.PromoteToBishop:
-                if (isWhite) WhiteBishops |= toMask; else BlackBishops |= toMask;
+                if (isWhite) WhiteBishops = WhiteBishops.Set(toMask); else BlackBishops = BlackBishops.Set(toMask);
                 break;
             case MoveType.PromoteToRook:
                 if (isWhite) WhiteRooks |= toMask; else BlackRooks |= toMask;
@@ -357,15 +356,15 @@ public class Position
         capturedBoard &= ~capturedPieceMask;
 
         // Update castling rights if a rook was captured
-        if ((capturedPieceMask & WhiteRooks) != 0)
+        if ((capturedPieceMask & WhiteRooks).IsNotEmpty())
         {
-            if ((capturedPieceMask & (1UL << 0)) != 0) CastlingRights &= 0b1101;
-            if ((capturedPieceMask & (1UL << 7)) != 0) CastlingRights &= 0b1110;
+            if ((capturedPieceMask & (1UL << 0)).IsNotEmpty()) CastlingRights &= 0b1101;
+            if ((capturedPieceMask & (1UL << 7)).IsNotEmpty()) CastlingRights &= 0b1110;
         }
-        else if ((capturedPieceMask & BlackRooks) != 0)
+        else if ((capturedPieceMask & BlackRooks).IsNotEmpty())
         {
-            if ((capturedPieceMask & (1UL << 56)) != 0) CastlingRights &= 0b0111;
-            if ((capturedPieceMask & (1UL << 63)) != 0) CastlingRights &= 0b1011;
+            if ((capturedPieceMask & (1UL << 56)).IsNotEmpty()) CastlingRights &= 0b0111;
+            if ((capturedPieceMask & (1UL << 63)).IsNotEmpty()) CastlingRights &= 0b1011;
         }
     }
 
@@ -427,7 +426,7 @@ public class Position
         }
 
         // Restore captured piece if any
-        if (lastUndo.CapturedPiece != 0 && move.Type != MoveType.EnPassant)
+        if (lastUndo.CapturedPiece.IsNotEmpty() && move.Type != MoveType.EnPassant)
         {
             ref var capturedBoard = ref GetPieceBitboard(lastUndo.CapturedPieceType);
             capturedBoard |= lastUndo.CapturedPiece;
@@ -522,36 +521,36 @@ public class Position
 
     private PieceType GetPieceTypeWithOverlap(Bitboard capturedPieceMask)
     {
-        if ((WhitePawns &  capturedPieceMask) != 0) return PieceType.WhitePawn;
-        if ((WhiteKnights & capturedPieceMask) != 0) return PieceType.WhiteKnight;
-        if ((WhiteBishops & capturedPieceMask) != 0) return PieceType.WhiteBishop;
-        if ((WhiteRooks  & capturedPieceMask) != 0) return PieceType.WhiteRook;
-        if ((WhiteQueens & capturedPieceMask) != 0) return PieceType.WhiteQueen;
-        if ((WhiteKing & capturedPieceMask) != 0) return PieceType.WhiteKing;
-        if ((BlackPawns &  capturedPieceMask) != 0) return PieceType.BlackPawn;
-        if ((BlackKnights & capturedPieceMask) != 0) return PieceType.BlackKnight;
-        if ((BlackBishops & capturedPieceMask) != 0) return PieceType.BlackBishop;
-        if ((BlackRooks  & capturedPieceMask) != 0) return PieceType.BlackRook;
-        if ((BlackQueens & capturedPieceMask) != 0) return PieceType.BlackQueen;
-        if ((BlackKing & capturedPieceMask) != 0) return PieceType.BlackKing;
+        if ((WhitePawns &  capturedPieceMask).IsNotEmpty()) return PieceType.WhitePawn;
+        if ((WhiteKnights & capturedPieceMask).IsNotEmpty()) return PieceType.WhiteKnight;
+        if ((WhiteBishops & capturedPieceMask).IsNotEmpty()) return PieceType.WhiteBishop;
+        if ((WhiteRooks  & capturedPieceMask).IsNotEmpty()) return PieceType.WhiteRook;
+        if ((WhiteQueens & capturedPieceMask).IsNotEmpty()) return PieceType.WhiteQueen;
+        if ((WhiteKing & capturedPieceMask).IsNotEmpty()) return PieceType.WhiteKing;
+        if ((BlackPawns &  capturedPieceMask).IsNotEmpty()) return PieceType.BlackPawn;
+        if ((BlackKnights & capturedPieceMask).IsNotEmpty()) return PieceType.BlackKnight;
+        if ((BlackBishops & capturedPieceMask).IsNotEmpty()) return PieceType.BlackBishop;
+        if ((BlackRooks  & capturedPieceMask).IsNotEmpty()) return PieceType.BlackRook;
+        if ((BlackQueens & capturedPieceMask).IsNotEmpty()) return PieceType.BlackQueen;
+        if ((BlackKing & capturedPieceMask).IsNotEmpty()) return PieceType.BlackKing;
         return PieceType.None;
     }
 
     private ref Bitboard GetPieceBitboard(Bitboard bitboard)
     {
-        if ((_whitePawns & bitboard) != 0) return ref _whitePawns;
-        if ((_whiteKnights & bitboard) != 0) return ref _whiteKnights;
-        if ((_whiteBishops & bitboard) != 0) return ref _whiteBishops;
-        if ((_whiteRooks & bitboard) != 0) return ref _whiteRooks;
-        if ((_whiteQueens & bitboard) != 0) return ref _whiteQueens;
-        if ((_whiteKing & bitboard) != 0) return ref _whiteKing;
+        if ((_whitePawns & bitboard).IsNotEmpty()) return ref _whitePawns;
+        if ((_whiteKnights & bitboard).IsNotEmpty()) return ref _whiteKnights;
+        if ((_whiteBishops & bitboard).IsNotEmpty()) return ref _whiteBishops;
+        if ((_whiteRooks & bitboard).IsNotEmpty()) return ref _whiteRooks;
+        if ((_whiteQueens & bitboard).IsNotEmpty()) return ref _whiteQueens;
+        if ((_whiteKing & bitboard).IsNotEmpty()) return ref _whiteKing;
 
-        if ((_blackPawns & bitboard) != 0) return ref _blackPawns;
-        if ((_blackKnights & bitboard) != 0) return ref _blackKnights;
-        if ((_blackBishops & bitboard) != 0) return ref _blackBishops;
-        if ((_blackRooks & bitboard) != 0) return ref _blackRooks;
-        if ((_blackQueens & bitboard) != 0) return ref _blackQueens;
-        if ((_blackKing & bitboard) != 0) return ref _blackKing;
+        if ((_blackPawns & bitboard).IsNotEmpty()) return ref _blackPawns;
+        if ((_blackKnights & bitboard).IsNotEmpty()) return ref _blackKnights;
+        if ((_blackBishops & bitboard).IsNotEmpty()) return ref _blackBishops;
+        if ((_blackRooks & bitboard).IsNotEmpty()) return ref _blackRooks;
+        if ((_blackQueens & bitboard).IsNotEmpty()) return ref _blackQueens;
+        if ((_blackKing & bitboard).IsNotEmpty()) return ref _blackKing;
 
         throw new InvalidOperationException("No matching piece found for given bitboard.");
     }
@@ -584,60 +583,6 @@ public class Position
         AllPieces = WhitePieces | BlackPieces;
     }
 
-    /// <summary>
-    /// Computes the Zobrist hash for the current board state.
-    /// </summary>
-    public ulong ComputeZobristHash()
-    {
-        ulong hash = 0;
-
-        // For each piece type, iterate over the bits in its bitboard.
-        // The piece key indices are defined as:
-        // 0: White Pawn, 1: White Knight, 2: White Bishop,
-        // 3: White Rook, 4: White Queen, 5: White King,
-        // 6: Black Pawn, 7: Black Knight, 8: Black Bishop,
-        // 9: Black Rook, 10: Black Queen, 11: Black King.
-        AddPieceHash(ref hash, _whitePawns,   0);
-        AddPieceHash(ref hash, _whiteKnights,  1);
-        AddPieceHash(ref hash, _whiteBishops,  2);
-        AddPieceHash(ref hash, _whiteRooks,    3);
-        AddPieceHash(ref hash, _whiteQueens,   4);
-        AddPieceHash(ref hash, _whiteKing,     5);
-
-        AddPieceHash(ref hash, _blackPawns,    6);
-        AddPieceHash(ref hash, _blackKnights,  7);
-        AddPieceHash(ref hash, _blackBishops,  8);
-        AddPieceHash(ref hash, _blackRooks,    9);
-        AddPieceHash(ref hash, _blackQueens,   10);
-        AddPieceHash(ref hash, _blackKing,     11);
-
-        // Incorporate castling rights.
-        hash ^= Zobrist.CastlingKeys[CastlingRights];
-
-        // Incorporate en passant square if available.
-        if (EnPassantTarget != -1)
-            hash ^= Zobrist.EnPassantKeys[EnPassantTarget];
-
-        // Incorporate side to move: XOR the side key if it's Black's turn.
-        if (!WhiteToMove)
-            hash ^= Zobrist.SideKey;
-
-        return hash;
-    }
-
-    /// <summary>
-    /// Helper method to XOR the piece key for every set bit in the bitboard.
-    /// </summary>
-    private void AddPieceHash(ref ulong hash, Bitboard board, int pieceIndex)
-    {
-        while (board != 0)
-        {
-            var square = BitOperations.TrailingZeroCount(board);
-            hash ^= Zobrist.PieceKeys[pieceIndex, square];
-            board &= board - 1;
-        }
-    }
-
     public bool IsInCheck()
     {
         var kingSquare = WhiteToMove ? _whiteKing : _blackKing;
@@ -655,13 +600,13 @@ public class Position
             if (file > 0)
             {
                 var pawnSquare = square - 9;
-                if (pawnSquare >= 0 && (WhitePawns & (1UL << pawnSquare)) != 0) return true;
+                if (pawnSquare >= 0 && (WhitePawns & (1UL << pawnSquare)).IsNotEmpty()) return true;
             }
 
             if (file < 7)
             {
                 var pawnSquare = square - 7;
-                if (pawnSquare >= 0 && (WhitePawns & (1UL << pawnSquare)) != 0) return true;
+                if (pawnSquare >= 0 && (WhitePawns & (1UL << pawnSquare)).IsNotEmpty()) return true;
             }
         }
         else
@@ -669,13 +614,13 @@ public class Position
             if (file < 7)
             {
                 var pawnSquare = square + 9;
-                if (pawnSquare < 64 && (BlackPawns & (1UL << pawnSquare)) != 0) return true;
+                if (pawnSquare < 64 && (BlackPawns & (1UL << pawnSquare)).IsNotEmpty()) return true;
             }
 
             if (file > 0)
             {
                 var pawnSquare = square + 7;
-                if (pawnSquare < 64 && (BlackPawns & (1UL << pawnSquare)) != 0) return true;
+                if (pawnSquare < 64 && (BlackPawns & (1UL << pawnSquare)).IsNotEmpty()) return true;
             }
         }
 
@@ -691,7 +636,7 @@ public class Position
             var attackerFile = attackerSquare % 8;
             if (Math.Abs(attackerFile - file) > 2) continue;
 
-            if ((knights & (1UL << attackerSquare)) != 0) return true;
+            if ((knights & (1UL << attackerSquare)).IsNotEmpty()) return true;
         }
 
         // King attacks
@@ -706,7 +651,7 @@ public class Position
             var attackerFile = attackerSquare % 8;
             if (Math.Abs(attackerFile - file) > 1) continue;
 
-            if ((king & (1UL << attackerSquare)) != 0) return true;
+            if ((king & (1UL << attackerSquare)).IsNotEmpty()) return true;
         }
 
         // Sliding piece attacks
@@ -723,16 +668,16 @@ public class Position
                 if (currentFile < 0 || currentFile >= 8 || currentRank < 0 || currentRank >= 8) break;
                 var toMask = Bitboard.Mask(currentRank * 8 + currentFile);
 
-                if ((AllPieces & toMask) == 0) continue;
+                if ((AllPieces & toMask).IsEmpty()) continue;
 
                 // If a piece is blocking further movement, check if it's an attacker.
                 if (byWhite)
                 {
-                    if (((WhiteBishops | WhiteQueens) & toMask) != 0) return true;
+                    if (((WhiteBishops | WhiteQueens) & toMask).IsNotEmpty()) return true;
                 }
                 else
                 {
-                    if (((BlackBishops | BlackQueens) & toMask) != 0) return true;
+                    if (((BlackBishops | BlackQueens) & toMask).IsNotEmpty()) return true;
                 }
 
                 break;
@@ -751,16 +696,16 @@ public class Position
                 currentRank += rankDirection;
                 if (currentFile < 0 || currentFile >= 8 || currentRank < 0 || currentRank >= 8) break;
                 var toMask = Bitboard.Mask(currentRank * 8 + currentFile);
-                if ((AllPieces & toMask) == 0) continue;
+                if ((AllPieces & toMask).IsEmpty()) continue;
 
                 // If a piece is blocking further movement, check if it's an attacker.
                 if (byWhite)
                 {
-                    if (((WhiteRooks | WhiteQueens) & toMask) != 0) return true;
+                    if (((WhiteRooks | WhiteQueens) & toMask).IsNotEmpty()) return true;
                 }
                 else
                 {
-                    if (((BlackRooks | BlackQueens) & toMask) != 0) return true;
+                    if (((BlackRooks | BlackQueens) & toMask).IsNotEmpty()) return true;
                 }
 
                 break;
@@ -793,30 +738,30 @@ public class Position
         var blackMaterial = BlackPawns | BlackKnights | BlackBishops | BlackRooks | BlackQueens;
 
         // Both sides have just kings
-        if (whiteMaterial == 0 && blackMaterial == 0)
+        if (whiteMaterial.IsEmpty() && blackMaterial.IsEmpty())
         {
             return true;
         }
 
         // If white has only its king
-        if (whiteMaterial == 0)
+        if (whiteMaterial.IsEmpty())
         {
             // Black has exactly one knight
-            if (blackMaterial == BlackKnights && BitOperations.PopCount(blackMaterial) == 1)
+            if (blackMaterial == BlackKnights && blackMaterial.Count() == 1)
                 return true;
             // or exactly one bishop
-            if (blackMaterial == BlackBishops && BitOperations.PopCount(blackMaterial) == 1)
+            if (blackMaterial == BlackBishops && blackMaterial.Count() == 1)
                 return true;
         }
 
         // If black has only its king
-        if (blackMaterial == 0)
+        if (blackMaterial.IsEmpty())
         {
             // White has exactly one knight
-            if (whiteMaterial == WhiteKnights && BitOperations.PopCount(whiteMaterial) == 1)
+            if (whiteMaterial == WhiteKnights && whiteMaterial.Count() == 1)
                 return true;
             // or exactly one bishop
-            if (whiteMaterial == WhiteBishops && BitOperations.PopCount(whiteMaterial) == 1)
+            if (whiteMaterial == WhiteBishops && whiteMaterial.Count() == 1)
                 return true;
         }
 

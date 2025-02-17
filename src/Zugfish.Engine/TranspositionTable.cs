@@ -35,10 +35,7 @@ public class TranspositionTable
 
     public void Clear()
     {
-        for (var i = 0; i < _table.Length; i++)
-        {
-            _table[i] = default;
-        }
+        Array.Clear(_table, 0, _table.Length);
     }
 
     public void Store(ulong key, int depth, int score, NodeType flag, Move bestMove)

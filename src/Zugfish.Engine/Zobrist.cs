@@ -1,3 +1,6 @@
+using System.Numerics;
+using Zugfish.Engine.Models;
+
 namespace Zugfish.Engine;
 
 public static class Zobrist
@@ -15,18 +18,18 @@ public static class Zobrist
     static Zobrist()
     {
         var rng = new Random();
-        for (int piece = 0; piece < 12; piece++)
+        for (var piece = 0; piece < 12; piece++)
         {
-            for (int square = 0; square < 64; square++)
+            for (var square = 0; square < 64; square++)
             {
                 PieceKeys[piece, square] = NextULong(rng);
             }
         }
 
-        for (int i = 0; i < 16; i++)
+        for (var i = 0; i < 16; i++)
             CastlingKeys[i] = NextULong(rng);
 
-        for (int square = 0; square < 64; square++)
+        for (var square = 0; square < 64; square++)
             EnPassantKeys[square] = NextULong(rng);
 
         SideKey = NextULong(rng);
@@ -34,8 +37,43 @@ public static class Zobrist
 
     private static ulong NextULong(Random rng)
     {
-        byte[] buffer = new byte[8];
+        var buffer = new byte[8];
         rng.NextBytes(buffer);
         return BitConverter.ToUInt64(buffer, 0);
+    }
+
+    public static ulong ComputeHash(Position pos)
+    {
+        ulong hash = 0;
+        // For each piece type, iterate over its bitboard
+        AddPieceHash(ref hash, pos.WhitePawns,   0);
+        AddPieceHash(ref hash, pos.WhiteKnights,  1);
+        AddPieceHash(ref hash, pos.WhiteBishops,  2);
+        AddPieceHash(ref hash, pos.WhiteRooks,    3);
+        AddPieceHash(ref hash, pos.WhiteQueens,   4);
+        AddPieceHash(ref hash, pos.WhiteKing,     5);
+        AddPieceHash(ref hash, pos.BlackPawns,    6);
+        AddPieceHash(ref hash, pos.BlackKnights,  7);
+        AddPieceHash(ref hash, pos.BlackBishops,  8);
+        AddPieceHash(ref hash, pos.BlackRooks,    9);
+        AddPieceHash(ref hash, pos.BlackQueens,   10);
+        AddPieceHash(ref hash, pos.BlackKing,     11);
+
+        hash ^= CastlingKeys[pos.CastlingRights];
+        if (pos.EnPassantTarget != -1)
+            hash ^= EnPassantKeys[pos.EnPassantTarget];
+        if (!pos.WhiteToMove)
+            hash ^= SideKey;
+        return hash;
+    }
+
+    private static void AddPieceHash(ref ulong hash, Bitboard board, int pieceIndex)
+    {
+        while (board != 0)
+        {
+            var square = BitOperations.TrailingZeroCount(board);
+            hash ^= PieceKeys[pieceIndex, square];
+            board &= board - 1;
+        }
     }
 }

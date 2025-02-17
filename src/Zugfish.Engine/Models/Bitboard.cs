@@ -41,6 +41,12 @@ public readonly struct Bitboard : IEquatable<Bitboard>
     public bool IsEmpty() => Value == 0;
 
     /// <summary>
+    /// Returns true if no bits are set.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IsNotEmpty() => Value != 0;
+
+    /// <summary>
     /// Returns the number of set bits.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -59,9 +65,21 @@ public readonly struct Bitboard : IEquatable<Bitboard>
     public Bitboard Set(int square) => new(Value | (1UL << square));
 
     /// <summary>
+    /// Returns a new Bitboard with the bits for the given squares set.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bitboard Set(Bitboard bitboard) => new(Value | bitboard);
+
+    /// <summary>
     /// Returns a new Bitboard with the bit for the given square cleared.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bitboard Clear(int square) => new(Value & ~(1UL << square));
+
+    /// <summary>
+    /// Returns a new Bitboard with the bits for the given squares cleared.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bitboard Clear(Bitboard bitboard) => new(Value & ~bitboard);
     #endregion
 }
