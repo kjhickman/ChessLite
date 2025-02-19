@@ -41,7 +41,7 @@ public class Position
 
     public bool WhiteToMove { get; private set; }
     public CastlingRights CastlingRights { get; private set; }
-    public int EnPassantTarget { get; private set; } = -1;
+    public Square EnPassantTarget { get; private set; } = Square.None;
     public int HalfmoveClock { get; private set; }
     public ulong ZobristHash { get; private set; }
 
@@ -159,13 +159,11 @@ public class Position
         var enPassantSquare = fen[enumerator.Current]; enumerator.MoveNext();
         if (enPassantSquare is not "-")
         {
-            var file = enPassantSquare[0];
-            var rank = enPassantSquare[1];
-            EnPassantTarget = 8 * (rank - '1') + (file - 'a');
+            EnPassantTarget = Enum.Parse<Square>(enPassantSquare);
         }
         else
         {
-            EnPassantTarget = -1;
+            EnPassantTarget = Square.None;
         }
 
         var halfmoveClock = fen[enumerator.Current]; enumerator.MoveNext();
@@ -232,7 +230,7 @@ public class Position
         UpdateCastlingRightsAfterMove(from);
 
         // Set en passant target (if a double pawn push) or clear it.
-        EnPassantTarget = move.Type == MoveType.DoublePawnPush ? (from + to) / 2 : -1;
+        EnPassantTarget = move.Type == MoveType.DoublePawnPush ? (Square)((from + to) / 2) : Square.None;
 
         // Update the halfmove clock
         var isPawnMove = (_whitePawns & fromMask).IsNotEmpty() || (_blackPawns & fromMask).IsNotEmpty();

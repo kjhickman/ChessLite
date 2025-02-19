@@ -9,7 +9,7 @@ public struct MoveHistory
     public PieceType CapturedPieceType;
     public PieceType MovedPieceType;
     public CastlingRights PreviousCastlingRights;
-    public int PreviousEnPassantTarget;
+    public Square PreviousEnPassantTarget;
     public int PreviousHalfmoveClock;
     public ulong PreviousZobristHash;
 }

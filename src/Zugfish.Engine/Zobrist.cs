@@ -60,8 +60,8 @@ public static class Zobrist
         AddPieceHash(ref hash, pos.BlackKing,     11);
 
         hash ^= CastlingKeys[(byte)pos.CastlingRights];
-        if (pos.EnPassantTarget != -1)
-            hash ^= EnPassantKeys[pos.EnPassantTarget];
+        if (pos.EnPassantTarget != Square.None)
+            hash ^= EnPassantKeys[(int)pos.EnPassantTarget];
         if (!pos.WhiteToMove)
             hash ^= SideKey;
         return hash;
