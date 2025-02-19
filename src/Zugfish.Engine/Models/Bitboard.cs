@@ -65,10 +65,10 @@ public readonly struct Bitboard : IEquatable<Bitboard>
 
 public static class BitboardExtensions
 {
-    public static void SetBit(this ref Bitboard board, int square)
-    {
-        board = new Bitboard(board.Value | (1UL << square));
-    }
+    // public static void SetBit(this ref Bitboard board, int square)
+    // {
+    //     board = new Bitboard(board.Value | (1UL << square));
+    // }
 
     public static void SetBit(this ref Bitboard board, Square square)
     {
@@ -80,10 +80,10 @@ public static class BitboardExtensions
         board = new Bitboard(board.Value | bits);
     }
 
-    public static void ClearBit(this ref Bitboard board, int square)
-    {
-        board = new Bitboard(board.Value & ~Bitboard.Mask(square));
-    }
+    // public static void ClearBit(this ref Bitboard board, int square)
+    // {
+    //     board = new Bitboard(board.Value & ~Bitboard.Mask(square));
+    // }
 
     public static void ClearBit(this ref Bitboard board, Square square)
     {

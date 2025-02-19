@@ -1,13 +1,13 @@
 // ReSharper disable InconsistentNaming
 namespace Zugfish.Engine.Models;
 
-//  noWe         nort         noEa
+//  noWe        north         noEa
 //         +7    +8    +9
 //             \  |  /
 // west    -1 <-  0 -> +1    east
 //             /  |  \
 //         -9    -8    -7
-// soWe         sout         soEa
+// soWe         south        soEa
 public enum Square
 {
     a1, b1, c1, d1, e1, f1, g1, h1,

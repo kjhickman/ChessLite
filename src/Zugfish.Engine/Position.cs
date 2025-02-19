@@ -230,7 +230,21 @@ public class Position
         UpdateCastlingRightsAfterMove(from);
 
         // Set en passant target (if a double pawn push) or clear it.
-        EnPassantTarget = move.Type == MoveType.DoublePawnPush ? (Square)((from + to) / 2) : Square.None;
+        if (move.Type == MoveType.DoublePawnPush)
+        {
+            if (WhiteToMove)
+            {
+                EnPassantTarget = from + 8;
+            }
+            else
+            {
+                EnPassantTarget = from - 8;
+            }
+        }
+        else
+        {
+            EnPassantTarget = Square.None;
+        }
 
         // Update the halfmove clock
         var isPawnMove = (_whitePawns & fromMask).IsNotEmpty() || (_blackPawns & fromMask).IsNotEmpty();
@@ -246,7 +260,7 @@ public class Position
 
     }
 
-    private Bitboard DetermineCapturedPiece(MoveType moveType, int from, int to, Bitboard toMask)
+    private Bitboard DetermineCapturedPiece(MoveType moveType, Square from, Square to, Bitboard toMask)
     {
         var captured = AllPieces & toMask;
         if (moveType != MoveType.EnPassant)
@@ -290,7 +304,7 @@ public class Position
         pieceBoard.SetBits(toMask);
     }
 
-    private void HandleCastlingMove(int to, ref Bitboard kingBoard)
+    private void HandleCastlingMove(Square to, ref Bitboard kingBoard)
     {
         // Move the king
         kingBoard.SetBit(to);
@@ -298,21 +312,21 @@ public class Position
         // Move the rook based on destination square
         switch (to)
         {
-            case 2: // White Queen-side castling
-                _whiteRooks.ClearBit(0);
-                _whiteRooks.SetBit(3);
+            case Square.c1: // White Queen-side castling
+                _whiteRooks.ClearBit(Square.a1);
+                _whiteRooks.SetBit(Square.d1);
                 break;
-            case 6: // White King-side castling
-                _whiteRooks.ClearBit(7);
-                _whiteRooks.SetBit(5);
+            case Square.g1: // White King-side castling
+                _whiteRooks.ClearBit(Square.h1);
+                _whiteRooks.SetBit(Square.f1);
                 break;
-            case 58: // Black Queen-side castling
-                _blackRooks.ClearBit(56);
-                _blackRooks.SetBit(59);
+            case Square.c8: // Black Queen-side castling
+                _blackRooks.ClearBit(Square.a8);
+                _blackRooks.SetBit(Square.d8);
                 break;
-            case 62: // Black King-side castling
-                _blackRooks.ClearBit(63);
-                _blackRooks.SetBit(61);
+            case Square.g8: // Black King-side castling
+                _blackRooks.ClearBit(Square.h8);
+                _blackRooks.SetBit(Square.f8);
                 break;
         }
     }
@@ -324,22 +338,21 @@ public class Position
         // Removal of the captured pawn is handled by the captured piece logic.
     }
 
-    private void HandlePromotionMove(Move move, int to, Bitboard toMask)
+    private void HandlePromotionMove(Move move, Square to, Bitboard toMask)
     {
-        var isWhite = to > 55;
         switch (move.Type)
         {
             case MoveType.PromoteToKnight:
-                if (isWhite) _whiteKnights.SetBits(toMask); else _blackKnights.SetBits(toMask);
+                if (WhiteToMove) _whiteKnights.SetBits(toMask); else _blackKnights.SetBits(toMask);
                 break;
             case MoveType.PromoteToBishop:
-                if (isWhite) _whiteBishops.SetBits(toMask); else _blackBishops.SetBits(toMask);
+                if (WhiteToMove) _whiteBishops.SetBits(toMask); else _blackBishops.SetBits(toMask);
                 break;
             case MoveType.PromoteToRook:
-                if (isWhite) _whiteRooks.SetBits(toMask); else _blackRooks.SetBits(toMask);
+                if (WhiteToMove) _whiteRooks.SetBits(toMask); else _blackRooks.SetBits(toMask);
                 break;
             case MoveType.PromoteToQueen:
-                if (isWhite) _whiteQueens.SetBits(toMask); else _blackQueens.SetBits(toMask);
+                if (WhiteToMove) _whiteQueens.SetBits(toMask); else _blackQueens.SetBits(toMask);
                 break;
             default:
                 throw new InvalidOperationException("Invalid promotion move type");
@@ -363,26 +376,26 @@ public class Position
         }
     }
 
-    private void UpdateCastlingRightsAfterMove(int from)
+    private void UpdateCastlingRightsAfterMove(Square from)
     {
         switch (from)
         {
-            case 4:
+            case Square.e1:
                 CastlingRights &= CastlingRights.BlackKingside | CastlingRights.BlackQueenside;
                 break;
-            case 60:
+            case Square.e8:
                 CastlingRights &= CastlingRights.WhiteKingside | CastlingRights.WhiteQueenside;
                 break;
-            case 0:
+            case Square.a1:
                 CastlingRights &= CastlingRights.WhiteQueenside;
                 break;
-            case 7:
+            case Square.h1:
                 CastlingRights &= CastlingRights.WhiteKingside;
                 break;
-            case 56:
+            case Square.a8:
                 CastlingRights &= CastlingRights.BlackQueenside;
                 break;
-            case 63:
+            case Square.h8:
                 CastlingRights &= CastlingRights.BlackKingside;
                 break;
         }
@@ -450,21 +463,21 @@ public class Position
 
         switch (lastHistory.Move.To)
         {
-            case 2:
-                _whiteRooks.ClearBit(3);
-                _whiteRooks.SetBit(0);
+            case Square.c1:
+                _whiteRooks.ClearBit(Square.d1);
+                _whiteRooks.SetBit(Square.a1);
                 break;
-            case 6:
-                _whiteRooks.ClearBit(5);
-                _whiteRooks.SetBit(7);
+            case Square.g1:
+                _whiteRooks.ClearBit(Square.f1);
+                _whiteRooks.SetBit(Square.h1);
                 break;
-            case 58:
-                _blackRooks.ClearBit(59);
-                _blackRooks.SetBit(56);
+            case Square.c8:
+                _blackRooks.ClearBit(Square.d8);
+                _blackRooks.SetBit(Square.a8);
                 break;
-            case 62:
-                _blackRooks.ClearBit(61);
-                _blackRooks.SetBit(63);
+            case Square.g8:
+                _blackRooks.ClearBit(Square.f8);
+                _blackRooks.SetBit(Square.h8);
                 break;
         }
     }
@@ -485,7 +498,7 @@ public class Position
 
     private void UndoPromotionMove(MoveHistory lastHistory)
     {
-        var isWhite = lastHistory.Move.To > 55;
+        var isWhite = !WhiteToMove;
         if (isWhite)
         {
             ref var pawnBoard = ref GetPieceBitboard(PieceType.WhitePawn);
@@ -592,8 +605,8 @@ public class Position
 
     public bool IsInCheck()
     {
-        var kingSquare = WhiteToMove ? _whiteKing : _blackKing;
-        return IsSquareAttacked(BitOperations.TrailingZeroCount(kingSquare), WhiteToMove);
+        var kingBoard = WhiteToMove ? _whiteKing : _blackKing;
+        return IsSquareAttacked(BitOperations.TrailingZeroCount(kingBoard), WhiteToMove);
     }
 
     public bool IsSquareAttacked(int square, bool byWhite)

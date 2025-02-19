@@ -242,7 +242,7 @@ public class Search
     /// <summary>
     /// Returns the piece type at the given square in the position.
     /// </summary>
-    private PieceType GetPieceTypeAtSquare(Position pos, int square)
+    private PieceType GetPieceTypeAtSquare(Position pos, Square square)
     {
         var mask = Bitboard.Mask(square);
         if ((pos.WhitePawns & mask) != 0) return PieceType.WhitePawn;
@@ -266,11 +266,12 @@ public class Search
     /// </summary>
     private PieceType GetCapturedPieceType(Position pos, Move move)
     {
-        int capturedSquare;
+        Square capturedSquare;
         if (move.Type == MoveType.EnPassant)
         {
             // Use the same logic as in MakeMove: determine the pawn captured via en passant.
-            capturedSquare = move.To + (move.To > move.From ? -8 : 8);
+            // capturedSquare = move.To + (move.To > move.From ? -8 : 8);
+            capturedSquare = pos.WhiteToMove ? move.To - 8 : move.To + 8;
         }
         else
         {

@@ -23,10 +23,9 @@ public readonly struct Move : IEquatable<Move>
         _packed = (ushort)((from & 0x3F) | ((to & 0x3F) << 6) | (typeValue << 12));
     }
 
-    public int From => _packed & 0x3F;
-    public int To => (_packed >> 6) & 0x3F;
+    public Square From => (Square)(_packed & 0x3F);
+    public Square To => (Square)((_packed >> 6) & 0x3F);
     public MoveType Type => (MoveType)(_packed >> 12);
-    public override string ToString() => $"{(char)('a' + (From & 7))}{(char)('1' + (From >> 3))}{(char)('a' + (To & 7))}{(char)('1' + (To >> 3))}";
     public bool Equals(Move other) => _packed == other._packed;
     public override bool Equals(object? obj) => obj is Move other && Equals(other);
     public override int GetHashCode() => _packed;
@@ -71,10 +70,4 @@ public readonly struct Move : IEquatable<Move>
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsQuiet() => Type == MoveType.Quiet;
-
-    /// <summary>
-    /// Returns a new move with the same from/to but a different move type.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Move WithType(MoveType newType) => new(From, To, newType);
 }
