@@ -57,29 +57,28 @@ public readonly struct Bitboard : IEquatable<Bitboard>
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsSet(int square) => (Value & (1UL << square)) != 0;
-
-    /// <summary>
-    /// Returns a new Bitboard with the bit for the given square set.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard Set(int square) => new(Value | (1UL << square));
-
-    /// <summary>
-    /// Returns a new Bitboard with the bits for the given squares set.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard Set(Bitboard bitboard) => new(Value | bitboard);
-
-    /// <summary>
-    /// Returns a new Bitboard with the bit for the given square cleared.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard Clear(int square) => new(Value & ~(1UL << square));
-
-    /// <summary>
-    /// Returns a new Bitboard with the bits for the given squares cleared.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard Clear(Bitboard bitboard) => new(Value & ~bitboard);
     #endregion
+}
+
+public static class BitboardExtensions
+{
+    public static void SetBit(this ref Bitboard board, int square)
+    {
+        board = new Bitboard(board.Value | (1UL << square));
+    }
+
+    public static void SetBits(this ref Bitboard board, Bitboard bits)
+    {
+        board = new Bitboard(board.Value | bits);
+    }
+
+    public static void ClearBit(this ref Bitboard board, int square)
+    {
+        board = new Bitboard(board.Value & ~(1UL << square));
+    }
+
+    public static void ClearBits(this ref Bitboard board, Bitboard bits)
+    {
+        board = new Bitboard(board.Value & ~bits);
+    }
 }
