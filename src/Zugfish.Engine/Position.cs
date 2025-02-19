@@ -40,7 +40,7 @@ public class Position
     public Bitboard AllPieces { get; private set; }
 
     public bool WhiteToMove { get; private set; }
-    public ushort CastlingRights { get; private set; }
+    public CastlingRights CastlingRights { get; private set; }
     public int EnPassantTarget { get; private set; } = -1;
     public int HalfmoveClock { get; private set; }
     public ulong ZobristHash { get; private set; }
@@ -71,7 +71,8 @@ public class Position
         _blackQueens  = new Bitboard(0x800000000000000UL);
         _blackKing    = new Bitboard(0x1000000000000000UL);
 
-        CastlingRights = 0b1111;
+        CastlingRights = CastlingRights.BlackKingside | CastlingRights.BlackQueenside |
+                         CastlingRights.WhiteKingside | CastlingRights.WhiteQueenside;
         WhiteToMove = true;
         DeriveCombinedBitboards();
         ZobristHash = Zobrist.ComputeHash(this);
@@ -149,10 +150,10 @@ public class Position
         // Parse castling rights
         var castlingRights = fen[enumerator.Current]; enumerator.MoveNext();
 
-        if (castlingRights.IndexOf('K') != -1) CastlingRights |= 0b0001;
-        if (castlingRights.IndexOf('Q') != -1) CastlingRights |= 0b0010;
-        if (castlingRights.IndexOf('k') != -1) CastlingRights |= 0b0100;
-        if (castlingRights.IndexOf('q') != -1) CastlingRights |= 0b1000;
+        if (castlingRights.IndexOf('K') != -1) CastlingRights |= CastlingRights.WhiteKingside;
+        if (castlingRights.IndexOf('Q') != -1) CastlingRights |= CastlingRights.WhiteQueenside;
+        if (castlingRights.IndexOf('k') != -1) CastlingRights |= CastlingRights.BlackKingside;
+        if (castlingRights.IndexOf('q') != -1) CastlingRights |= CastlingRights.BlackQueenside;
 
         // Parse en passant square
         var enPassantSquare = fen[enumerator.Current]; enumerator.MoveNext();
@@ -354,13 +355,13 @@ public class Position
         // Update castling rights if a rook was captured
         if ((capturedPieceMask & _whiteRooks).IsNotEmpty())
         {
-            if ((capturedPieceMask & (1UL << 0)).IsNotEmpty()) CastlingRights &= 0b1101;
-            if ((capturedPieceMask & (1UL << 7)).IsNotEmpty()) CastlingRights &= 0b1110;
+            if ((capturedPieceMask & (1UL << 0)).IsNotEmpty()) CastlingRights &= CastlingRights.WhiteKingside;
+            if ((capturedPieceMask & (1UL << 7)).IsNotEmpty()) CastlingRights &= CastlingRights.WhiteQueenside;
         }
         else if ((capturedPieceMask & _blackRooks).IsNotEmpty())
         {
-            if ((capturedPieceMask & (1UL << 56)).IsNotEmpty()) CastlingRights &= 0b0111;
-            if ((capturedPieceMask & (1UL << 63)).IsNotEmpty()) CastlingRights &= 0b1011;
+            if ((capturedPieceMask & (1UL << 56)).IsNotEmpty()) CastlingRights &= CastlingRights.BlackKingside;
+            if ((capturedPieceMask & (1UL << 63)).IsNotEmpty()) CastlingRights &= CastlingRights.BlackQueenside;
         }
     }
 
@@ -369,22 +370,22 @@ public class Position
         switch (from)
         {
             case 4:
-                CastlingRights &= 0b1100;
+                CastlingRights &= CastlingRights.BlackKingside | CastlingRights.BlackQueenside;
                 break;
             case 60:
-                CastlingRights &= 0b0011;
+                CastlingRights &= CastlingRights.WhiteKingside | CastlingRights.WhiteQueenside;
                 break;
             case 0:
-                CastlingRights &= 0b1101;
+                CastlingRights &= CastlingRights.WhiteQueenside;
                 break;
             case 7:
-                CastlingRights &= 0b1110;
+                CastlingRights &= CastlingRights.WhiteKingside;
                 break;
             case 56:
-                CastlingRights &= 0b0111;
+                CastlingRights &= CastlingRights.BlackQueenside;
                 break;
             case 63:
-                CastlingRights &= 0b1011;
+                CastlingRights &= CastlingRights.BlackKingside;
                 break;
         }
     }

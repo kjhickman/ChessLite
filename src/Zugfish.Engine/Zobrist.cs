@@ -59,7 +59,7 @@ public static class Zobrist
         AddPieceHash(ref hash, pos.BlackQueens,   10);
         AddPieceHash(ref hash, pos.BlackKing,     11);
 
-        hash ^= CastlingKeys[pos.CastlingRights];
+        hash ^= CastlingKeys[(byte)pos.CastlingRights];
         if (pos.EnPassantTarget != -1)
             hash ^= EnPassantKeys[pos.EnPassantTarget];
         if (!pos.WhiteToMove)

@@ -247,7 +247,7 @@ public static class MoveGenerator
             if (from != 4) return;
 
             // --- White kingside castling (e1 -> g1) ---
-            if ((position.CastlingRights & 0b0001) != 0)
+            if ((position.CastlingRights & CastlingRights.WhiteKingside) != 0)
             {
                 // Squares f1 (5) and g1 (6) must be empty.
                 const ulong kingsideEmptySquares = (1UL << 5) | (1UL << 6);
@@ -263,7 +263,7 @@ public static class MoveGenerator
             }
 
             // --- White queenside castling (e1 -> c1) ---
-            if ((position.CastlingRights & 0b0010) != 0)
+            if ((position.CastlingRights & CastlingRights.WhiteQueenside) != 0)
             {
                 // Squares between the king and rook must be empty: b1 (1), c1 (2), and d1 (3).
                 const ulong queensideEmptySquares = (1UL << 1) | (1UL << 2) | (1UL << 3);
@@ -282,7 +282,7 @@ public static class MoveGenerator
             if (from != 60) return;
 
             // --- Black kingside castling (e8 -> g8) ---
-            if ((position.CastlingRights & 0b0100) != 0)
+            if ((position.CastlingRights & CastlingRights.BlackKingside) != 0)
             {
                 // Squares f8 (61) and g8 (62) must be empty.
                 var kingsideEmptySquares = (1UL << 61) | (1UL << 62);
@@ -297,7 +297,7 @@ public static class MoveGenerator
             }
 
             // --- Black queenside castling (e8 -> c8) ---
-            if ((position.CastlingRights & 0b1000) != 0)
+            if ((position.CastlingRights & CastlingRights.BlackQueenside) != 0)
             {
                 // Squares between king and rook: b8 (57), c8 (58), and d8 (59) must be empty.
                 var queensideEmptySquares = (1UL << 57) | (1UL << 58) | (1UL << 59);

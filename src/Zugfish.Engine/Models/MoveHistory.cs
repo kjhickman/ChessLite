@@ -8,7 +8,7 @@ public struct MoveHistory
     public Move Move;              // The move that was made
     public PieceType CapturedPieceType;
     public PieceType MovedPieceType;
-    public ushort PreviousCastlingRights;
+    public CastlingRights PreviousCastlingRights;
     public int PreviousEnPassantTarget;
     public int PreviousHalfmoveClock;
     public ulong PreviousZobristHash;
