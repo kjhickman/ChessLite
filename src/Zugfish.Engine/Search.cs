@@ -205,28 +205,28 @@ public class Search
         }
 
         int score = 0;
-        if (move.IsCapture())
+        if (move.IsCapture)
         {
             // MVV-LVA: bonus = (captured value - mover value) plus a base bonus.
             var captured = GetCapturedPieceType(pos, move);
             var mover = GetPieceTypeAtSquare(pos, move.From);
             score = GetPieceValue(captured) - GetPieceValue(mover) + 10000;
         }
-        else if (move.IsPromotion())
+        else if (move.PromotedPieceType != PromotedPieceType.None)
         {
             // Give a bonus based on the promotion piece (promotion to queen is best)
-            switch (move.Type)
+            switch (move.PromotedPieceType)
             {
-                case MoveType.PromoteToQueen:
+                case PromotedPieceType.Queen:
                     score = 900;
                     break;
-                case MoveType.PromoteToRook:
+                case PromotedPieceType.Rook:
                     score = 500;
                     break;
-                case MoveType.PromoteToBishop:
+                case PromotedPieceType.Bishop:
                     score = 330;
                     break;
-                case MoveType.PromoteToKnight:
+                case PromotedPieceType.Knight:
                     score = 320;
                     break;
                 default:
@@ -267,7 +267,7 @@ public class Search
     private PieceType GetCapturedPieceType(Position pos, Move move)
     {
         Square capturedSquare;
-        if (move.Type == MoveType.EnPassant)
+        if (move.SpecialMoveType == SpecialMoveType.EnPassant)
         {
             // Use the same logic as in MakeMove: determine the pawn captured via en passant.
             // capturedSquare = move.To + (move.To > move.From ? -8 : 8);

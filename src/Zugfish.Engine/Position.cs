@@ -179,15 +179,16 @@ public class Position
     {
         var from = move.From;
         var to = move.To;
+        var pieceType = move.PieceType;
+        var capturedPieceType = move.CapturedPieceType;
+        var promotedPieceType = move.PromotedPieceType;
+        var isCapture = move.IsCapture;
+        var specialMoveType = move.SpecialMoveType;
+
         var fromMask = Bitboard.Mask(from);
         var toMask = Bitboard.Mask(to);
 
-        // Determine captured piece
-        var capturedPieceMask = DetermineCapturedPiece(move.Type, from, to, toMask);
-        Bitboard dummyCapturedPiece = default;
-        ref var capturedPieceBoard = ref capturedPieceMask.IsNotEmpty()
-            ? ref GetPieceBitboard(capturedPieceMask)
-            : ref dummyCapturedPiece;
+        var capturedPieceMask = DetermineCapturedPiece(move, from, to);
 
         // Save undo information
         SaveMoveUndo(move, fromMask, toMask, capturedPieceMask);
@@ -195,42 +196,44 @@ public class Position
         // Get the moving piece's bitboard
         ref var movingPieceBoard = ref GetPieceBitboard(fromMask);
 
-        switch (move.Type)
+        switch (specialMoveType)
         {
-            case MoveType.Quiet:
-            case MoveType.Capture:
-            case MoveType.DoublePawnPush:
+            case SpecialMoveType.None:
+                if (promotedPieceType != PromotedPieceType.None)
+                {
+                    HandlePromotionMove(move, to, toMask);
+                    break;
+                }
+
                 HandleQuietOrCaptureMove(ref movingPieceBoard, toMask);
                 break;
-            case MoveType.Castling:
-                HandleCastlingMove(move.To, ref movingPieceBoard);
+            case SpecialMoveType.DoublePawnPush:
+                HandleQuietOrCaptureMove(ref movingPieceBoard, toMask);
                 break;
-            case MoveType.EnPassant:
+            case SpecialMoveType.EnPassant:
                 HandleEnPassantMove(fromMask, toMask);
                 break;
-            case MoveType.PromoteToKnight:
-            case MoveType.PromoteToBishop:
-            case MoveType.PromoteToRook:
-            case MoveType.PromoteToQueen:
-                HandlePromotionMove(move, to, toMask);
+            case SpecialMoveType.ShortCastle:
+            case SpecialMoveType.LongCastle:
+                HandleCastlingMove(to, ref movingPieceBoard);
                 break;
             default:
-                throw new InvalidOperationException("Unhandled move type");
+                throw new ArgumentOutOfRangeException();
         }
 
         // Remove the moving piece from its original square
         movingPieceBoard.ClearBit(from);
 
         // Remove any captured piece and update castling rights if necessary
-        if (capturedPieceMask.IsNotEmpty())
+        if (isCapture)
         {
-            HandleCapturedPiece(capturedPieceMask, ref capturedPieceBoard);
+            HandleCapturedPiece(capturedPieceMask!.Value, move);
         }
 
         UpdateCastlingRightsAfterMove(from);
 
         // Set en passant target (if a double pawn push) or clear it.
-        if (move.Type == MoveType.DoublePawnPush)
+        if (specialMoveType == SpecialMoveType.DoublePawnPush)
         {
             if (WhiteToMove)
             {
@@ -248,7 +251,7 @@ public class Position
 
         // Update the halfmove clock
         var isPawnMove = (_whitePawns & fromMask).IsNotEmpty() || (_blackPawns & fromMask).IsNotEmpty();
-        if (isPawnMove || capturedPieceMask.IsNotEmpty())
+        if (isPawnMove || isCapture)
             HalfmoveClock = 0;
         else
             HalfmoveClock++;
@@ -260,10 +263,15 @@ public class Position
 
     }
 
-    private Bitboard DetermineCapturedPiece(MoveType moveType, Square from, Square to, Bitboard toMask)
+    private Bitboard? DetermineCapturedPiece(Move move, Square from, Square to)
     {
-        var captured = AllPieces & toMask;
-        if (moveType != MoveType.EnPassant)
+        if (!move.IsCapture)
+        {
+            return null;
+        }
+
+        var captured = AllPieces & Bitboard.Mask(to);
+        if (move.SpecialMoveType != SpecialMoveType.EnPassant)
         {
             return captured;
         }
@@ -274,12 +282,12 @@ public class Position
         return captured;
     }
 
-    private void SaveMoveUndo(Move move, Bitboard fromMask, Bitboard toMask, Bitboard capturedPieceMask)
+    private void SaveMoveUndo(Move move, Bitboard fromMask, Bitboard toMask, Bitboard? capturedPieceMask)
     {
         var capturedType = PieceType.None;
-        if (capturedPieceMask.IsNotEmpty())
+        if (move.IsCapture)
         {
-            capturedType = GetPieceTypeWithOverlap(capturedPieceMask);
+            capturedType = move.CapturedPieceType;
         }
 
         var movingPieceType = GetPieceTypeWithOverlap(fromMask);
@@ -340,18 +348,18 @@ public class Position
 
     private void HandlePromotionMove(Move move, Square to, Bitboard toMask)
     {
-        switch (move.Type)
+        switch (move.PromotedPieceType)
         {
-            case MoveType.PromoteToKnight:
+            case PromotedPieceType.Knight:
                 if (WhiteToMove) _whiteKnights.SetBits(toMask); else _blackKnights.SetBits(toMask);
                 break;
-            case MoveType.PromoteToBishop:
+            case PromotedPieceType.Bishop:
                 if (WhiteToMove) _whiteBishops.SetBits(toMask); else _blackBishops.SetBits(toMask);
                 break;
-            case MoveType.PromoteToRook:
+            case PromotedPieceType.Rook:
                 if (WhiteToMove) _whiteRooks.SetBits(toMask); else _blackRooks.SetBits(toMask);
                 break;
-            case MoveType.PromoteToQueen:
+            case PromotedPieceType.Queen:
                 if (WhiteToMove) _whiteQueens.SetBits(toMask); else _blackQueens.SetBits(toMask);
                 break;
             default:
@@ -359,8 +367,9 @@ public class Position
         }
     }
 
-    private void HandleCapturedPiece(Bitboard capturedPieceMask, ref Bitboard capturedBoard)
+    private void HandleCapturedPiece(Bitboard capturedPieceMask, Move move)
     {
+        ref var capturedBoard = ref GetPieceBitboard(move.CapturedPieceType);
         capturedBoard.ClearBits(capturedPieceMask);
 
         // Update castling rights if a rook was captured
@@ -409,35 +418,34 @@ public class Position
         var lastUndo = _moveHistory.Pop();
         var move = lastUndo.Move;
 
-        // Dispatch undo handling based on move type
-        switch (move.Type)
+        switch (move.SpecialMoveType)
         {
-            case MoveType.Quiet:
-            case MoveType.Capture:
-            case MoveType.DoublePawnPush:
+            case SpecialMoveType.None:
+            case SpecialMoveType.DoublePawnPush:
+                if (move.PromotedPieceType != PromotedPieceType.None)
+                {
+                    UndoPromotionMove(lastUndo);
+                    break;
+                }
+
                 UndoQuietOrCaptureMove(lastUndo);
                 break;
-            case MoveType.Castling:
-                UndoCastlingMove(lastUndo);
-                break;
-            case MoveType.EnPassant:
+            case SpecialMoveType.EnPassant:
                 UndoEnPassantMove(lastUndo);
                 break;
-            case MoveType.PromoteToKnight:
-            case MoveType.PromoteToBishop:
-            case MoveType.PromoteToRook:
-            case MoveType.PromoteToQueen:
-                UndoPromotionMove(lastUndo);
+            case SpecialMoveType.ShortCastle:
+            case SpecialMoveType.LongCastle:
+                UndoCastlingMove(lastUndo);
                 break;
             default:
-                throw new InvalidOperationException("Unhandled move type during undo");
+                throw new ArgumentOutOfRangeException();
         }
 
         // Restore captured piece if any
-        if (lastUndo.CapturedPiece.IsNotEmpty() && move.Type != MoveType.EnPassant)
+        if (lastUndo.CapturedPieceType != PieceType.None && move.SpecialMoveType != SpecialMoveType.EnPassant)
         {
             ref var capturedBoard = ref GetPieceBitboard(lastUndo.CapturedPieceType);
-            capturedBoard.SetBits(lastUndo.CapturedPiece);
+            capturedBoard.SetBits(lastUndo.CapturedPiece!.Value);
         }
 
         EnPassantTarget = lastUndo.PreviousEnPassantTarget;
@@ -510,27 +518,27 @@ public class Position
             pawnBoard.SetBits(lastHistory.FromSquare);
         }
 
-        switch (lastHistory.Move.Type)
+        switch (lastHistory.Move.PromotedPieceType)
         {
-            case MoveType.PromoteToKnight:
+            case PromotedPieceType.Knight:
                 if (isWhite)
                     _whiteKnights.ClearBits(lastHistory.ToSquare);
                 else
                     _blackKnights.ClearBits(lastHistory.ToSquare);
                 break;
-            case MoveType.PromoteToBishop:
+            case PromotedPieceType.Bishop:
                 if (isWhite)
                     _whiteBishops.ClearBits(lastHistory.ToSquare);
                 else
                     _blackBishops.ClearBits(lastHistory.ToSquare);
                 break;
-            case MoveType.PromoteToRook:
+            case PromotedPieceType.Rook:
                 if (isWhite)
                     _whiteRooks.ClearBits(lastHistory.ToSquare);
                 else
                     _blackRooks.ClearBits(lastHistory.ToSquare);
                 break;
-            case MoveType.PromoteToQueen:
+            case PromotedPieceType.Queen:
                 if (isWhite)
                     _whiteQueens.ClearBits(lastHistory.ToSquare);
                 else
@@ -786,5 +794,48 @@ public class Position
         }
 
         return false;
+    }
+
+    public PieceType GetPieceTypeAt(Square square)
+    {
+        var mask = Bitboard.Mask(square);
+        if ((_whitePawns & mask).IsNotEmpty()) return PieceType.WhitePawn;
+        if ((_whiteKnights & mask).IsNotEmpty()) return PieceType.WhiteKnight;
+        if ((_whiteBishops & mask).IsNotEmpty()) return PieceType.WhiteBishop;
+        if ((_whiteRooks & mask).IsNotEmpty()) return PieceType.WhiteRook;
+        if ((_whiteQueens & mask).IsNotEmpty()) return PieceType.WhiteQueen;
+        if ((_whiteKing & mask).IsNotEmpty()) return PieceType.WhiteKing;
+        if ((_blackPawns & mask).IsNotEmpty()) return PieceType.BlackPawn;
+        if ((_blackKnights & mask).IsNotEmpty()) return PieceType.BlackKnight;
+        if ((_blackBishops & mask).IsNotEmpty()) return PieceType.BlackBishop;
+        if ((_blackRooks & mask).IsNotEmpty()) return PieceType.BlackRook;
+        if ((_blackQueens & mask).IsNotEmpty()) return PieceType.BlackQueen;
+        if ((_blackKing & mask).IsNotEmpty()) return PieceType.BlackKing;
+        return PieceType.None;
+    }
+
+    public PieceType GetPieceTypeAt(Square square, bool isWhite)
+    {
+        var mask = Bitboard.Mask(square);
+        if (isWhite)
+        {
+            if ((_whitePawns & mask).IsNotEmpty()) return PieceType.WhitePawn;
+            if ((_whiteKnights & mask).IsNotEmpty()) return PieceType.WhiteKnight;
+            if ((_whiteBishops & mask).IsNotEmpty()) return PieceType.WhiteBishop;
+            if ((_whiteRooks & mask).IsNotEmpty()) return PieceType.WhiteRook;
+            if ((_whiteQueens & mask).IsNotEmpty()) return PieceType.WhiteQueen;
+            if ((_whiteKing & mask).IsNotEmpty()) return PieceType.WhiteKing;
+        }
+        else
+        {
+            if ((_blackPawns & mask).IsNotEmpty()) return PieceType.BlackPawn;
+            if ((_blackKnights & mask).IsNotEmpty()) return PieceType.BlackKnight;
+            if ((_blackBishops & mask).IsNotEmpty()) return PieceType.BlackBishop;
+            if ((_blackRooks & mask).IsNotEmpty()) return PieceType.BlackRook;
+            if ((_blackQueens & mask).IsNotEmpty()) return PieceType.BlackQueen;
+            if ((_blackKing & mask).IsNotEmpty()) return PieceType.BlackKing;
+        }
+
+        return PieceType.None;
     }
 }

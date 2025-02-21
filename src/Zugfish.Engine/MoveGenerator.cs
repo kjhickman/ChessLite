@@ -1,4 +1,3 @@
-using System.Numerics;
 using System.Runtime.CompilerServices;
 using Zugfish.Engine.Models;
 using static System.Numerics.BitOperations;
@@ -7,6 +6,8 @@ namespace Zugfish.Engine;
 
 public static class MoveGenerator
 {
+    // TODO: convert all these ints to Square
+
     public static int GenerateLegalMoves(Position position, Span<Move> movesBuffer)
     {
         var moveCount = 0;
@@ -24,6 +25,7 @@ public static class MoveGenerator
     private static void GeneratePawnMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
         var isWhite = position.WhiteToMove;
+        var pieceType = isWhite ? PieceType.WhitePawn : PieceType.BlackPawn;
         var pawns = isWhite ? position.WhitePawns : position.BlackPawns;
         var direction = isWhite ? 8 : -8;
         var enemyPieces = isWhite ? position.BlackPieces : position.WhitePieces;
@@ -47,11 +49,11 @@ public static class MoveGenerator
                 Move move;
                 if (oneStep is > 55 or < 8)
                 {
-                    move = new Move(from, oneStep, MoveType.PromoteToQueen); // TODO: Add other promotions
+                    move = Move.CreatePromotion((Square)from, (Square)oneStep, pieceType, PromotedPieceType.Queen);
                 }
                 else
                 {
-                    move = new Move(from, oneStep, MoveType.Quiet);
+                    move = Move.CreateQuiet((Square)from, (Square)oneStep, pieceType);
                 }
 
                 AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
@@ -62,7 +64,7 @@ public static class MoveGenerator
             var twoStepsMask = (1UL << twoSteps) | oneStepMask; // Mask for both squares in front of the pawn
             if (twoSteps is >= 0 and < 64 && (allPieces & twoStepsMask) == 0 && (startingRank & (1UL << from)) != 0)
             {
-                var move = new Move(from, twoSteps, MoveType.DoublePawnPush);
+                var move = Move.CreateDoublePawnPush((Square)from, (Square)twoSteps, pieceType);
                 AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
             }
 
@@ -72,14 +74,15 @@ public static class MoveGenerator
             var fromFile = from % 8;
             if (leftCaptureTo is >= 0 and < 64 && (enemyPieces & leftCaptureMask) != 0 && fromFile != 0)
             {
+                var leftCapturedPieceType = DetermineCapturedPieceType(position, leftCaptureMask, isWhite);
                 Move move;
                 if (leftCaptureTo is > 55 or < 8)
                 {
-                    move = new Move(from, leftCaptureTo, MoveType.PromoteToQueen); // TODO: Add other promotions
+                    move = Move.CreatePromotion((Square)from, (Square)leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Queen);
                 }
                 else
                 {
-                    move = new Move(from, leftCaptureTo, MoveType.Capture);
+                    move = Move.CreateCapture((Square)from, (Square)leftCaptureTo, pieceType, leftCapturedPieceType);
                 }
 
                 AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
@@ -90,14 +93,15 @@ public static class MoveGenerator
             var rightCaptureMask = 1UL << rightCaptureTo;
             if (rightCaptureTo is >= 0 and < 64 && (enemyPieces & rightCaptureMask) != 0 && fromFile != 7)
             {
+                var rightCapturedPieceType = DetermineCapturedPieceType(position, rightCaptureMask, isWhite);
                 Move move;
                 if (rightCaptureTo is > 55 or < 8)
                 {
-                    move = new Move(from, rightCaptureTo, MoveType.PromoteToQueen); // TODO: Add other promotions
+                    move = Move.CreatePromotion((Square)from, (Square)rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Queen);
                 }
                 else
                 {
-                    move = new Move(from, rightCaptureTo, MoveType.Capture);
+                    move = Move.CreateCapture((Square)from, (Square)rightCaptureTo, pieceType, rightCapturedPieceType);
                 }
 
                 AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
@@ -108,12 +112,73 @@ public static class MoveGenerator
         }
     }
 
+    private static PieceType DetermineCapturedPieceType(Position position, Bitboard toMask, bool isWhite)
+    {
+        if (isWhite)
+        {
+            if ((position.BlackPawns & toMask) != 0)
+            {
+                return PieceType.BlackPawn;
+            }
+            if ((position.BlackKnights & toMask) != 0)
+            {
+                return PieceType.BlackKnight;
+            }
+            if ((position.BlackBishops & toMask) != 0)
+            {
+                return PieceType.BlackBishop;
+            }
+            if ((position.BlackRooks & toMask) != 0)
+            {
+                return PieceType.BlackRook;
+            }
+            if ((position.BlackQueens & toMask) != 0)
+            {
+                return PieceType.BlackQueen;
+            }
+            if ((position.BlackKing & toMask) != 0)
+            {
+                return PieceType.BlackKing;
+            }
+        }
+        else
+        {
+            if ((position.WhitePawns & toMask) != 0)
+            {
+                return PieceType.WhitePawn;
+            }
+            if ((position.WhiteKnights & toMask) != 0)
+            {
+                return PieceType.WhiteKnight;
+            }
+            if ((position.WhiteBishops & toMask) != 0)
+            {
+                return PieceType.WhiteBishop;
+            }
+            if ((position.WhiteRooks & toMask) != 0)
+            {
+                return PieceType.WhiteRook;
+            }
+            if ((position.WhiteQueens & toMask) != 0)
+            {
+                return PieceType.WhiteQueen;
+            }
+            if ((position.WhiteKing & toMask) != 0)
+            {
+                return PieceType.WhiteKing;
+            }
+        }
+
+        throw new InvalidOperationException("No piece found at the target square.");
+    }
+
     private static void GenerateKnightMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
         Span<int> knightOffsets = [17, 15, 10, 6, -6, -10, -15, -17];
         var knights = position.WhiteToMove ? position.WhiteKnights : position.BlackKnights;
         var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
         var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
+        var pieceType = position.WhiteToMove ? PieceType.WhiteKnight : PieceType.BlackKnight;
 
         var currentKnights = knights;
         while (currentKnights != 0)
@@ -150,11 +215,12 @@ public static class MoveGenerator
                 Move move;
                 if ((enemyPieces & toMask) != 0)
                 {
-                    move = new Move(from, to, MoveType.Capture);
+                    var capturedPieceType = DetermineCapturedPieceType(position, toMask, position.WhiteToMove);
+                    move = Move.CreateCapture((Square)from, (Square)to, pieceType, capturedPieceType);
                 }
                 else
                 {
-                    move = new Move(from, to, MoveType.Quiet);
+                    move = Move.CreateQuiet((Square)from, (Square)to, pieceType);
                 }
 
                 AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
@@ -168,14 +234,16 @@ public static class MoveGenerator
     {
         Span<(int fileDirection, int rankDirection)> bishopDirections = [(1, 1), (-1, 1), (1, -1), (-1, -1)];
         var bishops = position.WhiteToMove ? position.WhiteBishops : position.BlackBishops;
-        GenerateSlidingMoves(bishops, position, ref bufferIndex, movesBuffer, bishopDirections);
+        var pieceType = position.WhiteToMove ? PieceType.WhiteBishop : PieceType.BlackBishop;
+        GenerateSlidingMoves(bishops, pieceType, position, ref bufferIndex, movesBuffer, bishopDirections);
     }
 
     private static void GenerateRookMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
         Span<(int fileDirection, int rankDirection)> rookDirections = [(1, 0), (-1, 0), (0, 1), (0, -1)];
         var rooks = position.WhiteToMove ? position.WhiteRooks : position.BlackRooks;
-        GenerateSlidingMoves(rooks, position, ref bufferIndex, movesBuffer, rookDirections);
+        var pieceType = position.WhiteToMove ? PieceType.WhiteRook : PieceType.BlackRook;
+        GenerateSlidingMoves(rooks, pieceType, position, ref bufferIndex, movesBuffer, rookDirections);
     }
 
     private static void GenerateQueenMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
@@ -186,7 +254,8 @@ public static class MoveGenerator
             (1, 0), (-1, 0), (0, 1), (0, -1)
         ];
         var queens = position.WhiteToMove ? position.WhiteQueens : position.BlackQueens;
-        GenerateSlidingMoves(queens, position, ref bufferIndex, movesBuffer, queenDirections);
+        var pieceType = position.WhiteToMove ? PieceType.WhiteQueen : PieceType.BlackQueen;
+        GenerateSlidingMoves(queens, pieceType, position, ref bufferIndex, movesBuffer, queenDirections);
     }
 
     private static void GenerateKingMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
@@ -194,6 +263,7 @@ public static class MoveGenerator
         var king = position.WhiteToMove ? position.WhiteKing : position.BlackKing;
         var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
         var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
+        var pieceType = position.WhiteToMove ? PieceType.WhiteKing : PieceType.BlackKing;
 
         var from = TrailingZeroCount(king);
         var fromFile = from % 8;
@@ -230,11 +300,12 @@ public static class MoveGenerator
                 Move move;
                 if ((enemyPieces & toMask) != 0)
                 {
-                    move = new Move(from, to, MoveType.Capture);
+                    var capturedPieceType = DetermineCapturedPieceType(position, toMask, position.WhiteToMove);
+                    move = Move.CreateCapture((Square)from, (Square)to, pieceType, capturedPieceType);
                 }
                 else
                 {
-                    move = new Move(from, to, MoveType.Quiet);
+                    move = Move.CreateQuiet((Square)from, (Square)to, pieceType);
                 }
 
                 AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
@@ -257,8 +328,7 @@ public static class MoveGenerator
                     !position.IsSquareAttacked(5, false) &&
                     !position.IsSquareAttacked(6, false))
                 {
-                    // Add the kingside castling move (king moves from 4 to 6).
-                    movesBuffer[bufferIndex++] = new Move(4, 6, MoveType.Castling);
+                    movesBuffer[bufferIndex++] = Move.CreateShortCastle(position.WhiteToMove);
                 }
             }
 
@@ -272,8 +342,7 @@ public static class MoveGenerator
                     !position.IsSquareAttacked(3, false) && // d1 must not be attacked
                     !position.IsSquareAttacked(2, false))   // c1 must not be attacked
                 {
-                    // Add the queenside castling move (king moves from 4 to 2).
-                    movesBuffer[bufferIndex++] = new Move(4, 2, MoveType.Castling);
+                    movesBuffer[bufferIndex++] = Move.CreateLongCastle(position.WhiteToMove);
                 }
             }
         }
@@ -291,8 +360,7 @@ public static class MoveGenerator
                     !position.IsSquareAttacked(61, true) &&
                     !position.IsSquareAttacked(62, true))
                 {
-                    // Add the kingside castling move (king moves from 60 to 62).
-                    movesBuffer[bufferIndex++] = new Move(60, 62, MoveType.Castling);
+                    movesBuffer[bufferIndex++] = Move.CreateShortCastle(position.WhiteToMove);
                 }
             }
 
@@ -306,8 +374,7 @@ public static class MoveGenerator
                     !position.IsSquareAttacked(59, true) &&
                     !position.IsSquareAttacked(58, true))
                 {
-                    // Add the queenside castling move (king moves from 60 to 58).
-                    movesBuffer[bufferIndex++] = new Move(60, 58, MoveType.Castling);
+                    movesBuffer[bufferIndex++] = Move.CreateLongCastle(position.WhiteToMove);
                 }
             }
         }
@@ -316,6 +383,7 @@ public static class MoveGenerator
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void GenerateSlidingMoves(
         Bitboard pieces,
+        PieceType pieceType,
         Position position,
         ref int bufferIndex,
         Span<Move> movesBuffer,
@@ -347,12 +415,13 @@ public static class MoveGenerator
 
                     if ((enemyPieces & toMask) != 0)
                     {
-                        var captureMove = new Move(from, to, MoveType.Capture);
+                        var capturedPieceType = DetermineCapturedPieceType(position, toMask, position.WhiteToMove);
+                        var captureMove = Move.CreateCapture((Square)from, (Square)to, pieceType, capturedPieceType);
                         AddMoveIfLegal(position, ref bufferIndex, movesBuffer, captureMove);
                         break;
                     }
 
-                    var quietMove = new Move(from, to, MoveType.Quiet);
+                    var quietMove = Move.CreateQuiet((Square)from, (Square)to, pieceType);
                     AddMoveIfLegal(position, ref bufferIndex, movesBuffer, quietMove);
                 }
             }
