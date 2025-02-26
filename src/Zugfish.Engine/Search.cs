@@ -17,7 +17,7 @@ public class Search
             return null;
         }
 
-        Move ttMove = default;
+        var ttMove = Move.NullMove;
         if (_transpositionTable.TryGet(position.ZobristHash, out var ttEntry) && !ttEntry.BestMove.Equals(default))
         {
             ttMove = ttEntry.BestMove;
@@ -119,8 +119,8 @@ public class Search
             return new EvaluationResult(position.Evaluate(), GameState.Ongoing);
         }
 
-        Move ttMove = default;
-        if (_transpositionTable.TryGet(position.ZobristHash, out var entry) && !entry.BestMove.Equals(default(Move)))
+        var ttMove = Move.NullMove;
+        if (_transpositionTable.TryGet(position.ZobristHash, out var entry) && !entry.BestMove.Equals(Move.NullMove))
         {
             ttMove = entry.BestMove;
         }
