@@ -30,6 +30,7 @@ public static class MoveGenerator
         var direction = isWhite ? 8 : -8;
         var enemyPieces = isWhite ? position.BlackPieces : position.WhitePieces;
         var allPieces = position.AllPieces;
+        var enPassantTarget = position.EnPassantTarget;
 
         const ulong secondRank = 0xFF00;
         const ulong seventhRank = 0xFF000000000000;
@@ -46,17 +47,23 @@ public static class MoveGenerator
             Bitboard oneStepMask = 1UL << oneStep;
             if (oneStep is >= 0 and < 64 && (allPieces & oneStepMask) == 0)
             {
-                Move move;
                 if (oneStep is > 55 or < 8)
                 {
-                    move = Move.CreatePromotion((Square)from, (Square)oneStep, pieceType, PromotedPieceType.Queen);
+                    var queenPromotion = Move.CreatePromotion((Square)from, (Square)oneStep, pieceType, PromotedPieceType.Queen);
+                    var rookPromotion = Move.CreatePromotion((Square)from, (Square)oneStep, pieceType, PromotedPieceType.Rook);
+                    var bishopPromotion = Move.CreatePromotion((Square)from, (Square)oneStep, pieceType, PromotedPieceType.Bishop);
+                    var knightPromotion = Move.CreatePromotion((Square)from, (Square)oneStep, pieceType, PromotedPieceType.Knight);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, queenPromotion);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, rookPromotion);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, bishopPromotion);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, knightPromotion);
                 }
                 else
                 {
-                    move = Move.CreateQuiet((Square)from, (Square)oneStep, pieceType);
+                    var move = Move.CreateQuiet((Square)from, (Square)oneStep, pieceType);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
                 }
 
-                AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
             }
 
             // Two squares forward
@@ -75,16 +82,27 @@ public static class MoveGenerator
             if (leftCaptureTo is >= 0 and < 64 && (enemyPieces & leftCaptureMask) != 0 && fromFile != 0)
             {
                 var leftCapturedPieceType = DetermineCapturedPieceType(position, leftCaptureMask, isWhite);
-                Move move;
+
                 if (leftCaptureTo is > 55 or < 8)
                 {
-                    move = Move.CreatePromotion((Square)from, (Square)leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Queen);
+                    var queenPromotion = Move.CreatePromotion((Square)from, (Square)leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Queen);
+                    var rookPromotion = Move.CreatePromotion((Square)from, (Square)leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Rook);
+                    var bishopPromotion = Move.CreatePromotion((Square)from, (Square)leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Bishop);
+                    var knightPromotion = Move.CreatePromotion((Square)from, (Square)leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Knight);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, queenPromotion);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, rookPromotion);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, bishopPromotion);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, knightPromotion);
                 }
                 else
                 {
-                    move = Move.CreateCapture((Square)from, (Square)leftCaptureTo, pieceType, leftCapturedPieceType);
+                    var move = Move.CreateCapture((Square)from, (Square)leftCaptureTo, pieceType, leftCapturedPieceType);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
                 }
-
+            }
+            else if (leftCaptureTo == (int)enPassantTarget)
+            {
+                var move = Move.CreateEnPassant((Square)from, (Square)leftCaptureTo, isWhite);
                 AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
             }
 
@@ -94,16 +112,26 @@ public static class MoveGenerator
             if (rightCaptureTo is >= 0 and < 64 && (enemyPieces & rightCaptureMask) != 0 && fromFile != 7)
             {
                 var rightCapturedPieceType = DetermineCapturedPieceType(position, rightCaptureMask, isWhite);
-                Move move;
                 if (rightCaptureTo is > 55 or < 8)
                 {
-                    move = Move.CreatePromotion((Square)from, (Square)rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Queen);
+                    var queenPromotion = Move.CreatePromotion((Square)from, (Square)rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Queen);
+                    var rookPromotion = Move.CreatePromotion((Square)from, (Square)rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Rook);
+                    var bishopPromotion = Move.CreatePromotion((Square)from, (Square)rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Bishop);
+                    var knightPromotion = Move.CreatePromotion((Square)from, (Square)rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Knight);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, queenPromotion);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, rookPromotion);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, bishopPromotion);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, knightPromotion);
                 }
                 else
                 {
-                    move = Move.CreateCapture((Square)from, (Square)rightCaptureTo, pieceType, rightCapturedPieceType);
+                    var move = Move.CreateCapture((Square)from, (Square)rightCaptureTo, pieceType, rightCapturedPieceType);
+                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
                 }
-
+            }
+            else if (rightCaptureTo == (int)enPassantTarget)
+            {
+                var move = Move.CreateEnPassant((Square)from, (Square)rightCaptureTo, isWhite);
                 AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
             }
 

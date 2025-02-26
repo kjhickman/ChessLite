@@ -1,73 +1,132 @@
-// using System.Runtime.CompilerServices;
-//
-// namespace Zugfish.Engine.Models;
-//
-// public readonly struct Move : IEquatable<Move>
-// {
-//     /// <summary>
-//     /// The internal packed representation of the move.
-//     ///
-//     /// Bit layout (from least-significant to most-significant bits):
-//     /// - Bits 0-5:   Source square index (0 to 63)
-//     /// - Bits 6-11:  Destination square index (0 to 63)
-//     /// - Bits 12-15: Move flags (4 bits, representing the move type)
-//     /// </summary>
-//     private readonly ushort _packed;
-//
-//     public Move(int from, int to, MoveType moveType)
-//     {
-//         if ((from | to) >> 6 != 0) // Ensure from and to are in 0..63
-//             throw new ArgumentOutOfRangeException();
-//
-//         var typeValue = (ushort)((byte)moveType & 0xF);
-//         _packed = (ushort)((from & 0x3F) | ((to & 0x3F) << 6) | (typeValue << 12));
-//     }
-//
-//     public Square From => (Square)(_packed & 0x3F);
-//     public Square To => (Square)((_packed >> 6) & 0x3F);
-//     public MoveType Type => (MoveType)(_packed >> 12);
-//     public bool Equals(Move other) => _packed == other._packed;
-//     public override bool Equals(object? obj) => obj is Move other && Equals(other);
-//     public override int GetHashCode() => _packed;
-//
-//     public static bool operator ==(Move left, Move right)
-//     {
-//         return left.Equals(right);
-//     }
-//
-//     public static bool operator !=(Move left, Move right)
-//     {
-//         return !(left == right);
-//     }
-//
-//     /// <summary>
-//     /// Returns true if the move is a promotion move.
-//     /// </summary>
-//     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//     public bool IsPromotion()
-//     {
-//         return Type is
-//             MoveType.PromoteToQueen or
-//             MoveType.PromoteToRook or
-//             MoveType.PromoteToBishop or
-//             MoveType.PromoteToKnight;
-//     }
-//
-//     /// <summary>
-//     /// Returns true if the move is a capture move (including en passant).
-//     /// </summary>
-//     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//     public bool IsCapture() => Type is MoveType.Capture or MoveType.EnPassant;
-//
-//     /// <summary>
-//     /// Returns true if the move is a castling move.
-//     /// </summary>
-//     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//     public bool IsCastling() => Type == MoveType.Castling;
-//
-//     /// <summary>
-//     /// Returns true if the move is a quiet (non-capturing, non-promotional) move.
-//     /// </summary>
-//     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//     public bool IsQuiet() => Type == MoveType.Quiet;
-// }
+﻿namespace Zugfish.Engine.Models;
+
+public struct Move : IEquatable<Move>
+{
+    /// <summary>
+    /// The internal packed representation of the move.
+    ///
+    /// Bit layout (from least-significant to most-significant bits):
+    /// - Bits 0-5:   Source square index (0 to 63)
+    /// - Bits 6-11:  Target square index (0 to 63)
+    /// - Bits 12-15: Promoted piece type (4 bit flags, representing the piece type)
+    /// - Bits 16-19: Piece type (0-11)
+    /// - Bits 20-23: Captured piece type (0-11)
+    /// - Bit 24:     Is capture
+    /// - Bits 25-27: Move type
+    /// </summary>
+    private readonly int _packed;
+
+    private const int TargetSquareOffset = 6;
+    private const int PromotedPieceTypeOffset = 12;
+    private const int PieceTypeOffset = 16;
+    private const int CapturedPieceTypeOffset = 20;
+    private const int IsCaptureOffset = 24;
+    private const int MoveTypeOffset = 25;
+
+    public Move(
+        Square from,
+        Square to,
+        PromotedPieceType promotedPieceType,
+        PieceType pieceType,
+        PieceType capturedPieceType,
+        bool isCapture,
+        SpecialMoveType moveType
+        )
+    {
+        _packed = (int)from | ((int)to << TargetSquareOffset) | ((int)promotedPieceType << PromotedPieceTypeOffset) |
+                  ((int)pieceType << PieceTypeOffset) | ((int)capturedPieceType << CapturedPieceTypeOffset) |
+                  (isCapture ? 1 << IsCaptureOffset : 0) | ((int)moveType << MoveTypeOffset);
+    }
+
+    public static Move NullMove => new(Square.None, Square.None, PromotedPieceType.None, PieceType.None, PieceType.None, false, SpecialMoveType.None);
+
+    public static Move CreateQuiet(Square from, Square to, PieceType pieceType)
+    {
+        return new Move(from, to, PromotedPieceType.None, pieceType, PieceType.None, false, SpecialMoveType.None);
+    }
+
+    public static Move CreateCapture(Square from, Square to, PieceType pieceType, PieceType capturedPieceType)
+    {
+        return new Move(from, to, PromotedPieceType.None, pieceType, capturedPieceType, true, SpecialMoveType.None);
+    }
+
+    public static Move CreatePromotion(Square from, Square to, PieceType pieceType, PromotedPieceType promotedPieceType)
+    {
+        return new Move(from, to, promotedPieceType, pieceType, PieceType.None, false, SpecialMoveType.None);
+    }
+
+    public static Move CreatePromotion(Square from, Square to, PieceType pieceType, PieceType capturedPieceType, PromotedPieceType promotedPieceType)
+    {
+        return new Move(from, to, promotedPieceType, pieceType, capturedPieceType, true, SpecialMoveType.None);
+    }
+
+    public static Move CreateEnPassant(Square from, Square to, bool isWhite)
+    {
+        var pieceType = isWhite ? PieceType.WhitePawn : PieceType.BlackPawn;
+        var capturedPieceType = isWhite ? PieceType.BlackPawn : PieceType.WhitePawn;
+        return new Move(from, to, PromotedPieceType.None, pieceType, capturedPieceType, true, SpecialMoveType.EnPassant);
+    }
+
+    public static Move CreateShortCastle(bool isWhite)
+    {
+        var pieceType = isWhite ? PieceType.WhiteKing : PieceType.BlackKing;
+        var from = isWhite ? Square.e1 : Square.e8;
+        var to = isWhite ? Square.g1 : Square.g8;
+        return new Move(from, to, PromotedPieceType.None, pieceType, PieceType.None, false, SpecialMoveType.ShortCastle);
+    }
+
+    public static Move CreateLongCastle(bool isWhite)
+    {
+        var pieceType = isWhite ? PieceType.WhiteKing : PieceType.BlackKing;
+        var from = isWhite ? Square.e1 : Square.e8;
+        var to = isWhite ? Square.c1 : Square.c8;
+        return new Move(from, to, PromotedPieceType.None, pieceType, PieceType.None, false, SpecialMoveType.LongCastle);
+    }
+
+    public static Move CreateDoublePawnPush(Square from, Square to, PieceType pieceType)
+    {
+        return new Move(from, to, PromotedPieceType.None, pieceType, PieceType.None, false, SpecialMoveType.DoublePawnPush);
+    }
+
+    public Square From => (Square)(_packed & 0x3F);
+    public Square To => (Square)((_packed >> TargetSquareOffset) & 0x3F);
+    public PromotedPieceType PromotedPieceType => (PromotedPieceType)((_packed >> PromotedPieceTypeOffset) & 0xF);
+    public PieceType PieceType => (PieceType)((_packed >> PieceTypeOffset) & 0xF);
+    public PieceType CapturedPieceType => (PieceType)((_packed >> CapturedPieceTypeOffset) & 0xF);
+    public bool IsCapture => (_packed & (1 << IsCaptureOffset)) != 0;
+    public SpecialMoveType SpecialMoveType => (SpecialMoveType)((_packed >> MoveTypeOffset) & 0x7);
+
+    public bool Equals(Move other) => _packed == other._packed;
+
+    public override bool Equals(object? obj) => obj is Move other && Equals(other);
+    public override int GetHashCode() => _packed;
+
+    public static bool operator ==(Move left, Move right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(Move left, Move right)
+    {
+        return !(left == right);
+    }
+}
+
+[Flags]
+public enum PromotedPieceType : byte
+{
+    None = 0,
+    Knight = 1,
+    Bishop = 2,
+    Rook = 4,
+    Queen = 8
+}
+
+public enum SpecialMoveType
+{
+    None = 0,
+    DoublePawnPush = 1,
+    EnPassant = 2,
+    ShortCastle = 3,
+    LongCastle = 4
+}
