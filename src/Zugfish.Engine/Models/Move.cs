@@ -1,6 +1,6 @@
 ﻿namespace Zugfish.Engine.Models;
 
-public struct Move : IEquatable<Move>
+public readonly struct Move : IEquatable<Move>
 {
     /// <summary>
     /// The internal packed representation of the move.
@@ -36,6 +36,21 @@ public struct Move : IEquatable<Move>
         _packed = (int)from | ((int)to << TargetSquareOffset) | ((int)promotedPieceType << PromotedPieceTypeOffset) |
                   ((int)pieceType << PieceTypeOffset) | ((int)capturedPieceType << CapturedPieceTypeOffset) |
                   (isCapture ? 1 << IsCaptureOffset : 0) | ((int)moveType << MoveTypeOffset);
+    }
+
+    public override string ToString()
+    {
+        var promotion = PromotedPieceType switch
+        {
+            PromotedPieceType.None => "",
+            PromotedPieceType.Knight => "k",
+            PromotedPieceType.Bishop => "b",
+            PromotedPieceType.Rook => "r",
+            PromotedPieceType.Queen => "q",
+            _ => throw new ArgumentOutOfRangeException()
+        };
+
+        return $"{From}{To}{promotion}";
     }
 
     public static Move NullMove => new(Square.None, Square.None, PromotedPieceType.None, PieceType.None, PieceType.None, false, SpecialMoveType.None);

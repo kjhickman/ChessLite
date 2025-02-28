@@ -94,7 +94,7 @@ public static class MoveGeneration
                     AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
                 }
             }
-            else if (leftCaptureTo == enPassantTarget)
+            else if (leftCaptureTo >= 0 && leftCaptureTo == enPassantTarget)
             {
                 var move = Move.CreateEnPassant(from, leftCaptureTo, isWhite);
                 AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
