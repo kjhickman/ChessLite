@@ -4,10 +4,8 @@ using Zugfish.Engine.Models;
 
 namespace Zugfish.Engine;
 
-public static class MoveGenerator
+public static class MoveGeneration
 {
-    // TODO: convert all these ints to Square
-
     public static int GenerateLegalMoves(Position position, Span<Move> movesBuffer)
     {
         var moveCount = 0;

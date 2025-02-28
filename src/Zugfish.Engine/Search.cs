@@ -9,7 +9,7 @@ public class Search
     public Move? FindBestMove(Position position, int depth)
     {
         Span<Move> movesBuffer = stackalloc Move[218];
-        var moveCount = MoveGenerator.GenerateLegalMoves(position, movesBuffer);
+        var moveCount = MoveGeneration.GenerateLegalMoves(position, movesBuffer);
 
         if (moveCount == 0)
         {
@@ -81,7 +81,6 @@ public class Search
             return new EvaluationResult(0, GameState.DrawInsufficientMaterial);
         }
 
-        // todo: if the position is a draw by repetition, the game is a draw
         if (position.IsDrawByRepetition())
         {
             return new EvaluationResult(0, GameState.DrawRepetition);
@@ -105,7 +104,7 @@ public class Search
         }
 
         Span<Move> movesBuffer = stackalloc Move[218];
-        var moveCount = MoveGenerator.GenerateLegalMoves(position, movesBuffer);
+        var moveCount = MoveGeneration.GenerateLegalMoves(position, movesBuffer);
 
         if (moveCount == 0)
         {
