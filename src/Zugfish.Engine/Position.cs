@@ -378,20 +378,20 @@ public class Position
 
     private void HandleCapturedPiece(Bitboard capturedPieceMask, Move move)
     {
-        ref var capturedBoard = ref GetPieceBitboard(move.CapturedPieceType);
-        capturedBoard.ClearBits(capturedPieceMask);
-
         // Update castling rights if a rook was captured
         if ((capturedPieceMask & _whiteRooks).IsNotEmpty())
         {
-            if ((capturedPieceMask & (1UL << 0)).IsNotEmpty()) CastlingRights &= CastlingRights.WhiteKingside;
-            if ((capturedPieceMask & (1UL << 7)).IsNotEmpty()) CastlingRights &= CastlingRights.WhiteQueenside;
+            if (capturedPieceMask.Intersects(Square.a1)) CastlingRights &= ~CastlingRights.WhiteQueenside;
+            if (capturedPieceMask.Intersects(Square.h1)) CastlingRights &= ~CastlingRights.WhiteKingside;
         }
         else if ((capturedPieceMask & _blackRooks).IsNotEmpty())
         {
-            if ((capturedPieceMask & (1UL << 56)).IsNotEmpty()) CastlingRights &= CastlingRights.BlackKingside;
-            if ((capturedPieceMask & (1UL << 63)).IsNotEmpty()) CastlingRights &= CastlingRights.BlackQueenside;
+            if (capturedPieceMask.Intersects(Square.a8)) CastlingRights &= ~CastlingRights.BlackQueenside;
+            if (capturedPieceMask.Intersects(Square.h8)) CastlingRights &= ~CastlingRights.BlackKingside;
         }
+
+        ref var capturedBoard = ref GetPieceBitboard(move.CapturedPieceType);
+        capturedBoard.ClearBits(capturedPieceMask);
     }
 
     private void UpdateCastlingRightsAfterMove(Square from)
@@ -399,22 +399,22 @@ public class Position
         switch (from)
         {
             case Square.e1:
-                CastlingRights &= CastlingRights.BlackKingside | CastlingRights.BlackQueenside;
+                CastlingRights &= ~(CastlingRights.WhiteKingside | CastlingRights.WhiteQueenside);
                 break;
             case Square.e8:
-                CastlingRights &= CastlingRights.WhiteKingside | CastlingRights.WhiteQueenside;
+                CastlingRights &= ~(CastlingRights.BlackKingside | CastlingRights.BlackQueenside);
                 break;
             case Square.a1:
-                CastlingRights &= CastlingRights.WhiteQueenside;
+                CastlingRights &= ~CastlingRights.WhiteQueenside;
                 break;
             case Square.h1:
-                CastlingRights &= CastlingRights.WhiteKingside;
+                CastlingRights &= ~CastlingRights.WhiteKingside;
                 break;
             case Square.a8:
-                CastlingRights &= CastlingRights.BlackQueenside;
+                CastlingRights &= ~CastlingRights.BlackQueenside;
                 break;
             case Square.h8:
-                CastlingRights &= CastlingRights.BlackKingside;
+                CastlingRights &= ~CastlingRights.BlackKingside;
                 break;
         }
     }
@@ -681,8 +681,8 @@ public class Position
         }
         else
         {
-            var downLeftAttacks = (pawns >> 7) & ~Constants.FileH; // Down-left: shift southeast and mask off h-file
-            var downRightAttacks = (pawns >> 9) & ~Constants.FileA; // Down-right: shift southwest and mask off a-file
+            var downLeftAttacks = (pawns >> 9) & ~Constants.FileH; // Down-left: shift southeast and mask off h-file
+            var downRightAttacks = (pawns >> 7) & ~Constants.FileA; // Down-right: shift southwest and mask off a-file
             attacks = downLeftAttacks | downRightAttacks;
         }
 

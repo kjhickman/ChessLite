@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using Zugfish.Engine.Models;
 // using static System.Numerics.BitOperations;
@@ -94,7 +95,7 @@ public static class MoveGeneration
                     AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
                 }
             }
-            else if (leftCaptureTo >= 0 && leftCaptureTo == enPassantTarget)
+            else if (leftCaptureTo == enPassantTarget && fromFile != 0)
             {
                 var move = Move.CreateEnPassant(from, leftCaptureTo, isWhite);
                 AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
@@ -123,7 +124,7 @@ public static class MoveGeneration
                     AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
                 }
             }
-            else if (rightCaptureTo == enPassantTarget)
+            else if (rightCaptureTo == enPassantTarget && fromFile != 7)
             {
                 var move = Move.CreateEnPassant(from, rightCaptureTo, isWhite);
                 AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
@@ -472,7 +473,7 @@ public static class MoveGeneration
         }
 
         // Case 3: Check if the piece is pinned or moving would expose king to check
-        if (IsPiecePinned(position, move.From, kingSquare))
+        if (IsPiecePinned(position, kingSquare, move))
         {
             // Check if move stays on the pin ray
             return IsMovingAlongPinRay(move, kingSquare);
@@ -481,31 +482,39 @@ public static class MoveGeneration
         return true;
     }
 
-    private static bool IsPiecePinned(Position position, Square pieceSquare, Square kingSquare)
+    private static bool IsPiecePinned(Position position, Square kingSquare, Move move)
     {
         var kingFile = kingSquare.GetFile();
         var kingRank = kingSquare.GetRank();
-        var pieceFile = pieceSquare.GetFile();
-        var pieceRank = pieceSquare.GetRank();
+        var fromFile = move.From.GetFile();
+        var fromRank = move.From.GetRank();
 
-        var onSameFile = kingFile == pieceFile;
-        var onSameRank = kingRank == pieceRank;
-        var onSameDiagonal = Math.Abs(kingFile - pieceFile) == Math.Abs(kingRank - pieceRank);
+        var onSameFile = kingFile == fromFile;
+        var onSameRank = kingRank == fromRank;
+        var onSameDiagonal = Math.Abs(kingFile - fromFile) == Math.Abs(kingRank - fromRank);
 
         if (!onSameFile && !onSameRank && !onSameDiagonal)
         {
             return false;
         }
 
+        if (!onSameFile && !onSameDiagonal && onSameRank)
+        {
+            if (move.SpecialMoveType == SpecialMoveType.EnPassant)
+            {
+                return IsEnPassantPinned(position, move, kingSquare);
+            }
+        }
+
         // Determine direction vector from king to piece
-        var fileDirection = pieceFile == kingFile ? 0 : pieceFile > kingFile ? 1 : -1;
-        var rankDirection = pieceRank == kingRank ? 0 : pieceRank > kingRank ? 1 : -1;
+        var fileDirection = fromFile == kingFile ? 0 : fromFile > kingFile ? 1 : -1;
+        var rankDirection = fromRank == kingRank ? 0 : fromRank > kingRank ? 1 : -1;
 
         // Check if there's a piece between king and our piece
         var currentFile = kingFile + fileDirection;
         var currentRank = kingRank + rankDirection;
 
-        while ((currentFile != pieceFile || currentRank != pieceRank) && currentFile is >= 0 and < 8 &&
+        while ((currentFile != fromFile || currentRank != fromRank) && currentFile is >= 0 and < 8 &&
                currentRank is >= 0 and < 8)
         {
             var currentSquare = currentRank * 8 + currentFile;
@@ -519,8 +528,8 @@ public static class MoveGeneration
         }
 
         // Continue in the same direction past our piece to find potential pinning pieces
-        currentFile = pieceFile + fileDirection;
-        currentRank = pieceRank + rankDirection;
+        currentFile = fromFile + fileDirection;
+        currentRank = fromRank + rankDirection;
 
         var isDiagonal = fileDirection != 0 && rankDirection != 0;
         var isOrthogonal = fileDirection == 0 || rankDirection == 0;
@@ -553,6 +562,108 @@ public static class MoveGeneration
         return false;
     }
 
+    private static bool IsEnPassantPinned(Position position, Move move, Square kingSquare)
+    {
+        // Only need to check for horizontal pins on the same rank as the king
+        if (kingSquare.GetRank() != move.From.GetRank()) return false;
+
+        var kingFile = kingSquare.GetFile();
+        var capturedPawnFile = move.To.GetFile();
+        var movingPawnFile = move.From.GetFile();
+        var kingRank = kingSquare.GetRank();
+
+        // Identify enemy rooks/queens on the same rank
+        var enemyRooksQueens = position.WhiteToMove
+            ? position.BlackRooks | position.BlackQueens
+            : position.WhiteRooks | position.WhiteQueens;
+
+        // Get their positions on the same rank as the king
+        var kingRankMask = Bitboard.GetRankMask(kingRank);
+        enemyRooksQueens &= kingRankMask;
+
+        if (enemyRooksQueens.IsEmpty()) return false; // No enemy rooks/queens on the same rank
+
+        // Find pieces to the right and left of the king
+        var piecesToLeft = enemyRooksQueens & (Bitboard.AllOnes << (kingRank * 8)) & ~(Bitboard.AllOnes << (kingRank * 8 + kingFile));
+        var piecesToRight = enemyRooksQueens & (Bitboard.AllOnes << (kingRank * 8 + kingFile + 1));
+
+        // Check pin from left side
+        if (piecesToLeft.IsNotEmpty())
+        {
+            // Find the rightmost set bit (closest piece to the king)
+            var mask = piecesToLeft;
+
+            // Find the index of the most significant set bit
+            // This is the file of the enemy piece closest to the king from the left
+            var enemySquare = Square.None;
+            while (mask.IsNotEmpty())
+            {
+                enemySquare = mask.LsbSquare();
+                mask &= ~Bitboard.Mask(enemySquare);
+            }
+
+            var enemyFile = enemySquare.GetFile();
+
+            // Check if both pawns are between king and enemy
+            if (enemyFile < Math.Min(movingPawnFile, capturedPawnFile) &&
+                Math.Max(movingPawnFile, capturedPawnFile) < kingFile)
+            {
+                // Check if there are other pieces between
+                var startFile = enemyFile + 1;
+                var endFile = kingFile - 1;
+
+                Bitboard betweenMask = 0;
+                for (var file = startFile; file <= endFile; file++)
+                {
+                    if (file != movingPawnFile && file != capturedPawnFile)
+                    {
+                        betweenMask |= Bitboard.Mask(kingRank * 8 + file);
+                    }
+                }
+
+                if ((position.AllPieces & betweenMask) == 0)
+                    return true;
+            }
+        }
+
+        // Check pin from right side
+        if (piecesToRight != 0)
+        {
+            // Find the closest piece to the king
+            var enemyFile = 0;
+            var mask = 1UL << (kingRank * 8 + kingFile + 1);
+            while ((piecesToRight & mask) == 0 && mask != 0)
+            {
+                enemyFile++;
+                mask <<= 1;
+            }
+
+            enemyFile = kingFile + 1 + enemyFile;
+
+            // Check if both pawns are between king and enemy
+            if (kingFile < Math.Min(movingPawnFile, capturedPawnFile) &&
+                Math.Max(movingPawnFile, capturedPawnFile) < enemyFile)
+            {
+                // Check if there are other pieces between
+                var startFile = kingFile + 1;
+                var endFile = enemyFile - 1;
+
+                Bitboard betweenMask = 0;
+                for (var file = startFile; file <= endFile; file++)
+                {
+                    if (file != movingPawnFile && file != capturedPawnFile)
+                    {
+                        betweenMask |= Bitboard.Mask(kingRank * 8 + file);
+                    }
+                }
+
+                if ((position.AllPieces & betweenMask) == 0) return true;
+            }
+        }
+
+        return false;
+    }
+
     private static bool IsMovingAlongPinRay(Move move, Square kingSquare)
     {
         // Get the ray direction from king to piece
@@ -567,11 +678,6 @@ public static class MoveGeneration
         var fileDirection = pieceFile == kingFile ? 0 : pieceFile > kingFile ? 1 : -1;
         var rankDirection = pieceRank == kingRank ? 0 : pieceRank > kingRank ? 1 : -1;
 
-        // If destination is in the opposite direction of the pin, it's illegal
-        var toKingFileDelta = targetFile - kingFile;
-        var toKingRankDelta = targetRank - kingRank;
-
-        // Check if destination is on the same ray
         if (fileDirection == 0) // Vertical pin
         {
             return targetFile == kingFile;
@@ -583,14 +689,16 @@ public static class MoveGeneration
         }
 
         // Diagonal pin
-        // For a diagonal, the absolute deltas must be equal
-        if (Math.Abs(toKingFileDelta) == Math.Abs(toKingRankDelta) &&
-            (Math.Sign(toKingFileDelta) == Math.Sign(fileDirection) ||
-             Math.Sign(toKingRankDelta) == Math.Sign(rankDirection)))
-        {
-            return true;
-        }
+        // For a diagonal pin, check if the move maintains the same slope
+        var fromKingFileDelta = pieceFile - kingFile;
+        var fromKingRankDelta = pieceRank - kingRank;
+        var toKingFileDelta = targetFile - kingFile;
+        var toKingRankDelta = targetRank - kingRank;
 
-        return false;
+        // The slopes must be equal for the move to be along the pin ray
+        // Slope = rankDelta / fileDelta
+        return Math.Abs(toKingFileDelta) == Math.Abs(toKingRankDelta) &&
+               toKingFileDelta * fromKingFileDelta >= 0 &&  // Same file direction or through king
+               toKingRankDelta * fromKingRankDelta >= 0;    // Same rank direction or through king
     }
 }

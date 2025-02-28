@@ -14,6 +14,6 @@ public static class Constants
     public const ulong WhiteShortCastleEmptySquares = 0x60;
     public const ulong WhiteLongCastleEmptySquares = 0xE;
     public const ulong BlackShortCastleEmptySquares = 0x6000000000000000;
-    public const ulong BlackLongCastleEmptySquares = 0xE000000000000000;
+    public const ulong BlackLongCastleEmptySquares = 0xE00000000000000;
 
 }

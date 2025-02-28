@@ -73,11 +73,27 @@ public readonly struct Bitboard : IEquatable<Bitboard>
         return (this & other) != 0;
     }
 
+    public bool Intersects(Square square)
+    {
+        return (this & Mask(square)) != 0;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool DoesNotIntersect(Bitboard other)
     {
         return (this & other) == 0;
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Bitboard GetRankMask(int rank)
+    {
+        if (rank is < 0 or > 7)
+            throw new ArgumentOutOfRangeException(nameof(rank), "Rank must be between 0 and 7");
+
+        return 0xFFUL << (rank * 8);
+    }
+
+    public static Bitboard AllOnes = 0xFFFFFFFFFFFFFFFFUL;
     #endregion
 }
 
