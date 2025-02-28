@@ -1,4 +1,7 @@
 // ReSharper disable InconsistentNaming
+
+using System.Runtime.CompilerServices;
+
 namespace Zugfish.Engine.Models;
 
 //  noWe        north         noEa
@@ -19,4 +22,20 @@ public enum Square
     a7, b7, c7, d7, e7, f7, g7, h7,
     a8, b8, c8, d8, e8, f8, g8, h8,
     None = -1
+}
+
+public static class SquareExtensions
+{
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Bitboard ToMask(this Square square) => Bitboard.Mask(square);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int GetRank(this Square square) => (int)square / 8;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int GetFile(this Square square) => (int)square % 8;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool IsValid(this Square square) => Enum.IsDefined(square) && square != Square.None;
+    // TODO: benchmark vs >0 and <64
 }

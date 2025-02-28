@@ -51,6 +51,11 @@ public class Position
 
     #endregion
 
+    private Bitboard _whiteAttacks;
+    private Bitboard _blackAttacks;
+    public Bitboard WhiteAttacks => _whiteAttacks;
+    public Bitboard BlackAttacks => _blackAttacks;
+
     /// <summary>
     /// Default constructor: sets up the standard starting position.
     /// </summary>
@@ -80,14 +85,15 @@ public class Position
 
     public Position(ReadOnlySpan<char> fen)
     {
-        MemoryExtensions.SpanSplitEnumerator<char> enumerator = fen.Split(' ');
+        var enumerator = fen.Split(' ');
         enumerator.MoveNext();
 
         // Parse piece placement
         var piecePlacement = fen[enumerator.Current]; enumerator.MoveNext();
         var square = 56; // Start at a8
-        foreach (var c in piecePlacement)
+        for (var i = 0; i < piecePlacement.Length; i++)
         {
+            var c = piecePlacement[i];
             if (char.IsDigit(c))
                 square += c - '0'; // Empty squares
             else if (c == '/')
@@ -171,6 +177,8 @@ public class Position
 
         // Update combined bitboards
         DeriveCombinedBitboards();
+        _whiteAttacks = CalculateAttacks(true);
+        _blackAttacks = CalculateAttacks(false);
         ZobristHash = Zobrist.ComputeHash(this);
         _repetitionTable[_currentPly++] = ZobristHash;
     }
@@ -179,8 +187,6 @@ public class Position
     {
         var from = move.From;
         var to = move.To;
-        var pieceType = move.PieceType;
-        var capturedPieceType = move.CapturedPieceType;
         var promotedPieceType = move.PromotedPieceType;
         var isCapture = move.IsCapture;
         var specialMoveType = move.SpecialMoveType;
@@ -201,7 +207,7 @@ public class Position
             case SpecialMoveType.None:
                 if (promotedPieceType != PromotedPieceType.None)
                 {
-                    HandlePromotionMove(move, to, toMask);
+                    HandlePromotionMove(move, toMask);
                     break;
                 }
 
@@ -257,6 +263,7 @@ public class Position
             HalfmoveClock++;
 
         DeriveCombinedBitboards();
+        UpdateAttackBitboards();
         WhiteToMove = !WhiteToMove;
         ZobristHash = Zobrist.ComputeHash(this);
         _repetitionTable[_currentPly++] = ZobristHash;
@@ -303,7 +310,9 @@ public class Position
             PreviousCastlingRights = CastlingRights,
             PreviousEnPassantTarget = EnPassantTarget,
             PreviousHalfmoveClock = HalfmoveClock,
-            PreviousZobristHash = ZobristHash
+            PreviousZobristHash = ZobristHash,
+            PreviousWhiteAttacks = _whiteAttacks,
+            PreviousBlackAttacks = _blackAttacks
         });
     }
 
@@ -346,7 +355,7 @@ public class Position
         // Removal of the captured pawn is handled by the captured piece logic.
     }
 
-    private void HandlePromotionMove(Move move, Square to, Bitboard toMask)
+    private void HandlePromotionMove(Move move, Bitboard toMask)
     {
         switch (move.PromotedPieceType)
         {
@@ -456,6 +465,8 @@ public class Position
         WhiteToMove = !WhiteToMove;
         if (_currentPly > 0) _currentPly--;
         ZobristHash = lastUndo.PreviousZobristHash;
+        _whiteAttacks = lastUndo.PreviousWhiteAttacks;
+        _blackAttacks = lastUndo.PreviousBlackAttacks;
     }
 
     private void UndoQuietOrCaptureMove(MoveHistory lastHistory)
@@ -613,134 +624,224 @@ public class Position
 
     public bool IsInCheck()
     {
-        var kingBoard = WhiteToMove ? _whiteKing : _blackKing;
-        return IsSquareAttacked(BitOperations.TrailingZeroCount(kingBoard), WhiteToMove);
+        return IsInCheck(WhiteToMove);
     }
 
-    public bool IsSquareAttacked(int square, bool byWhite)
+    public bool IsInCheck(bool isWhite)
     {
-        var file = square % 8;
-        var rank = square / 8;
+        var kingSquare = isWhite ? (Square)BitOperations.TrailingZeroCount(_whiteKing) : (Square)BitOperations.TrailingZeroCount(_blackKing);
+        return IsSquareAttacked(kingSquare, byWhite: !isWhite);
+    }
 
-        // Pawn attacks
-        if (byWhite)
+    public bool IsSquareAttacked(Square square, bool byWhite)
+    {
+        var enemyAttacks = byWhite ? _whiteAttacks : _blackAttacks;
+        return (square.ToMask() & enemyAttacks) != 0;
+    }
+
+    private Bitboard CalculateAttacks(bool forWhite)
+    {
+        Bitboard attacks = 0;
+
+        // Calculate pawn attacks
+        var pawns = forWhite ? _whitePawns : _blackPawns;
+        attacks |= CalculatePawnAttacks(pawns, forWhite);
+
+        // Calculate knight attacks
+        var knights = forWhite ? _whiteKnights : _blackKnights;
+        attacks |= CalculateKnightAttacks(knights);
+
+        // Calculate bishop/queen diagonal attacks
+        var bishopsQueens = forWhite ?
+            _whiteBishops | _whiteQueens :
+            _blackBishops | _blackQueens;
+        attacks |= CalculateDiagonalAttacks(bishopsQueens);
+
+        // Calculate rook/queen straight attacks
+        var rooksQueens = forWhite ?
+            _whiteRooks | _whiteQueens :
+            _blackRooks | _blackQueens;
+        attacks |= CalculateOrthogonalAttacks(rooksQueens);
+
+        // Calculate king attacks
+        var king = forWhite ? _whiteKing : _blackKing;
+        attacks |= CalculateKingAttacks(king);
+
+        return attacks;
+    }
+
+    private Bitboard CalculatePawnAttacks(Bitboard pawns, bool isWhite)
+    {
+        Bitboard attacks;
+        if (isWhite)
         {
-            if (file > 0)
-            {
-                var pawnSquare = square - 9;
-                if (pawnSquare >= 0 && (_whitePawns & (1UL << pawnSquare)).IsNotEmpty()) return true;
-            }
-
-            if (file < 7)
-            {
-                var pawnSquare = square - 7;
-                if (pawnSquare >= 0 && (_whitePawns & (1UL << pawnSquare)).IsNotEmpty()) return true;
-            }
+            var upLeftAttacks = (pawns << 7) & ~Constants.FileH; // Up-left: shift northeast and mask off H-file
+            var upRightAttacks = (pawns << 9) & ~Constants.FileA; // Up-right: shift northwest and mask off A-file
+            attacks = upLeftAttacks | upRightAttacks;
         }
         else
         {
-            if (file < 7)
+            var downLeftAttacks = (pawns >> 7) & ~Constants.FileH; // Down-left: shift southeast and mask off h-file
+            var downRightAttacks = (pawns >> 9) & ~Constants.FileA; // Down-right: shift southwest and mask off a-file
+            attacks = downLeftAttacks | downRightAttacks;
+        }
+
+        return attacks;
+    }
+
+    private Bitboard CalculateKnightAttacks(Bitboard knights)
+    {
+        Bitboard attacks = 0;
+
+        while (knights != 0)
+        {
+            var knightSquare = BitOperations.TrailingZeroCount(knights);
+            var knightFile = knightSquare % 8;
+            var knightRank = knightSquare / 8;
+
+            // Knight's 8 possible moves
+            Span<int> fileOffsets = [-2, -2, -1, -1, 1, 1, 2, 2];
+            Span<int> rankOffsets = [-1, 1, -2, 2, -2, 2, -1, 1];
+
+            for (var i = 0; i < 8; i++)
             {
-                var pawnSquare = square + 9;
-                if (pawnSquare < 64 && (_blackPawns & (1UL << pawnSquare)).IsNotEmpty()) return true;
+                var targetFile = knightFile + fileOffsets[i];
+                var targetRank = knightRank + rankOffsets[i];
+
+                // Check if target square is on the board
+                if (targetFile is >= 0 and < 8 && targetRank is >= 0 and < 8)
+                {
+                    var targetSquare = targetRank * 8 + targetFile;
+                    attacks |= Bitboard.Mask(targetSquare);
+                }
             }
 
-            if (file > 0)
+            knights &= knights - 1;
+        }
+
+        return attacks;
+    }
+
+    private Bitboard CalculateDiagonalAttacks(Bitboard diagonalRayAttackers)
+    {
+        Bitboard attacks = 0;
+
+        while (diagonalRayAttackers != 0)
+        {
+            var pieceSquare = BitOperations.TrailingZeroCount(diagonalRayAttackers);
+            var pieceFile = pieceSquare % 8;
+            var pieceRank = pieceSquare / 8;
+
+            // Four diagonal directions: NE, SE, SW, NW
+            Span<int> fileDirections = [1, 1, -1, -1];
+            Span<int> rankDirections = [1, -1, -1, 1];
+
+            for (var dir = 0; dir < 4; dir++)
             {
-                var pawnSquare = square + 7;
-                if (pawnSquare < 64 && (_blackPawns & (1UL << pawnSquare)).IsNotEmpty()) return true;
+                var currentFile = pieceFile + fileDirections[dir];
+                var currentRank = pieceRank + rankDirections[dir];
+
+                while (currentFile is >= 0 and < 8 && currentRank is >= 0 and < 8)
+                {
+                    var currentSquare = currentRank * 8 + currentFile;
+                    var squareMask = Bitboard.Mask(currentSquare);
+
+                    attacks |= squareMask;
+
+                    if ((AllPieces & squareMask) != 0)
+                    {
+                        break;
+                    }
+
+                    currentFile += fileDirections[dir];
+                    currentRank += rankDirections[dir];
+                }
+            }
+
+            diagonalRayAttackers &= diagonalRayAttackers - 1;
+        }
+
+        return attacks;
+    }
+
+    private Bitboard CalculateOrthogonalAttacks(Bitboard orthogonalRayAttackers)
+    {
+        Bitboard attacks = 0;
+
+        while (orthogonalRayAttackers != 0)
+        {
+            var pieceSquare = BitOperations.TrailingZeroCount(orthogonalRayAttackers);
+            var pieceFile = pieceSquare % 8;
+            var pieceRank = pieceSquare / 8;
+
+            // Four orthogonal directions: N, E, S, W
+            Span<int> fileDirections = [0, 1, 0, -1];
+            Span<int> rankDirections = [1, 0, -1, 0];
+
+            for (var dir = 0; dir < 4; dir++)
+            {
+                var currentFile = pieceFile + fileDirections[dir];
+                var currentRank = pieceRank + rankDirections[dir];
+
+                while (currentFile is >= 0 and < 8 && currentRank is >= 0 and < 8)
+                {
+                    var currentSquare = currentRank * 8 + currentFile;
+                    var squareMask = Bitboard.Mask(currentSquare);
+
+                    attacks |= squareMask;
+
+                    if ((AllPieces & squareMask) != 0)
+                    {
+                        break;
+                    }
+
+                    currentFile += fileDirections[dir];
+                    currentRank += rankDirections[dir];
+                }
+            }
+
+            orthogonalRayAttackers &= orthogonalRayAttackers - 1;
+        }
+
+        return attacks;
+    }
+
+    private Bitboard CalculateKingAttacks(Bitboard king)
+    {
+        if (king == 0) return 0;
+
+        var kingSquare = BitOperations.TrailingZeroCount(king);
+        var kingFile = kingSquare % 8;
+        var kingRank = kingSquare / 8;
+
+        Bitboard attacks = 0;
+
+        // King attacks all 8 surrounding squares (-1, 0, 1 for both file and rank)
+        for (var fileOffset = -1; fileOffset <= 1; fileOffset++)
+        {
+            for (var rankOffset = -1; rankOffset <= 1; rankOffset++)
+            {
+                // Skip the king's own square
+                if (fileOffset == 0 && rankOffset == 0) continue;
+
+                var targetFile = kingFile + fileOffset;
+                var targetRank = kingRank + rankOffset;
+
+                if (targetFile is >= 0 and < 8 && targetRank is >= 0 and < 8)
+                {
+                    var targetSquare = targetRank * 8 + targetFile;
+                    attacks |= Bitboard.Mask(targetSquare);
+                }
             }
         }
 
-        // Knight attacks
-        Span<int> knightOffsets = [-17, -15, -10, -6, 6, 10, 15, 17];
-        var knights = byWhite ? _whiteKnights : _blackKnights;
-        for (var i = 0; i < knightOffsets.Length; i++)
-        {
-            var offset = knightOffsets[i];
-            var attackerSquare = square + offset;
-            if (attackerSquare is < 0 or >= 64) continue;
+        return attacks;
+    }
 
-            var attackerFile = attackerSquare % 8;
-            if (Math.Abs(attackerFile - file) > 2) continue;
-
-            if ((knights & (1UL << attackerSquare)).IsNotEmpty()) return true;
-        }
-
-        // King attacks
-        Span<int> kingOffsets = [-9, -8, -7, -1, 1, 7, 8, 9];
-        var king = byWhite ? _whiteKing : _blackKing;
-        for (var i = 0; i < kingOffsets.Length; i++)
-        {
-            var offset = kingOffsets[i];
-            var attackerSquare = square + offset;
-            if (attackerSquare is < 0 or >= 64) continue;
-
-            var attackerFile = attackerSquare % 8;
-            if (Math.Abs(attackerFile - file) > 1) continue;
-
-            if ((king & (1UL << attackerSquare)).IsNotEmpty()) return true;
-        }
-
-        // Sliding piece attacks
-        Span<(int, int)> diagonalDirections = [(1, 1), (-1, 1), (1, -1), (-1, -1)];
-        for (var i = 0; i < diagonalDirections.Length; i++)
-        {
-            var (fileDirection, rankDirection) = diagonalDirections[i];
-            var currentFile = file;
-            var currentRank = rank;
-            while (true)
-            {
-                currentFile += fileDirection;
-                currentRank += rankDirection;
-                if (currentFile < 0 || currentFile >= 8 || currentRank < 0 || currentRank >= 8) break;
-                var toMask = Bitboard.Mask(currentRank * 8 + currentFile);
-
-                if ((AllPieces & toMask).IsEmpty()) continue;
-
-                // If a piece is blocking further movement, check if it's an attacker.
-                if (byWhite)
-                {
-                    if (((_whiteBishops | _whiteQueens) & toMask).IsNotEmpty()) return true;
-                }
-                else
-                {
-                    if (((_blackBishops | _blackQueens) & toMask).IsNotEmpty()) return true;
-                }
-
-                break;
-            }
-        }
-
-        Span<(int, int)> straightDirections = [(1, 0), (-1, 0), (0, 1), (0, -1)];
-        for (var i = 0; i < straightDirections.Length; i++)
-        {
-            var (fileDirection, rankDirection) = straightDirections[i];
-            var currentFile = file;
-            var currentRank = rank;
-            while (true)
-            {
-                currentFile += fileDirection;
-                currentRank += rankDirection;
-                if (currentFile < 0 || currentFile >= 8 || currentRank < 0 || currentRank >= 8) break;
-                var toMask = Bitboard.Mask(currentRank * 8 + currentFile);
-                if ((AllPieces & toMask).IsEmpty()) continue;
-
-                // If a piece is blocking further movement, check if it's an attacker.
-                if (byWhite)
-                {
-                    if (((_whiteRooks | _whiteQueens) & toMask).IsNotEmpty()) return true;
-                }
-                else
-                {
-                    if (((_blackRooks | _blackQueens) & toMask).IsNotEmpty()) return true;
-                }
-
-                break;
-            }
-        }
-
-        return false;
+    private void UpdateAttackBitboards()
+    {
+        _whiteAttacks = CalculateAttacks(true);
+        _blackAttacks = CalculateAttacks(false);
     }
 
     public bool IsDrawByRepetition()
@@ -794,24 +895,6 @@ public class Position
         }
 
         return false;
-    }
-
-    public PieceType GetPieceTypeAt(Square square)
-    {
-        var mask = Bitboard.Mask(square);
-        if ((_whitePawns & mask).IsNotEmpty()) return PieceType.WhitePawn;
-        if ((_whiteKnights & mask).IsNotEmpty()) return PieceType.WhiteKnight;
-        if ((_whiteBishops & mask).IsNotEmpty()) return PieceType.WhiteBishop;
-        if ((_whiteRooks & mask).IsNotEmpty()) return PieceType.WhiteRook;
-        if ((_whiteQueens & mask).IsNotEmpty()) return PieceType.WhiteQueen;
-        if ((_whiteKing & mask).IsNotEmpty()) return PieceType.WhiteKing;
-        if ((_blackPawns & mask).IsNotEmpty()) return PieceType.BlackPawn;
-        if ((_blackKnights & mask).IsNotEmpty()) return PieceType.BlackKnight;
-        if ((_blackBishops & mask).IsNotEmpty()) return PieceType.BlackBishop;
-        if ((_blackRooks & mask).IsNotEmpty()) return PieceType.BlackRook;
-        if ((_blackQueens & mask).IsNotEmpty()) return PieceType.BlackQueen;
-        if ((_blackKing & mask).IsNotEmpty()) return PieceType.BlackKing;
-        return PieceType.None;
     }
 
     public PieceType GetPieceTypeAt(Square square, bool isWhite)

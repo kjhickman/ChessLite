@@ -60,38 +60,52 @@ public readonly struct Bitboard : IEquatable<Bitboard>
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsSet(Square square) => (Value & Mask(square)) != 0;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Square LsbSquare()
+    {
+        return (Square)BitOperations.TrailingZeroCount(this);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Intersects(Bitboard other)
+    {
+        return (this & other) != 0;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool DoesNotIntersect(Bitboard other)
+    {
+        return (this & other) == 0;
+    }
     #endregion
 }
 
 public static class BitboardExtensions
 {
-    // public static void SetBit(this ref Bitboard board, int square)
-    // {
-    //     board = new Bitboard(board.Value | (1UL << square));
-    // }
-
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void SetBit(this ref Bitboard board, Square square)
     {
         board = new Bitboard(board.Value | Bitboard.Mask(square));
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void SetBits(this ref Bitboard board, Bitboard bits)
     {
         board = new Bitboard(board.Value | bits);
     }
 
-    // public static void ClearBit(this ref Bitboard board, int square)
-    // {
-    //     board = new Bitboard(board.Value & ~Bitboard.Mask(square));
-    // }
-
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void ClearBit(this ref Bitboard board, Square square)
     {
         board = new Bitboard(board.Value & ~Bitboard.Mask(square));
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void ClearBits(this ref Bitboard board, Bitboard bits)
     {
         board = new Bitboard(board.Value & ~bits);
     }
+
+    // TODO: Add shifts
 }

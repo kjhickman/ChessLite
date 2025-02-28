@@ -12,4 +12,6 @@ public struct MoveHistory
     public Square PreviousEnPassantTarget;
     public int PreviousHalfmoveClock;
     public ulong PreviousZobristHash;
+    public Bitboard PreviousWhiteAttacks;
+    public Bitboard PreviousBlackAttacks;
 }

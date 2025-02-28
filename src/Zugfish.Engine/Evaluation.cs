@@ -1,5 +1,4 @@
 using Zugfish.Engine.Models;
-using static System.Numerics.BitOperations;
 
 namespace Zugfish.Engine;
 
@@ -90,11 +89,11 @@ public static class Evaluation
 
     private static int EvaluateMaterial(Position position)
     {
-        var materialScore = PawnValue * PopCount(position.WhitePawns) - PawnValue * PopCount(position.BlackPawns);
-        materialScore += KnightValue * PopCount(position.WhiteKnights) - KnightValue * PopCount(position.BlackKnights);
-        materialScore += BishopValue * PopCount(position.WhiteBishops) - BishopValue * PopCount(position.BlackBishops);
-        materialScore += RookValue * PopCount(position.WhiteRooks) - RookValue * PopCount(position.BlackRooks);
-        materialScore += QueenValue * PopCount(position.WhiteQueens) - QueenValue * PopCount(position.BlackQueens);
+        var materialScore = PawnValue * position.WhitePawns.Count() - PawnValue * position.BlackPawns.Count();
+        materialScore += KnightValue * position.WhiteKnights.Count() - KnightValue * position.BlackKnights.Count();
+        materialScore += BishopValue * position.WhiteBishops.Count() - BishopValue * position.BlackBishops.Count();
+        materialScore += RookValue * position.WhiteRooks.Count() - RookValue * position.BlackRooks.Count();
+        materialScore += QueenValue * position.WhiteQueens.Count() - QueenValue * position.BlackQueens.Count();
 
         return materialScore;
     }
@@ -123,10 +122,10 @@ public static class Evaluation
     {
         var score = 0;
         var currentPieces = pieces;
-        while (currentPieces != 0)
+        while (currentPieces.IsNotEmpty())
         {
-            var square = TrailingZeroCount(currentPieces);
-            var index = isWhite ? square : 63 - square;
+            var square = currentPieces.LsbSquare();
+            var index = isWhite ? (int)square : 63 - (int)square;
             score += table[index];
 
             currentPieces &= currentPieces - 1;
