@@ -36,6 +36,5 @@ public static class SquareExtensions
     public static int GetFile(this Square square) => (int)square % 8;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool IsValid(this Square square) => Enum.IsDefined(square) && square != Square.None;
-    // TODO: benchmark vs >0 and <64
+    public static bool IsValid(this Square square) => square is >= Square.a1 and <= Square.h8;
 }
