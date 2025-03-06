@@ -5,6 +5,7 @@ namespace Zugfish.Engine;
 public class Search
 {
     private readonly TranspositionTable _transpositionTable = new(1 << 20); // 1,048,576
+    private readonly MoveExecutor _moveExecutor = new();
 
     public Move? FindBestMove(Position position, int depth)
     {
@@ -33,9 +34,9 @@ public class Search
         for (var i = 0; i < moveCount; i++)
         {
             var move = movesBuffer[i];
-            position.MakeMove(move);
+            _moveExecutor.MakeMove(position, move);
             var score = Minimax(position, depth - 1, alpha, beta, !isMaximizing).Score;
-            position.UndoMove();
+            _moveExecutor.UndoMove(position);
 
             if (isMaximizing)
             {
@@ -131,9 +132,9 @@ public class Search
         for (var i = 0; i < moveCount; i++)
         {
             var move = movesBuffer[i];
-            position.MakeMove(move);
+            _moveExecutor.MakeMove(position, move);
             var score = Minimax(position, depth - 1, alpha, beta, !isMaximizing).Score;
-            position.UndoMove();
+            _moveExecutor.UndoMove(position);
 
             if (isMaximizing)
             {

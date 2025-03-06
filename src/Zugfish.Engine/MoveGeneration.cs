@@ -1,7 +1,5 @@
-using System.Numerics;
 using System.Runtime.CompilerServices;
 using Zugfish.Engine.Models;
-// using static System.Numerics.BitOperations;
 
 namespace Zugfish.Engine;
 
@@ -36,7 +34,7 @@ public static class MoveGeneration
         var currentPawns = pawns;
         while (currentPawns.IsNotEmpty())
         {
-            var from = currentPawns.LsbSquare();
+            var from = currentPawns.GetFirstSquare();
 
             // One square forward
             var oneStep = from + direction;
@@ -206,7 +204,7 @@ public static class MoveGeneration
         var currentKnights = knights;
         while (currentKnights.IsNotEmpty())
         {
-            var from = currentKnights.LsbSquare();
+            var from = currentKnights.GetFirstSquare();
             var fromFile = from.GetFile();
             var fromRank = from.GetRank();
 
@@ -287,7 +285,7 @@ public static class MoveGeneration
         var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
         var pieceType = position.WhiteToMove ? PieceType.WhiteKing : PieceType.BlackKing;
 
-        var from = king.LsbSquare();
+        var from = king.GetFirstSquare();
         var fromFile = from.GetFile();
         var fromRank = from.GetRank();
 
@@ -389,7 +387,6 @@ public static class MoveGeneration
         }
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void GenerateSlidingMoves(
         Bitboard pieces,
         PieceType pieceType,
@@ -403,7 +400,7 @@ public static class MoveGeneration
 
         while (pieces.IsNotEmpty())
         {
-            var from = pieces.LsbSquare();
+            var from = pieces.GetFirstSquare();
             var fromFile = from.GetFile();
             var fromRank = from.GetRank();
 
@@ -454,16 +451,39 @@ public static class MoveGeneration
     private static bool IsMoveLegal(Position position, Move move)
     {
         var isWhite = position.WhiteToMove;
-        var kingSquare = isWhite ? position.WhiteKing.LsbSquare() : position.BlackKing.LsbSquare();
+        var kingSquare = isWhite ? position.WhiteKing.GetFirstSquare() : position.BlackKing.GetFirstSquare();
 
         // Case 1: If the king is in check, the move must resolve the check
         if (position.IsInCheck())
         {
-            // TODO: optimize this to not make/unmake move
-            position.MakeMove(move);
-            var stillInCheck = position.IsInCheck(!position.WhiteToMove); // Check if still in check
-            position.UndoMove();
-            return !stillInCheck;
+            // King move
+            if (move.PieceType == (isWhite ? PieceType.WhiteKing : PieceType.BlackKing))
+            {
+                return !position.IsSquareAttacked(move.To, !isWhite);
+            }
+
+            // Non-king moves
+            var checkingPieces = FindAttackingPieces(position, kingSquare, !isWhite);
+            var checkCount = checkingPieces.Count();
+
+            // If double check, only king moves can resolve it
+            if (checkCount > 1)
+            {
+                return false;
+            }
+
+            // Single check can be resolved by:
+            // 1. Capturing the checking piece
+            var checkingSquare = checkingPieces.GetFirstSquare();
+            if (move.To == checkingSquare)
+            {
+                // Check if the piece is pinned
+                return !IsPiecePinned(position, kingSquare, move);
+            }
+
+            // 2. Blocking the check (only for sliding piece checks)
+            var blockingSquares = GetBlockingSquares(position, kingSquare, checkingSquare);
+            return blockingSquares.Intersects(Bitboard.Mask(move.To)) && !IsPiecePinned(position, kingSquare, move);
         }
 
         // Case 2: If moving the king, check if destination is attacked
@@ -480,6 +500,251 @@ public static class MoveGeneration
         }
 
         return true;
+    }
+
+    private static Bitboard FindAttackingPieces(Position position, Square square, bool attackerIsWhite)
+    {
+        var pawnAttackers = FindPawnAttacks(square, position, attackerIsWhite);
+        var knightAttacks = FindKnightAttacks(square, position, attackerIsWhite);
+        var bishopQueenAttacks = FindDiagonalAttacks(square, position, attackerIsWhite);
+        var rookQueenAttacks = FindOrthogonalAttacks(square, position, attackerIsWhite);
+
+        // Combine all attacking pieces
+        var checkingPieces = pawnAttackers | knightAttacks | bishopQueenAttacks | rookQueenAttacks;
+
+        return checkingPieces;
+    }
+
+    private static Bitboard FindPawnAttacks(Square square, Position position, bool isWhitePawn)
+    {
+        Bitboard attacks = 0;
+        var file = square.GetFile();
+        var rank = square.GetRank();
+        var rankOffset = isWhitePawn ? 1 : -1;
+
+        if (file > 0)
+        {
+            var targetRank = rank + rankOffset;
+            if (targetRank is >= 0 and < 8)
+            {
+                attacks |= 1UL << (targetRank * 8 + file - 1);
+            }
+        }
+
+        if (file < 7)
+        {
+            var targetRank = rank + rankOffset;
+            if (targetRank is >= 0 and < 8)
+            {
+                attacks |= 1UL << (targetRank * 8 + file + 1);
+            }
+        }
+
+        var pawns = isWhitePawn ? position.WhitePawns : position.BlackPawns;
+        return attacks & pawns;
+    }
+
+    private static Bitboard FindKnightAttacks(Square square, Position position, bool attackerIsWhite)
+    {
+        Bitboard attacks = 0;
+        var file = square.GetFile();
+        var rank = square.GetRank();
+
+        Span<(int fileOffset, int rankOffset)> knightOffsets =
+        [
+            (1, 2), (2, 1), (2, -1), (1, -2),
+            (-1, -2), (-2, -1), (-2, 1), (-1, 2)
+        ];
+
+        for (var i = 0; i < knightOffsets.Length; i++)
+        {
+            var (fileOffset, rankOffset) = knightOffsets[i];
+            var targetFile = file + fileOffset;
+            var targetRank = rank + rankOffset;
+
+            if (targetFile is >= 0 and < 8 && targetRank is >= 0 and < 8)
+            {
+                attacks |= 1UL << (targetRank * 8 + targetFile);
+            }
+        }
+
+        var knights = attackerIsWhite ? position.WhiteKnights : position.BlackKnights;
+        return attacks & knights;
+    }
+
+    private static Bitboard FindDiagonalAttacks(Square square, Position position, bool attackerIsWhite)
+    {
+        Bitboard attacks = 0;
+        var file = square.GetFile();
+        var rank = square.GetRank();
+        var allPieces = position.AllPieces;
+
+        Span<(int fileDirection, int rankDirection)> diagonalDirections =
+        [
+            (1, 1), (1, -1), (-1, 1), (-1, -1)
+        ];
+
+        for (var i = 0; i < diagonalDirections.Length; i++)
+        {
+            var (fileDirection, rankDirection) = diagonalDirections[i];
+            var targetFile = file + fileDirection;
+            var targetRank = rank + rankDirection;
+
+            while (targetFile is >= 0 and < 8 && targetRank is >= 0 and < 8)
+            {
+                var targetSquare = targetRank * 8 + targetFile;
+                var targetMask = 1UL << targetSquare;
+
+                attacks |= targetMask;
+
+                // Stop if we hit a piece
+                if ((allPieces & targetMask) != 0)
+                {
+                    break;
+                }
+
+                targetFile += fileDirection;
+                targetRank += rankDirection;
+            }
+        }
+
+        var diagonalSliders = attackerIsWhite
+            ? position.WhiteBishops | position.WhiteQueens
+            : position.BlackBishops | position.BlackQueens;
+
+        return attacks & diagonalSliders;
+    }
+
+    private static Bitboard FindOrthogonalAttacks(Square square, Position position, bool attackerIsWhite)
+    {
+        Bitboard attacks = 0;
+        var file = square.GetFile();
+        var rank = square.GetRank();
+        var allPieces = position.AllPieces;
+
+        Span<(int fileDirection, int rankDirection)> orthogonalDirections =
+        [
+            (1, 0), (-1, 0), (0, 1), (0, -1)
+        ];
+
+        for (var i = 0; i < orthogonalDirections.Length; i++)
+        {
+            var (fileDirection, rankDirection) = orthogonalDirections[i];
+            var targetFile = file + fileDirection;
+            var targetRank = rank + rankDirection;
+
+            while (targetFile is >= 0 and < 8 && targetRank is >= 0 and < 8)
+            {
+                var targetSquare = targetRank * 8 + targetFile;
+                var targetMask = 1UL << targetSquare;
+
+                attacks |= targetMask;
+
+                // Stop if we hit a piece
+                if ((allPieces & targetMask) != 0)
+                {
+                    break;
+                }
+
+                targetFile += fileDirection;
+                targetRank += rankDirection;
+            }
+        }
+
+        var orthogonalSliders = attackerIsWhite
+            ? position.WhiteRooks | position.WhiteQueens
+            : position.BlackRooks | position.BlackQueens;
+
+        return attacks & orthogonalSliders;
+    }
+
+    private static Bitboard GetBlockingSquares(Position position, Square kingSquare, Square attackerSquare)
+    {
+        Bitboard blockingSquares = 0;
+
+        // Only sliding pieces can be blocked
+        var attackerPieceType = GetPieceTypeAtSquare(position, attackerSquare);
+        if (!IsSlidingPiece(attackerPieceType))
+        {
+            return 0;
+        }
+
+        // Get squares between king and attacker
+        blockingSquares = GetRayBetween(kingSquare, attackerSquare);
+
+        return blockingSquares;
+    }
+
+    private static PieceType GetPieceTypeAtSquare(Position pos, Square square)
+    {
+        var mask = Bitboard.Mask(square);
+        if ((pos.WhitePawns & mask) != 0) return PieceType.WhitePawn;
+        if ((pos.WhiteKnights & mask) != 0) return PieceType.WhiteKnight;
+        if ((pos.WhiteBishops & mask) != 0) return PieceType.WhiteBishop;
+        if ((pos.WhiteRooks & mask) != 0) return PieceType.WhiteRook;
+        if ((pos.WhiteQueens & mask) != 0) return PieceType.WhiteQueen;
+        if ((pos.WhiteKing & mask) != 0) return PieceType.WhiteKing;
+        if ((pos.BlackPawns & mask) != 0) return PieceType.BlackPawn;
+        if ((pos.BlackKnights & mask) != 0) return PieceType.BlackKnight;
+        if ((pos.BlackBishops & mask) != 0) return PieceType.BlackBishop;
+        if ((pos.BlackRooks & mask) != 0) return PieceType.BlackRook;
+        if ((pos.BlackQueens & mask) != 0) return PieceType.BlackQueen;
+        if ((pos.BlackKing & mask) != 0) return PieceType.BlackKing;
+        return PieceType.None;
+    }
+
+    private static Bitboard GetRayBetween(Square from, Square to)
+    {
+        Bitboard ray = 0;
+
+        var fromFile = from.GetFile();
+        var fromRank = from.GetRank();
+        var toFile = to.GetFile();
+        var toRank = to.GetRank();
+
+        // Check if squares are aligned (same rank, file, or diagonal)
+        var fileDelta = toFile - fromFile;
+        var rankDelta = toRank - fromRank;
+
+        // Squares must be aligned for a ray to exist between them
+        if (fileDelta != 0 && rankDelta != 0 && Math.Abs(fileDelta) != Math.Abs(rankDelta))
+        {
+            return 0; // Not aligned, no ray exists
+        }
+
+        // Determine direction
+        var fileStep = fileDelta == 0 ? 0 : fileDelta > 0 ? 1 : -1;
+        var rankStep = rankDelta == 0 ? 0 : rankDelta > 0 ? 1 : -1;
+
+        // Create ray (excluding the endpoint squares)
+        var currentFile = fromFile + fileStep;
+        var currentRank = fromRank + rankStep;
+
+        while (currentFile != toFile || currentRank != toRank)
+        {
+            // Safety check to prevent infinite loops
+            if (currentFile < 0 || currentFile >= 8 || currentRank < 0 || currentRank >= 8)
+            {
+                break;
+            }
+
+            ray |= 1UL << (currentRank * 8 + currentFile);
+            currentFile += fileStep;
+            currentRank += rankStep;
+        }
+
+        return ray;
+    }
+
+    private static bool IsSlidingPiece(PieceType pieceType)
+    {
+        return pieceType
+            is PieceType.WhiteBishop
+            or PieceType.BlackBishop
+            or PieceType.WhiteRook
+            or PieceType.BlackRook
+            or PieceType.WhiteQueen
+            or PieceType.BlackQueen;
     }
 
     private static bool IsPiecePinned(Position position, Square kingSquare, Move move)
@@ -598,7 +863,7 @@ public static class MoveGeneration
             var enemySquare = Square.None;
             while (mask.IsNotEmpty())
             {
-                enemySquare = mask.LsbSquare();
+                enemySquare = mask.GetFirstSquare();
                 mask &= ~Bitboard.Mask(enemySquare);
             }
 

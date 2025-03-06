@@ -124,7 +124,7 @@ public static class Evaluation
         var currentPieces = pieces;
         while (currentPieces.IsNotEmpty())
         {
-            var square = currentPieces.LsbSquare();
+            var square = currentPieces.GetFirstSquare();
             var index = isWhite ? (int)square : 63 - (int)square;
             score += table[index];
 

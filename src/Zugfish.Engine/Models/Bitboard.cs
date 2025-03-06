@@ -60,9 +60,45 @@ public readonly struct Bitboard : IEquatable<Bitboard>
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsSet(Square square) => (Value & Mask(square)) != 0;
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bitboard SetSquare(Square square)
+    {
+        return new Bitboard(Value | Mask(square));
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Square LsbSquare()
+    public Bitboard SetSquares(Bitboard bits)
+    {
+        return new Bitboard(Value | bits);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bitboard ClearSquare(Square square)
+    {
+        return new Bitboard(Value & ~Mask(square));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bitboard ClearSquares(Bitboard bits)
+    {
+        return new Bitboard(Value & ~bits);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bitboard MoveSquare(Square from, Square to)
+    {
+        return ClearSquare(from).SetSquare(to);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bitboard MoveSquares(Bitboard from, Bitboard to)
+    {
+        return ClearSquares(from).SetSquares(to);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Square GetFirstSquare()
     {
         return (Square)BitOperations.TrailingZeroCount(this);
     }
@@ -95,33 +131,4 @@ public readonly struct Bitboard : IEquatable<Bitboard>
 
     public static Bitboard AllOnes = 0xFFFFFFFFFFFFFFFFUL;
     #endregion
-}
-
-public static class BitboardExtensions
-{
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void SetBit(this ref Bitboard board, Square square)
-    {
-        board = new Bitboard(board.Value | Bitboard.Mask(square));
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void SetBits(this ref Bitboard board, Bitboard bits)
-    {
-        board = new Bitboard(board.Value | bits);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void ClearBit(this ref Bitboard board, Square square)
-    {
-        board = new Bitboard(board.Value & ~Bitboard.Mask(square));
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void ClearBits(this ref Bitboard board, Bitboard bits)
-    {
-        board = new Bitboard(board.Value & ~bits);
-    }
-
-    // TODO: Add shifts
 }

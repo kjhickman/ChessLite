@@ -15,3 +15,14 @@ public struct MoveHistory
     public Bitboard PreviousWhiteAttacks;
     public Bitboard PreviousBlackAttacks;
 }
+
+public struct MoveHistory2
+{
+    public Move Move;
+    public CastlingRights PreviousCastlingRights;
+    public Square PreviousEnPassantTarget;
+    public int PreviousHalfmoveClock;
+    public ulong PreviousZobristHash;
+    public Bitboard PreviousWhiteAttacks;
+    public Bitboard PreviousBlackAttacks;
+}
