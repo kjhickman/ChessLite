@@ -41,13 +41,13 @@ public class Position
     #region Attacks
 
     public Bitboard WhiteAttacks;
-    // public Bitboard WhitePawnAttacks;
-    // public Bitboard WhiteKnightAttacks;
-    // public Bitboard WhiteKingAttacks;
+    public Bitboard WhitePawnAttacks;
+    public Bitboard WhiteKnightAttacks;
+    public Bitboard WhiteKingAttacks;
     public Bitboard BlackAttacks;
-    // public Bitboard BlackPawnAttacks;
-    // public Bitboard BlackKnightAttacks;
-    // public Bitboard BlackKingAttacks;
+    public Bitboard BlackPawnAttacks;
+    public Bitboard BlackKnightAttacks;
+    public Bitboard BlackKingAttacks;
 
     #endregion
 
@@ -60,9 +60,8 @@ public class Position
     /// </summary>
     public Position() : this(Constants.StartingPosition)
     {
-        DeriveCombinedBitboards();
-        WhiteAttacks = AttackGeneration.CalculateAttacks(this, true);
-        BlackAttacks = AttackGeneration.CalculateAttacks(this, false);
+        UpdateCombinedBitboards();
+        UpdateAttacks();
         ZobristHash = Zobrist.ComputeHash(this);
     }
 
@@ -90,9 +89,8 @@ public class Position
         HalfmoveClock = fenData.HalfmoveClock;
 
         // Update combined bitboards
-        DeriveCombinedBitboards();
-        WhiteAttacks = AttackGeneration.CalculateAttacks(this, true);
-        BlackAttacks = AttackGeneration.CalculateAttacks(this, false);
+        UpdateCombinedBitboards();
+        UpdateAttacks();
         ZobristHash = Zobrist.ComputeHash(this);
         RepetitionTable[CurrentPly++] = ZobristHash;
     }
@@ -183,10 +181,23 @@ public class Position
         return false;
     }
 
-    private void DeriveCombinedBitboards()
+    private void UpdateCombinedBitboards()
     {
         WhitePieces = WhitePawns | WhiteKnights | WhiteBishops | WhiteRooks | WhiteQueens | WhiteKing;
         BlackPieces = BlackPawns | BlackKnights | BlackBishops | BlackRooks | BlackQueens | BlackKing;
         AllPieces = WhitePieces | BlackPieces;
+    }
+
+    private void UpdateAttacks()
+    {
+        WhiteAttacks = AttackGeneration.CalculateAttacks(this, forWhite: true);
+        WhitePawnAttacks = AttackGeneration.CalculatePawnAttacks(WhitePawns, forWhite: true);
+        WhiteKnightAttacks = AttackGeneration.CalculateKnightAttacks(WhiteKnights);
+        WhiteKingAttacks = AttackGeneration.CalculateKingAttacks(WhiteKing);
+
+        BlackAttacks = AttackGeneration.CalculateAttacks(this, forWhite: false);
+        BlackPawnAttacks = AttackGeneration.CalculatePawnAttacks(BlackPawns, forWhite: false);
+        BlackKnightAttacks = AttackGeneration.CalculateKnightAttacks(BlackKnights);
+        BlackKingAttacks = AttackGeneration.CalculateKingAttacks(BlackKing);
     }
 }

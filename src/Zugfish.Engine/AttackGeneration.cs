@@ -11,11 +11,12 @@ public static class AttackGeneration
 
         // Calculate pawn attacks
         var pawns = forWhite ? position.WhitePawns : position.BlackPawns;
-        attacks |= CalculatePawnAttacks(pawns, forWhite);
+        var pawnAttackTable = forWhite ? AttackTables.WhitePawnAttacks : AttackTables.BlackPawnAttacks;
+        attacks |= CalculatePawnAttacksFromTable(pawns, pawnAttackTable);
 
         // Calculate knight attacks
         var knights = forWhite ? position.WhiteKnights : position.BlackKnights;
-        attacks |= CalculateKnightAttacks(knights);
+        attacks |= CalculateKnightAttacksFromTable(knights);
 
         // Calculate bishop/queen diagonal attacks
         var bishopsQueens = forWhite ?
@@ -31,61 +32,30 @@ public static class AttackGeneration
 
         // Calculate king attacks
         var king = forWhite ? position.WhiteKing : position.BlackKing;
-        attacks |= CalculateKingAttacks(king);
+        attacks |= CalculateKingAttacksFromTable(king);
 
         return attacks;
     }
 
-    public static Bitboard CalculatePawnAttacks(Bitboard pawns, bool isWhite)
+    public static Bitboard CalculatePawnAttacks(Bitboard pawns, bool forWhite)
     {
-        Bitboard attacks;
-        if (isWhite)
-        {
-            var upLeftAttacks = (pawns << 7) & ~Constants.FileH; // Up-left: shift northeast and mask off H-file
-            var upRightAttacks = (pawns << 9) & ~Constants.FileA; // Up-right: shift northwest and mask off A-file
-            attacks = upLeftAttacks | upRightAttacks;
-        }
-        else
-        {
-            var downLeftAttacks = (pawns >> 9) & ~Constants.FileH; // Down-left: shift southeast and mask off h-file
-            var downRightAttacks = (pawns >> 7) & ~Constants.FileA; // Down-right: shift southwest and mask off a-file
-            attacks = downLeftAttacks | downRightAttacks;
-        }
-
-        return attacks;
+        // Use the pre-computed tables
+        var attackTable = forWhite ? AttackTables.WhitePawnAttacks : AttackTables.BlackPawnAttacks;
+        return CalculatePawnAttacksFromTable(pawns, attackTable);
     }
 
     public static Bitboard CalculateKnightAttacks(Bitboard knights)
     {
-        Bitboard attacks = 0;
+        // Use the pre-computed table
+        return CalculateKnightAttacksFromTable(knights);
+    }
 
-        while (knights != 0)
-        {
-            var knightSquare = BitOperations.TrailingZeroCount(knights);
-            var knightFile = knightSquare % 8;
-            var knightRank = knightSquare / 8;
-
-            // Knight's 8 possible moves
-            Span<int> fileOffsets = [-2, -2, -1, -1, 1, 1, 2, 2];
-            Span<int> rankOffsets = [-1, 1, -2, 2, -2, 2, -1, 1];
-
-            for (var i = 0; i < 8; i++)
-            {
-                var targetFile = knightFile + fileOffsets[i];
-                var targetRank = knightRank + rankOffsets[i];
-
-                // Check if target square is on the board
-                if (targetFile is >= 0 and < 8 && targetRank is >= 0 and < 8)
-                {
-                    var targetSquare = targetRank * 8 + targetFile;
-                    attacks |= Bitboard.Mask(targetSquare);
-                }
-            }
-
-            knights &= knights - 1;
-        }
-
-        return attacks;
+    public static Bitboard CalculateKingAttacks(Bitboard king)
+    {
+        // Use the pre-computed table
+        if (king == 0) return 0;
+        var square = king.GetFirstSquare();
+        return AttackTables.KingAttacks[(int)square];
     }
 
     public static Bitboard CalculateDiagonalAttacks(Position position, Bitboard diagonalRayAttackers)
@@ -172,35 +142,40 @@ public static class AttackGeneration
         return attacks;
     }
 
-    public static Bitboard CalculateKingAttacks(Bitboard king)
+    private static Bitboard CalculatePawnAttacksFromTable(Bitboard pawns, Bitboard[] attackTable)
     {
-        if (king == 0) return 0;
-
-        var kingSquare = BitOperations.TrailingZeroCount(king);
-        var kingFile = kingSquare % 8;
-        var kingRank = kingSquare / 8;
-
         Bitboard attacks = 0;
+        var currentPawns = pawns;
 
-        // King attacks all 8 surrounding squares (-1, 0, 1 for both file and rank)
-        for (var fileOffset = -1; fileOffset <= 1; fileOffset++)
+        while (currentPawns.IsNotEmpty())
         {
-            for (var rankOffset = -1; rankOffset <= 1; rankOffset++)
-            {
-                // Skip the king's own square
-                if (fileOffset == 0 && rankOffset == 0) continue;
-
-                var targetFile = kingFile + fileOffset;
-                var targetRank = kingRank + rankOffset;
-
-                if (targetFile is >= 0 and < 8 && targetRank is >= 0 and < 8)
-                {
-                    var targetSquare = targetRank * 8 + targetFile;
-                    attacks |= Bitboard.Mask(targetSquare);
-                }
-            }
+            var square = currentPawns.GetFirstSquare();
+            attacks |= attackTable[(int)square];
+            currentPawns &= currentPawns - 1; // Clear the least significant bit
         }
 
         return attacks;
+    }
+
+    private static Bitboard CalculateKnightAttacksFromTable(Bitboard knights)
+    {
+        Bitboard attacks = 0;
+        var currentKnights = knights;
+
+        while (currentKnights.IsNotEmpty())
+        {
+            var square = currentKnights.GetFirstSquare();
+            attacks |= AttackTables.KnightAttacks[(int)square];
+            currentKnights &= currentKnights - 1; // Clear the least significant bit
+        }
+
+        return attacks;
+    }
+
+    private static Bitboard CalculateKingAttacksFromTable(Bitboard king)
+    {
+        if (king == 0) return 0;
+        var square = king.GetFirstSquare();
+        return AttackTables.KingAttacks[(int)square];
     }
 }

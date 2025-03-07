@@ -301,7 +301,14 @@ public class MoveExecutor
     private static void UpdateAttacks(Position position)
     {
         position.WhiteAttacks = AttackGeneration.CalculateAttacks(position, forWhite: true);
+        position.WhitePawnAttacks = AttackGeneration.CalculatePawnAttacks(position.WhitePawns, forWhite: true);
+        position.WhiteKnightAttacks = AttackGeneration.CalculateKnightAttacks(position.WhiteKnights);
+        position.WhiteKingAttacks = AttackGeneration.CalculateKingAttacks(position.WhiteKing);
+
         position.BlackAttacks = AttackGeneration.CalculateAttacks(position, forWhite: false);
+        position.BlackPawnAttacks = AttackGeneration.CalculatePawnAttacks(position.BlackPawns, forWhite: false);
+        position.BlackKnightAttacks = AttackGeneration.CalculateKnightAttacks(position.BlackKnights);
+        position.BlackKingAttacks = AttackGeneration.CalculateKingAttacks(position.BlackKing);
     }
 
     public void UndoMove(Position position)

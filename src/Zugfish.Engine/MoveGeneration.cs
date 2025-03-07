@@ -503,18 +503,15 @@ public static class MoveGeneration
         var targetSquareMask = Bitboard.Mask(targetSquare);
 
         // Check pawn attacks
-        var pawns = byWhite ? position.WhitePawns : position.BlackPawns;
-        var pawnAttacks = AttackGeneration.CalculatePawnAttacks(pawns, byWhite);
+        var pawnAttacks = byWhite ? position.WhitePawnAttacks : position.BlackPawnAttacks;
         if (targetSquareMask.Intersects(pawnAttacks)) return true;
 
         // Check knight attacks
-        var knights = byWhite ? position.WhiteKnights : position.BlackKnights;
-        var knightAttacks = AttackGeneration.CalculateKnightAttacks(knights);
+        var knightAttacks = byWhite ? position.WhiteKnightAttacks : position.BlackKnightAttacks;
         if (targetSquareMask.Intersects(knightAttacks)) return true;
 
         // Check king attacks
-        var enemyKing = byWhite ? position.WhiteKing : position.BlackKing;
-        var kingAttacks = AttackGeneration.CalculateKingAttacks(enemyKing);
+        var kingAttacks = byWhite ? position.WhiteKingAttacks : position.BlackKingAttacks;
         if (targetSquareMask.Intersects(kingAttacks)) return true;
 
         // For sliding piece attacks, we need calculate the rays excluding the king
