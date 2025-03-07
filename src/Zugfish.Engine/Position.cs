@@ -1,4 +1,5 @@
 using System.Numerics;
+using Zugfish.Engine.Extensions;
 using Zugfish.Engine.Models;
 
 namespace Zugfish.Engine;
@@ -126,7 +127,7 @@ public class Position
     public bool IsSquareAttacked(Square square, bool byWhite)
     {
         var enemyAttacks = byWhite ? WhiteAttacks : BlackAttacks;
-        return (square.ToMask() & enemyAttacks) != 0;
+        return enemyAttacks.Intersects(square);
     }
 
     public bool IsDrawByRepetition()

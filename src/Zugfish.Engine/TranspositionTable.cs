@@ -2,24 +2,6 @@
 
 namespace Zugfish.Engine;
 
-public enum NodeType
-{
-    Exact,
-    Alpha,
-    Beta
-}
-
-public struct TranspositionEntry
-{
-    // A key of 0 is assumed to mean the slot is unused.
-    public ulong Hash;
-    public int Depth;
-    public int Score;
-    public NodeType Flag;
-    public Move BestMove;
-}
-
-// TODO: create a fake transposition table for benchmarking
 public class TranspositionTable
 {
     private readonly TranspositionEntry[] _table;
@@ -34,12 +16,7 @@ public class TranspositionTable
         _mask = size - 1;
     }
 
-    public void Clear()
-    {
-        Array.Clear(_table, 0, _table.Length);
-    }
-
-    public void Store(ulong hash, int depth, int score, NodeType flag, Move bestMove)
+    public void Store(ulong hash, int depth, int score, TranspositionNodeType flag, Move bestMove)
     {
         var index = (int)(hash & (ulong)_mask);
         var entry = _table[index];
@@ -51,7 +28,7 @@ public class TranspositionTable
                 Hash = hash,
                 Depth = depth,
                 Score = score,
-                Flag = flag,
+                NodeType = flag,
                 BestMove = bestMove
             };
         }
@@ -68,5 +45,10 @@ public class TranspositionTable
 
         entry = default;
         return false;
+    }
+
+    public void Clear()
+    {
+        Array.Clear(_table, 0, _table.Length);
     }
 }

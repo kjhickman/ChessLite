@@ -89,14 +89,14 @@ public class Search
 
         if (_transpositionTable.TryGet(position.ZobristHash, out var ttEntry) && ttEntry.Depth >= depth)
         {
-            switch (ttEntry.Flag)
+            switch (ttEntry.NodeType)
             {
-                case NodeType.Exact:
+                case TranspositionNodeType.Exact:
                     return new EvaluationResult(ttEntry.Score, GameState.Ongoing);
-                case NodeType.Alpha:
+                case TranspositionNodeType.Alpha:
                     alpha = Math.Max(alpha, ttEntry.Score);
                     break;
-                case NodeType.Beta:
+                case TranspositionNodeType.Beta:
                     beta = Math.Min(beta, ttEntry.Score);
                     break;
             }
@@ -153,13 +153,13 @@ public class Search
             }
         }
 
-        NodeType flag;
+        TranspositionNodeType flag;
         if (bestScore <= originalAlpha)
-            flag = NodeType.Beta;
+            flag = TranspositionNodeType.Beta;
         else if (bestScore >= beta)
-            flag = NodeType.Alpha;
+            flag = TranspositionNodeType.Alpha;
         else
-            flag = NodeType.Exact;
+            flag = TranspositionNodeType.Exact;
 
         _transpositionTable.Store(position.ZobristHash, depth, bestScore, flag, new Move());
 

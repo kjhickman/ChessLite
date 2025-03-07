@@ -12,30 +12,29 @@ public readonly struct Bitboard : IEquatable<Bitboard>
 
     public Bitboard(ulong value) => Value = value;
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard Mask(int square) => 1UL << square;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard Mask(Square square) => 1UL << (int)square;
-
-    // Implicit conversions for ease of use.
+    // Implicit conversions for ease of use
     public static implicit operator ulong(Bitboard b) => b.Value;
     public static implicit operator Bitboard(ulong value) => new(value);
 
+    // Operator overloads
     public static Bitboard operator |(Bitboard a, Bitboard b) => new(a.Value | b.Value);
     public static Bitboard operator &(Bitboard a, Bitboard b) => new(a.Value & b.Value);
     public static Bitboard operator ^(Bitboard a, Bitboard b) => new(a.Value ^ b.Value);
     public static Bitboard operator ~(Bitboard a) => new(~a.Value);
-
     public static bool operator ==(Bitboard left, Bitboard right) => left.Equals(right);
     public static bool operator !=(Bitboard left, Bitboard right) => !(left == right);
-
     public bool Equals(Bitboard other) => Value == other.Value;
     public override bool Equals(object? obj) => obj is Bitboard other && Equals(other);
     public override int GetHashCode() => Value.GetHashCode();
     public override string ToString() => Convert.ToString((long)Value, 2).PadLeft(64, '0');
 
     #region Helper methods
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Bitboard Mask(int square) => 1UL << square;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Bitboard Mask(Square square) => 1UL << (int)square;
 
     /// <summary>
     /// Returns true if no bits are set.
@@ -129,6 +128,6 @@ public readonly struct Bitboard : IEquatable<Bitboard>
         return 0xFFUL << (rank * 8);
     }
 
-    public static Bitboard AllOnes = 0xFFFFFFFFFFFFFFFFUL;
+    public static Bitboard AllOnes = ulong.MaxValue;
     #endregion
 }

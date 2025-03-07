@@ -23,26 +23,33 @@ public readonly struct Move : IEquatable<Move>
     private const int IsCaptureOffset = 24;
     private const int MoveTypeOffset = 25;
 
-    public Move(
-        Square from,
-        Square to,
-        PromotedPieceType promotedPieceType,
-        PieceType pieceType,
-        PieceType capturedPieceType,
-        bool isCapture,
-        SpecialMoveType moveType
-        )
+    public Square From => (Square)(_packed & 0x3F);
+    public Square To => (Square)((_packed >> TargetSquareOffset) & 0x3F);
+    public PromotedPieceType PromotedPieceType => (PromotedPieceType)((_packed >> PromotedPieceTypeOffset) & 0xF);
+    public PieceType PieceType => (PieceType)((_packed >> PieceTypeOffset) & 0xF);
+    public PieceType CapturedPieceType => (PieceType)((_packed >> CapturedPieceTypeOffset) & 0xF);
+    public bool IsCapture => (_packed & (1 << IsCaptureOffset)) != 0;
+    public SpecialMoveType SpecialMoveType => (SpecialMoveType)((_packed >> MoveTypeOffset) & 0x7);
+
+    public Move(Square from, Square to, PromotedPieceType promotedPieceType, PieceType pieceType,
+        PieceType capturedPieceType, bool isCapture, SpecialMoveType moveType)
     {
         _packed = (int)from | ((int)to << TargetSquareOffset) | ((int)promotedPieceType << PromotedPieceTypeOffset) |
                   ((int)pieceType << PieceTypeOffset) | ((int)capturedPieceType << CapturedPieceTypeOffset) |
                   (isCapture ? 1 << IsCaptureOffset : 0) | ((int)moveType << MoveTypeOffset);
     }
 
+    public static bool operator ==(Move left, Move right) => left.Equals(right);
+    public static bool operator !=(Move left, Move right) => !(left == right);
+    public bool Equals(Move other) => _packed == other._packed;
+    public override bool Equals(object? obj) => obj is Move other && Equals(other);
+    public override int GetHashCode() => _packed;
+
     public override string ToString()
     {
         var promotion = PromotedPieceType switch
         {
-            PromotedPieceType.None => "",
+            PromotedPieceType.None => string.Empty,
             PromotedPieceType.Knight => "k",
             PromotedPieceType.Bishop => "b",
             PromotedPieceType.Rook => "r",
@@ -102,46 +109,4 @@ public readonly struct Move : IEquatable<Move>
     {
         return new Move(from, to, PromotedPieceType.None, pieceType, PieceType.None, false, SpecialMoveType.DoublePawnPush);
     }
-
-    public Square From => (Square)(_packed & 0x3F);
-    public Square To => (Square)((_packed >> TargetSquareOffset) & 0x3F);
-    public PromotedPieceType PromotedPieceType => (PromotedPieceType)((_packed >> PromotedPieceTypeOffset) & 0xF);
-    public PieceType PieceType => (PieceType)((_packed >> PieceTypeOffset) & 0xF);
-    public PieceType CapturedPieceType => (PieceType)((_packed >> CapturedPieceTypeOffset) & 0xF);
-    public bool IsCapture => (_packed & (1 << IsCaptureOffset)) != 0;
-    public SpecialMoveType SpecialMoveType => (SpecialMoveType)((_packed >> MoveTypeOffset) & 0x7);
-
-    public bool Equals(Move other) => _packed == other._packed;
-
-    public override bool Equals(object? obj) => obj is Move other && Equals(other);
-    public override int GetHashCode() => _packed;
-
-    public static bool operator ==(Move left, Move right)
-    {
-        return left.Equals(right);
-    }
-
-    public static bool operator !=(Move left, Move right)
-    {
-        return !(left == right);
-    }
-}
-
-[Flags]
-public enum PromotedPieceType : byte
-{
-    None = 0,
-    Knight = 1,
-    Bishop = 2,
-    Rook = 4,
-    Queen = 8
-}
-
-public enum SpecialMoveType
-{
-    None = 0,
-    DoublePawnPush = 1,
-    EnPassant = 2,
-    ShortCastle = 3,
-    LongCastle = 4
 }

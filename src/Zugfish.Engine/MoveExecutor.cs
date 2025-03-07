@@ -1,10 +1,11 @@
+using Zugfish.Engine.Extensions;
 using Zugfish.Engine.Models;
 
 namespace Zugfish.Engine;
 
 public class MoveExecutor
 {
-    private readonly Stack<MoveHistory2> _moveHistory = new(256);
+    private readonly Stack<MoveHistory> _moveHistory = new(256);
 
     public void ClearMoveHistory()
     {
@@ -42,7 +43,7 @@ public class MoveExecutor
 
     private void SaveMoveHistory(Position position, Move move)
     {
-        var moveHistory = new MoveHistory2
+        var moveHistory = new MoveHistory
         {
             Move = move,
             PreviousCastlingRights = position.CastlingRights,

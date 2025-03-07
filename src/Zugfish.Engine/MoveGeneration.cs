@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using Zugfish.Engine.Extensions;
 using Zugfish.Engine.Models;
 
 namespace Zugfish.Engine;
