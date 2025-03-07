@@ -890,7 +890,7 @@ public static class MoveGeneration
             return false;
         }
 
-        if (!onSameFile && !onSameDiagonal && onSameRank)
+        if (!onSameFile && !onSameDiagonal && onSameRank) // On same rank but not same diagonal or file
         {
             if (move.SpecialMoveType == SpecialMoveType.EnPassant)
             {

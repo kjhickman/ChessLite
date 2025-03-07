@@ -19,6 +19,7 @@ public struct TranspositionEntry
     public Move BestMove;
 }
 
+// TODO: create a fake transposition table for benchmarking
 public class TranspositionTable
 {
     private readonly TranspositionEntry[] _table;
@@ -41,10 +42,11 @@ public class TranspositionTable
     public void Store(ulong key, int depth, int score, NodeType flag, Move bestMove)
     {
         var index = (int)(key & (ulong)_mask);
-        var startIndex = index;
-        var candidateIndex = -1;
+        var bestReplaceIndex = -1;
+        var bestReplaceDepth = int.MaxValue;
 
-        do
+        // Only probe up to MaxProbes slots, consistent with TryGet
+        for (int i = 0; i < 4; i++)
         {
             // If the slot is empty, we can store the new entry here.
             if (_table[index].Key == 0)
@@ -77,17 +79,21 @@ public class TranspositionTable
                 return;
             }
 
-            // Record this slot as a candidate for replacement if the stored depth is lower.
-            if (_table[index].Depth < depth)
-                candidateIndex = index;
+            // Track the slot with the lowest depth as a replacement candidate
+            if (_table[index].Depth < bestReplaceDepth)
+            {
+                bestReplaceDepth = _table[index].Depth;
+                bestReplaceIndex = index;
+            }
 
             index = (index + 1) & _mask;
-        } while (index != startIndex);
+        }
 
-        // If no empty slot or matching key was found and we have a candidate, replace it.
-        if (candidateIndex != -1)
+        // If no empty slot or matching key was found within MaxProbes,
+        // replace the entry with the lowest depth if the new depth is higher
+        if (bestReplaceIndex != -1 && depth > bestReplaceDepth)
         {
-            _table[candidateIndex] = new TranspositionEntry
+            _table[bestReplaceIndex] = new TranspositionEntry
             {
                 Key = key,
                 Depth = depth,
@@ -101,8 +107,9 @@ public class TranspositionTable
     public bool TryGet(ulong key, out TranspositionEntry entry)
     {
         var index = (int)(key & (ulong)_mask);
+        var i = 0;
 
-        while (true)
+        while (i++ < 4)
         {
             if (_table[index].Key == key)
             {
@@ -116,5 +123,32 @@ public class TranspositionTable
             }
             index = (index + 1) & _mask;
         }
+
+        entry = default;
+        return false;
+    }
+
+    public bool TryGet2(ulong key, out TranspositionEntry entry)
+    {
+        var index = (int)(key & (ulong)_mask);
+        var startIndex = index;
+
+        do
+        {
+            if (_table[index].Key == key)
+            {
+                entry = _table[index];
+                return true;
+            }
+            if (_table[index].Key == 0)
+            {
+                entry = default;
+                return false;
+            }
+            index = (index + 1) & _mask;
+        } while (index != startIndex);
+
+        entry = default;
+        return false;
     }
 }
