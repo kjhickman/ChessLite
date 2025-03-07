@@ -5,7 +5,7 @@ namespace Zugfish.Engine;
 
 public class Search
 {
-    private readonly TranspositionTable _transpositionTable = new(1 << 20); // 1,048,576
+    private readonly TranspositionTableOld _transpositionTable = new(1 << 20); // 1,048,576
     private readonly MoveExecutor _moveExecutor;
 
     // Search limits and counters
