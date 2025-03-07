@@ -874,183 +874,74 @@ public static class MoveGeneration
 
     private static bool IsPiecePinned(Position position, Square kingSquare, Move move)
     {
-        var kingFile = kingSquare.GetFile();
         var kingRank = kingSquare.GetRank();
-        var fromFile = move.From.GetFile();
-        var fromRank = move.From.GetRank();
-
-        var onSameFile = kingFile == fromFile;
-        var onSameRank = kingRank == fromRank;
-        var onSameDiagonal = Math.Abs(kingFile - fromFile) == Math.Abs(kingRank - fromRank);
-
-        if (!onSameFile && !onSameRank && !onSameDiagonal)
-        {
-            return false;
-        }
-
-        if (!onSameFile && !onSameDiagonal && onSameRank) // On same rank but not same diagonal or file
-        {
-            if (move.SpecialMoveType == SpecialMoveType.EnPassant)
-            {
-                return IsEnPassantPinned(position, move, kingSquare);
-            }
-        }
-
-        // Determine direction vector from king to piece
-        var fileDirection = fromFile == kingFile ? 0 : fromFile > kingFile ? 1 : -1;
-        var rankDirection = fromRank == kingRank ? 0 : fromRank > kingRank ? 1 : -1;
-
-        // Check if there's a piece between king and our piece
-        var currentFile = kingFile + fileDirection;
-        var currentRank = kingRank + rankDirection;
-
-        while ((currentFile != fromFile || currentRank != fromRank) && currentFile is >= 0 and < 8 &&
-               currentRank is >= 0 and < 8)
-        {
-            var currentSquare = currentRank * 8 + currentFile;
-            if (position.AllPieces.Intersects(Bitboard.Mask(currentSquare)))
-            {
-                return false;
-            }
-
-            currentFile += fileDirection;
-            currentRank += rankDirection;
-        }
-
-        // Continue in the same direction past our piece to find potential pinning pieces
-        currentFile = fromFile + fileDirection;
-        currentRank = fromRank + rankDirection;
-
-        var isDiagonal = fileDirection != 0 && rankDirection != 0;
-        var isOrthogonal = fileDirection == 0 || rankDirection == 0;
-
-        // TODO: make this readable
-        var enemySliders = position.WhiteToMove
-            ?
-            isDiagonal ? position.BlackBishops | position.BlackQueens :
-            isOrthogonal ? position.BlackRooks | position.BlackQueens : 0UL
-            : isDiagonal
-                ? position.WhiteBishops | position.WhiteQueens
-                : isOrthogonal
-                    ? position.WhiteRooks | position.WhiteQueens
-                    : 0UL;
-
-        while (currentFile is >= 0 and < 8 && currentRank is >= 0 and < 8)
-        {
-            var currentSquare = currentRank * 8 + currentFile;
-            var squareMask = Bitboard.Mask(currentSquare);
-
-            if (squareMask.Intersects(position.AllPieces))
-            {
-                return enemySliders.Intersects(squareMask);
-            }
-
-            currentFile += fileDirection;
-            currentRank += rankDirection;
-        }
-
-        return false;
+        var pieceRank = move.From.GetRank();
+        return move.SpecialMoveType == SpecialMoveType.EnPassant && kingRank == pieceRank
+            ? IsEnPassantPinned(position, move, kingSquare)
+            : position.PinnedPieces.Intersects(move.From);
     }
 
     private static bool IsEnPassantPinned(Position position, Move move, Square kingSquare)
     {
-        // Only need to check for horizontal pins on the same rank as the king
-        if (kingSquare.GetRank() != move.From.GetRank()) return false;
+        var capturedPawnSquare = position.WhiteToMove
+            ? move.To - 8 // White capturing a black pawn (pawn is one rank below destination)
+            : move.To + 8; // Black capturing a white pawn (pawn is one rank above destination)
 
-        var kingFile = kingSquare.GetFile();
-        var capturedPawnFile = move.To.GetFile();
-        var movingPawnFile = move.From.GetFile();
+        // For a horizontal pin to be possible, the king and the capturing pawn must be on the same rank
         var kingRank = kingSquare.GetRank();
+        var fromRank = move.From.GetRank();
 
-        // Identify enemy rooks/queens on the same rank
+        // If king is not on the same rank as the capturing pawn, no horizontal pin is possible
+        if (kingRank != fromRank) return false;
+
+        // Create a bitboard with both the capturing pawn and captured pawn removed
+        var allPiecesWithoutPawns = position.AllPieces
+            .ClearSquare(move.From)
+            .ClearSquare(capturedPawnSquare);
+
+        // Check for enemy rooks/queens
         var enemyRooksQueens = position.WhiteToMove
             ? position.BlackRooks | position.BlackQueens
             : position.WhiteRooks | position.WhiteQueens;
 
-        // Get their positions on the same rank as the king
-        var kingRankMask = Bitboard.GetRankMask(kingRank);
-        enemyRooksQueens &= kingRankMask;
+        // No enemy rooks/queens, no pin possible
+        if (enemyRooksQueens == 0) return false;
 
-        if (enemyRooksQueens.IsEmpty()) return false; // No enemy rooks/queens on the same rank
+        var kingFile = kingSquare.GetFile();
 
-        // Find pieces to the right and left of the king
-        var piecesToLeft = enemyRooksQueens & (Bitboard.AllOnes << (kingRank * 8)) & ~(Bitboard.AllOnes << (kingRank * 8 + kingFile));
-        var piecesToRight = enemyRooksQueens & (Bitboard.AllOnes << (kingRank * 8 + kingFile + 1));
-
-        // Check pin from left side
-        if (piecesToLeft.IsNotEmpty())
+        // Check for attacking rooks/queens to the left of the king
+        for (var file = kingFile - 1; file >= 0; file--)
         {
-            // Find the rightmost set bit (closest piece to the king)
-            var mask = piecesToLeft;
+            var square = (Square)(kingRank * 8 + file);
+            var squareMask = Bitboard.Mask(square);
 
-            // Find the index of the most significant set bit
-            // This is the file of the enemy piece closest to the king from the left
-            var enemySquare = Square.None;
-            while (mask.IsNotEmpty())
+            if (allPiecesWithoutPawns.Intersects(squareMask))
             {
-                enemySquare = mask.GetFirstSquare();
-                mask &= ~Bitboard.Mask(enemySquare);
-            }
+                // If we hit an enemy rook/queen, we have a pin
+                if (enemyRooksQueens.Intersects(squareMask)) return true;
 
-            var enemyFile = enemySquare.GetFile();
-
-            // Check if both pawns are between king and enemy
-            if (enemyFile < Math.Min(movingPawnFile, capturedPawnFile) &&
-                Math.Max(movingPawnFile, capturedPawnFile) < kingFile)
-            {
-                // Check if there are other pieces between
-                var startFile = enemyFile + 1;
-                var endFile = kingFile - 1;
-
-                Bitboard betweenMask = 0;
-                for (var file = startFile; file <= endFile; file++)
-                {
-                    if (file != movingPawnFile && file != capturedPawnFile)
-                    {
-                        betweenMask |= Bitboard.Mask(kingRank * 8 + file);
-                    }
-                }
-
-                if ((position.AllPieces & betweenMask) == 0)
-                    return true;
+                // Otherwise, this piece blocks any potential pin from this direction
+                break;
             }
         }
 
-        // Check pin from right side
-        if (piecesToRight != 0)
+        // Check for attacking rooks/queens to the right of the king
+        for (var file = kingFile + 1; file < 8; file++)
         {
-            // Find the closest piece to the king
-            var enemyFile = 0;
-            var mask = 1UL << (kingRank * 8 + kingFile + 1);
-            while ((piecesToRight & mask) == 0 && mask != 0)
+            var square = (Square)(kingRank * 8 + file);
+            var squareMask = Bitboard.Mask(square);
+
+            if (allPiecesWithoutPawns.Intersects(squareMask))
             {
-                enemyFile++;
-                mask <<= 1;
-            }
+                // If we hit an enemy rook/queen, we have a pin
+                if (enemyRooksQueens.Intersects(squareMask)) return true;
 
-            enemyFile = kingFile + 1 + enemyFile;
-
-            // Check if both pawns are between king and enemy
-            if (kingFile < Math.Min(movingPawnFile, capturedPawnFile) &&
-                Math.Max(movingPawnFile, capturedPawnFile) < enemyFile)
-            {
-                // Check if there are other pieces between
-                var startFile = kingFile + 1;
-                var endFile = enemyFile - 1;
-
-                Bitboard betweenMask = 0;
-                for (var file = startFile; file <= endFile; file++)
-                {
-                    if (file != movingPawnFile && file != capturedPawnFile)
-                    {
-                        betweenMask |= Bitboard.Mask(kingRank * 8 + file);
-                    }
-                }
-
-                if ((position.AllPieces & betweenMask) == 0) return true;
+                // Otherwise, this piece blocks any potential pin from this direction
+                break;
             }
         }
 
+        // No pin found
         return false;
     }
 

@@ -38,8 +38,9 @@ public class Position
 
     #endregion
 
-    #region Attacks
+    #region Attacks & Pins
 
+    public Bitboard PinnedPieces;
     public Bitboard WhiteAttacks;
     public Bitboard WhitePawnAttacks;
     public Bitboard WhiteKnightAttacks;
@@ -62,6 +63,7 @@ public class Position
     {
         UpdateCombinedBitboards();
         UpdateAttacks();
+        UpdatePinnedPieces();
         ZobristHash = Zobrist.ComputeHash(this);
     }
 
@@ -91,6 +93,7 @@ public class Position
         // Update combined bitboards
         UpdateCombinedBitboards();
         UpdateAttacks();
+        UpdatePinnedPieces();
         ZobristHash = Zobrist.ComputeHash(this);
         RepetitionTable[CurrentPly++] = ZobristHash;
     }
@@ -188,7 +191,7 @@ public class Position
         AllPieces = WhitePieces | BlackPieces;
     }
 
-    private void UpdateAttacks()
+    public void UpdateAttacks()
     {
         WhiteAttacks = AttackGeneration.CalculateAttacks(this, forWhite: true);
         WhitePawnAttacks = AttackGeneration.CalculatePawnAttacks(WhitePawns, forWhite: true);
@@ -199,5 +202,66 @@ public class Position
         BlackPawnAttacks = AttackGeneration.CalculatePawnAttacks(BlackPawns, forWhite: false);
         BlackKnightAttacks = AttackGeneration.CalculateKnightAttacks(BlackKnights);
         BlackKingAttacks = AttackGeneration.CalculateKingAttacks(BlackKing);
+    }
+
+    public void UpdatePinnedPieces()
+    {
+        PinnedPieces = ComputePinnedPieces();
+    }
+
+    private Bitboard ComputePinnedPieces()
+    {
+        Bitboard pinnedPieces = 0;
+        var kingSquare = WhiteToMove ? WhiteKing.GetFirstSquare() : BlackKing.GetFirstSquare();
+        var friendlyPieces = WhiteToMove ? WhitePieces : BlackPieces;
+
+        Span<(int fileDir, int rankDir)> directions = stackalloc (int, int)[]
+        {
+            (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)
+        };
+
+        for (var i = 0; i < directions.Length; i++)
+        {
+            var (fileDir, rankDir) = directions[i];
+            Bitboard potentiallyPinned = 0;
+            var kingFile = kingSquare.GetFile();
+            var kingRank = kingSquare.GetRank();
+            var currentFile = kingFile + fileDir;
+            var currentRank = kingRank + rankDir;
+
+            while (currentFile is >= 0 and < 8 && currentRank is >= 0 and < 8)
+            {
+                var currentSquare = (Square)(currentRank * 8 + currentFile);
+                var squareMask = Bitboard.Mask(currentSquare);
+
+                if ((friendlyPieces & squareMask).IsNotEmpty())
+                {
+                    if (potentiallyPinned != 0) break; // Second friendly piece, no pin possible
+
+                    potentiallyPinned = squareMask;
+                }
+                else if ((AllPieces & squareMask).IsNotEmpty())
+                {
+                    // Found enemy piece
+                    var isDiagonal = fileDir != 0 && rankDir != 0;
+                    var enemySliders = WhiteToMove
+                        ? (isDiagonal ? BlackBishops | BlackQueens : BlackRooks | BlackQueens)
+                        : (isDiagonal ? WhiteBishops | WhiteQueens : WhiteRooks | WhiteQueens);
+
+                    if (potentiallyPinned != 0 && (squareMask & enemySliders).IsNotEmpty())
+                    {
+                        // Pin confirmed
+                        pinnedPieces |= potentiallyPinned;
+                    }
+
+                    break;
+                }
+
+                currentFile += fileDir;
+                currentRank += rankDir;
+            }
+        }
+
+        return pinnedPieces;
     }
 }

@@ -34,9 +34,9 @@ public class MoveExecutor
         UpdateCastlingRights(position, move);
         UpdateHalfmoveClock(position, move);
         UpdateCombinedBitboards(position);
-        UpdateAttacks(position);
-
+        position.UpdateAttacks();
         position.WhiteToMove = !position.WhiteToMove;
+        position.UpdatePinnedPieces(); // Must be called after toggling the turn
         position.ZobristHash = Zobrist.ComputeHash(position);
         position.RepetitionTable[position.CurrentPly++] = position.ZobristHash;
     }
@@ -51,7 +51,14 @@ public class MoveExecutor
             PreviousHalfmoveClock = position.HalfmoveClock,
             PreviousZobristHash = position.ZobristHash,
             PreviousWhiteAttacks = position.WhiteAttacks,
-            PreviousBlackAttacks = position.BlackAttacks
+            PreviousWhitePawnAttacks = position.WhitePawnAttacks,
+            PreviousWhiteKnightAttacks = position.WhiteKnightAttacks,
+            PreviousWhiteKingAttacks = position.WhiteKingAttacks,
+            PreviousBlackAttacks = position.BlackAttacks,
+            PreviousBlackPawnAttacks = position.BlackPawnAttacks,
+            PreviousBlackKnightAttacks = position.BlackKnightAttacks,
+            PreviousBlackKingAttacks = position.BlackKingAttacks,
+            PreviousPinnedPieces = position.PinnedPieces,
         };
         _moveHistory.Push(moveHistory);
     }
@@ -298,19 +305,6 @@ public class MoveExecutor
         position.AllPieces = position.WhitePieces | position.BlackPieces;
     }
 
-    private static void UpdateAttacks(Position position)
-    {
-        position.WhiteAttacks = AttackGeneration.CalculateAttacks(position, forWhite: true);
-        position.WhitePawnAttacks = AttackGeneration.CalculatePawnAttacks(position.WhitePawns, forWhite: true);
-        position.WhiteKnightAttacks = AttackGeneration.CalculateKnightAttacks(position.WhiteKnights);
-        position.WhiteKingAttacks = AttackGeneration.CalculateKingAttacks(position.WhiteKing);
-
-        position.BlackAttacks = AttackGeneration.CalculateAttacks(position, forWhite: false);
-        position.BlackPawnAttacks = AttackGeneration.CalculatePawnAttacks(position.BlackPawns, forWhite: false);
-        position.BlackKnightAttacks = AttackGeneration.CalculateKnightAttacks(position.BlackKnights);
-        position.BlackKingAttacks = AttackGeneration.CalculateKingAttacks(position.BlackKing);
-    }
-
     public void UndoMove(Position position)
     {
         var moveHistory = _moveHistory.Pop();
@@ -338,7 +332,14 @@ public class MoveExecutor
         if (position.CurrentPly > 0) position.CurrentPly--;
         position.ZobristHash = moveHistory.PreviousZobristHash;
         position.WhiteAttacks = moveHistory.PreviousWhiteAttacks;
+        position.WhitePawnAttacks = moveHistory.PreviousWhitePawnAttacks;
+        position.WhiteKnightAttacks = moveHistory.PreviousWhiteKnightAttacks;
+        position.WhiteKingAttacks = moveHistory.PreviousWhiteKingAttacks;
         position.BlackAttacks = moveHistory.PreviousBlackAttacks;
+        position.BlackPawnAttacks = moveHistory.PreviousBlackPawnAttacks;
+        position.BlackKnightAttacks = moveHistory.PreviousBlackKnightAttacks;
+        position.BlackKingAttacks = moveHistory.PreviousBlackKingAttacks;
+        position.PinnedPieces = moveHistory.PreviousPinnedPieces;
     }
 
     private static void UndoSpecialMove(Position position, Move move)
