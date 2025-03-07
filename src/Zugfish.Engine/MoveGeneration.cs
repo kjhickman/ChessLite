@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using Zugfish.Engine.Models;
 
@@ -453,16 +454,15 @@ public static class MoveGeneration
         var isWhite = position.WhiteToMove;
         var kingSquare = isWhite ? position.WhiteKing.GetFirstSquare() : position.BlackKing.GetFirstSquare();
 
+        // If moving the king, check if destination is attacked
+        if (move.PieceType == (isWhite ? PieceType.WhiteKing : PieceType.BlackKing))
+        {
+            return !WouldSquareBeAttacked(position, move.To, !isWhite, kingSquare);
+        }
+
         // Case 1: If the king is in check, the move must resolve the check
         if (position.IsInCheck())
         {
-            // King move
-            if (move.PieceType == (isWhite ? PieceType.WhiteKing : PieceType.BlackKing))
-            {
-                return !position.IsSquareAttacked(move.To, !isWhite);
-            }
-
-            // Non-king moves
             var checkingPieces = FindAttackingPieces(position, kingSquare, !isWhite);
             var checkCount = checkingPieces.Count();
 
@@ -475,7 +475,8 @@ public static class MoveGeneration
             // Single check can be resolved by:
             // 1. Capturing the checking piece
             var checkingSquare = checkingPieces.GetFirstSquare();
-            if (move.To == checkingSquare)
+            if (move.To == checkingSquare ||
+                (move.SpecialMoveType == SpecialMoveType.EnPassant && move.To == checkingSquare + (isWhite ? 8 : -8)))
             {
                 // Check if the piece is pinned
                 return !IsPiecePinned(position, kingSquare, move);
@@ -486,12 +487,6 @@ public static class MoveGeneration
             return blockingSquares.Intersects(Bitboard.Mask(move.To)) && !IsPiecePinned(position, kingSquare, move);
         }
 
-        // Case 2: If moving the king, check if destination is attacked
-        if (move.PieceType == (isWhite ? PieceType.WhiteKing : PieceType.BlackKing))
-        {
-            return !position.IsSquareAttacked(move.To, !isWhite);
-        }
-
         // Case 3: Check if the piece is pinned or moving would expose king to check
         if (IsPiecePinned(position, kingSquare, move))
         {
@@ -500,6 +495,138 @@ public static class MoveGeneration
         }
 
         return true;
+    }
+
+    private static bool WouldSquareBeAttacked(Position position, Square targetSquare, bool byWhite, Square currentKingSquare)
+    {
+        var targetSquareMask = Bitboard.Mask(targetSquare);
+
+        // Check pawn attacks
+        var pawns = byWhite ? position.WhitePawns : position.BlackPawns;
+        var pawnAttacks = AttackGeneration.CalculatePawnAttacks(pawns, byWhite);
+        if (targetSquareMask.Intersects(pawnAttacks)) return true;
+
+        // Check knight attacks
+        var knights = byWhite ? position.WhiteKnights : position.BlackKnights;
+        var knightAttacks = AttackGeneration.CalculateKnightAttacks(knights);
+        if (targetSquareMask.Intersects(knightAttacks)) return true;
+
+        // Check king attacks
+        var enemyKing = byWhite ? position.WhiteKing : position.BlackKing;
+        var kingAttacks = AttackGeneration.CalculateKingAttacks(enemyKing);
+        if (targetSquareMask.Intersects(kingAttacks)) return true;
+
+        // For sliding piece attacks, we need calculate the rays excluding the king
+
+        // Create a modified position bitboard for ray calculation
+        var allPiecesExceptKing = position.AllPieces.ClearSquare(currentKingSquare);
+
+        // Check bishop/queen diagonal attacks
+        var bishopsQueens = byWhite
+            ? position.WhiteBishops | position.WhiteQueens
+            : position.BlackBishops | position.BlackQueens;
+
+        if (bishopsQueens != 0)
+        {
+            var diagonalAttacks = CalculateDiagonalAttacks(allPiecesExceptKing, bishopsQueens);
+            if (targetSquareMask.Intersects(diagonalAttacks)) return true;
+        }
+
+        // Check rook/queen orthogonal attacks
+        var rooksQueens =
+            byWhite ? position.WhiteRooks | position.WhiteQueens : position.BlackRooks | position.BlackQueens;
+
+        if (rooksQueens != 0)
+        {
+            var orthogonalAttacks = CalculateOrthogonalAttacks(allPiecesExceptKing, rooksQueens);
+            if (targetSquareMask.Intersects(orthogonalAttacks)) return true;
+        }
+
+        return false; // No attacks found
+    }
+
+    public static Bitboard CalculateDiagonalAttacks(Bitboard allPiecesExceptKing, Bitboard diagonalRayAttackers)
+    {
+        Bitboard attacks = 0;
+
+        while (diagonalRayAttackers != 0)
+        {
+            var pieceSquare = BitOperations.TrailingZeroCount(diagonalRayAttackers);
+            var pieceFile = pieceSquare % 8;
+            var pieceRank = pieceSquare / 8;
+
+            // Four diagonal directions: NE, SE, SW, NW
+            Span<int> fileDirections = [1, 1, -1, -1];
+            Span<int> rankDirections = [1, -1, -1, 1];
+
+            for (var dir = 0; dir < 4; dir++)
+            {
+                var currentFile = pieceFile + fileDirections[dir];
+                var currentRank = pieceRank + rankDirections[dir];
+
+                while (currentFile is >= 0 and < 8 && currentRank is >= 0 and < 8)
+                {
+                    var currentSquare = currentRank * 8 + currentFile;
+                    var squareMask = Bitboard.Mask(currentSquare);
+
+                    attacks |= squareMask;
+
+                    if ((allPiecesExceptKing & squareMask) != 0)
+                    {
+                        break;
+                    }
+
+                    currentFile += fileDirections[dir];
+                    currentRank += rankDirections[dir];
+                }
+            }
+
+            diagonalRayAttackers &= diagonalRayAttackers - 1;
+        }
+
+        return attacks;
+    }
+
+    private static Bitboard CalculateOrthogonalAttacks(Bitboard allPiecesExceptKing, Bitboard orthogonalRayAttackers)
+    {
+        Bitboard attacks = 0;
+
+        while (orthogonalRayAttackers != 0)
+        {
+            var pieceSquare = BitOperations.TrailingZeroCount(orthogonalRayAttackers);
+            var pieceFile = pieceSquare % 8;
+            var pieceRank = pieceSquare / 8;
+
+            // Four orthogonal directions: N, E, S, W
+            Span<int> fileDirections = [0, 1, 0, -1];
+            Span<int> rankDirections = [1, 0, -1, 0];
+
+            for (var dir = 0; dir < 4; dir++)
+            {
+                var currentFile = pieceFile + fileDirections[dir];
+                var currentRank = pieceRank + rankDirections[dir];
+
+                while (currentFile is >= 0 and < 8 && currentRank is >= 0 and < 8)
+                {
+                    var currentSquare = currentRank * 8 + currentFile;
+                    var squareMask = Bitboard.Mask(currentSquare);
+
+                    attacks |= squareMask;
+
+                    if ((allPiecesExceptKing & squareMask) != 0)
+                    {
+                        break;
+                    }
+
+                    currentFile += fileDirections[dir];
+                    currentRank += rankDirections[dir];
+                }
+            }
+
+            orthogonalRayAttackers &= orthogonalRayAttackers - 1;
+        }
+
+        return attacks;
     }
 
     private static Bitboard FindAttackingPieces(Position position, Square square, bool attackerIsWhite)
@@ -520,7 +647,7 @@ public static class MoveGeneration
         Bitboard attacks = 0;
         var file = square.GetFile();
         var rank = square.GetRank();
-        var rankOffset = isWhitePawn ? 1 : -1;
+        var rankOffset = isWhitePawn ? -1 : 1;
 
         if (file > 0)
         {

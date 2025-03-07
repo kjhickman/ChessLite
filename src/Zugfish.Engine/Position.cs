@@ -40,7 +40,13 @@ public class Position
     #region Attacks
 
     public Bitboard WhiteAttacks;
+    // public Bitboard WhitePawnAttacks;
+    // public Bitboard WhiteKnightAttacks;
+    // public Bitboard WhiteKingAttacks;
     public Bitboard BlackAttacks;
+    // public Bitboard BlackPawnAttacks;
+    // public Bitboard BlackKnightAttacks;
+    // public Bitboard BlackKingAttacks;
 
     #endregion
 
