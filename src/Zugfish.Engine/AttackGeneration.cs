@@ -1,5 +1,4 @@
-﻿using System.Numerics;
-using Zugfish.Engine.Models;
+﻿using Zugfish.Engine.Models;
 
 namespace Zugfish.Engine;
 
@@ -18,17 +17,17 @@ public static class AttackGeneration
         var knights = forWhite ? position.WhiteKnights : position.BlackKnights;
         attacks |= CalculateKnightAttacksFromTable(knights);
 
-        // Calculate bishop/queen diagonal attacks
-        var bishopsQueens = forWhite ?
-            position.WhiteBishops | position.WhiteQueens :
-            position.BlackBishops | position.BlackQueens;
-        attacks |= CalculateDiagonalAttacks(position, bishopsQueens);
+        // Calculate bishop attacks
+        var bishops = forWhite ? position.WhiteBishops : position.BlackBishops;
+        attacks |= CalculateBishopAttacks(bishops, position.AllPieces);
 
-        // Calculate rook/queen straight attacks
-        var rooksQueens = forWhite ?
-            position.WhiteRooks | position.WhiteQueens :
-            position.BlackRooks | position.BlackQueens;
-        attacks |= CalculateOrthogonalAttacks(position, rooksQueens);
+        // Calculate rook attacks
+        var rooks = forWhite ? position.WhiteRooks : position.BlackRooks;
+        attacks |= CalculateRookAttacks(rooks, position.AllPieces);
+
+        // Calculate queen attacks
+        var queens = forWhite ? position.WhiteQueens : position.BlackQueens;
+        attacks |= CalculateQueenAttacks(queens, position.AllPieces);
 
         // Calculate king attacks
         var king = forWhite ? position.WhiteKing : position.BlackKing;
@@ -58,85 +57,46 @@ public static class AttackGeneration
         return AttackTables.KingAttacks[(int)square];
     }
 
-    public static Bitboard CalculateDiagonalAttacks(Position position, Bitboard diagonalRayAttackers)
+    public static Bitboard CalculateBishopAttacks(Bitboard bishops, Bitboard allPieces)
     {
         Bitboard attacks = 0;
+        var currentBishops = bishops;
 
-        while (diagonalRayAttackers != 0)
+        while (currentBishops.IsNotEmpty())
         {
-            var pieceSquare = BitOperations.TrailingZeroCount(diagonalRayAttackers);
-            var pieceFile = pieceSquare % 8;
-            var pieceRank = pieceSquare / 8;
-
-            // Four diagonal directions: NE, SE, SW, NW
-            Span<int> fileDirections = [1, 1, -1, -1];
-            Span<int> rankDirections = [1, -1, -1, 1];
-
-            for (var dir = 0; dir < 4; dir++)
-            {
-                var currentFile = pieceFile + fileDirections[dir];
-                var currentRank = pieceRank + rankDirections[dir];
-
-                while (currentFile is >= 0 and < 8 && currentRank is >= 0 and < 8)
-                {
-                    var currentSquare = currentRank * 8 + currentFile;
-                    var squareMask = Bitboard.Mask(currentSquare);
-
-                    attacks |= squareMask;
-
-                    if ((position.AllPieces & squareMask) != 0)
-                    {
-                        break;
-                    }
-
-                    currentFile += fileDirections[dir];
-                    currentRank += rankDirections[dir];
-                }
-            }
-
-            diagonalRayAttackers &= diagonalRayAttackers - 1;
+            var square = currentBishops.GetFirstSquare();
+            attacks |= MagicBitboards.GetBishopAttacks(square, allPieces);
+            currentBishops &= currentBishops - 1; // Clear the least significant bit
         }
 
         return attacks;
     }
 
-    public static Bitboard CalculateOrthogonalAttacks(Position position, Bitboard orthogonalRayAttackers)
+    public static Bitboard CalculateRookAttacks(Bitboard rooks, Bitboard allPieces)
     {
         Bitboard attacks = 0;
+        var currentRooks = rooks;
 
-        while (orthogonalRayAttackers != 0)
+        while (currentRooks.IsNotEmpty())
         {
-            var pieceSquare = BitOperations.TrailingZeroCount(orthogonalRayAttackers);
-            var pieceFile = pieceSquare % 8;
-            var pieceRank = pieceSquare / 8;
+            var square = currentRooks.GetFirstSquare();
+            attacks |= MagicBitboards.GetRookAttacks(square, allPieces);
+            currentRooks &= currentRooks - 1; // Clear the least significant bit
+        }
 
-            // Four orthogonal directions: N, E, S, W
-            Span<int> fileDirections = [0, 1, 0, -1];
-            Span<int> rankDirections = [1, 0, -1, 0];
+        return attacks;
+    }
 
-            for (var dir = 0; dir < 4; dir++)
-            {
-                var currentFile = pieceFile + fileDirections[dir];
-                var currentRank = pieceRank + rankDirections[dir];
+    public static Bitboard CalculateQueenAttacks(Bitboard queens, Bitboard allPieces)
+    {
+        Bitboard attacks = 0;
+        var currentQueens = queens;
 
-                while (currentFile is >= 0 and < 8 && currentRank is >= 0 and < 8)
-                {
-                    var currentSquare = currentRank * 8 + currentFile;
-                    var squareMask = Bitboard.Mask(currentSquare);
-
-                    attacks |= squareMask;
-
-                    if ((position.AllPieces & squareMask) != 0)
-                    {
-                        break;
-                    }
-
-                    currentFile += fileDirections[dir];
-                    currentRank += rankDirections[dir];
-                }
-            }
-
-            orthogonalRayAttackers &= orthogonalRayAttackers - 1;
+        while (currentQueens.IsNotEmpty())
+        {
+            var square = currentQueens.GetFirstSquare();
+            attacks |= MagicBitboards.GetQueenAttacks(square, allPieces);
+            currentQueens &= currentQueens - 1; // Clear the least significant bit
         }
 
         return attacks;

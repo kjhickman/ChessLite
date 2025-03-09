@@ -550,35 +550,7 @@ public static class MoveGeneration
         while (diagonalRayAttackers != 0)
         {
             var pieceSquare = BitOperations.TrailingZeroCount(diagonalRayAttackers);
-            var pieceFile = pieceSquare % 8;
-            var pieceRank = pieceSquare / 8;
-
-            // Four diagonal directions: NE, SE, SW, NW
-            Span<int> fileDirections = [1, 1, -1, -1];
-            Span<int> rankDirections = [1, -1, -1, 1];
-
-            for (var dir = 0; dir < 4; dir++)
-            {
-                var currentFile = pieceFile + fileDirections[dir];
-                var currentRank = pieceRank + rankDirections[dir];
-
-                while (currentFile is >= 0 and < 8 && currentRank is >= 0 and < 8)
-                {
-                    var currentSquare = currentRank * 8 + currentFile;
-                    var squareMask = Bitboard.Mask(currentSquare);
-
-                    attacks |= squareMask;
-
-                    if ((allPiecesExceptKing & squareMask) != 0)
-                    {
-                        break;
-                    }
-
-                    currentFile += fileDirections[dir];
-                    currentRank += rankDirections[dir];
-                }
-            }
-
+            attacks |= MagicBitboards.GetBishopAttacks((Square)pieceSquare, allPiecesExceptKing);
             diagonalRayAttackers &= diagonalRayAttackers - 1;
         }
 
@@ -592,39 +564,37 @@ public static class MoveGeneration
         while (orthogonalRayAttackers != 0)
         {
             var pieceSquare = BitOperations.TrailingZeroCount(orthogonalRayAttackers);
-            var pieceFile = pieceSquare % 8;
-            var pieceRank = pieceSquare / 8;
-
-            // Four orthogonal directions: N, E, S, W
-            Span<int> fileDirections = [0, 1, 0, -1];
-            Span<int> rankDirections = [1, 0, -1, 0];
-
-            for (var dir = 0; dir < 4; dir++)
-            {
-                var currentFile = pieceFile + fileDirections[dir];
-                var currentRank = pieceRank + rankDirections[dir];
-
-                while (currentFile is >= 0 and < 8 && currentRank is >= 0 and < 8)
-                {
-                    var currentSquare = currentRank * 8 + currentFile;
-                    var squareMask = Bitboard.Mask(currentSquare);
-
-                    attacks |= squareMask;
-
-                    if ((allPiecesExceptKing & squareMask) != 0)
-                    {
-                        break;
-                    }
-
-                    currentFile += fileDirections[dir];
-                    currentRank += rankDirections[dir];
-                }
-            }
-
+            attacks |= MagicBitboards.GetRookAttacks((Square)pieceSquare, allPiecesExceptKing);
             orthogonalRayAttackers &= orthogonalRayAttackers - 1;
         }
 
         return attacks;
+    }
+
+    private static Bitboard FindDiagonalAttacks(Square square, Position position, bool attackerIsWhite)
+    {
+        Bitboard diagonalSliders = attackerIsWhite
+            ? position.WhiteBishops | position.WhiteQueens
+            : position.BlackBishops | position.BlackQueens;
+
+        if (diagonalSliders == 0) return 0;
+
+        // Use magic bitboards to find which diagonal sliders attack this square
+        Bitboard potentialAttackers = MagicBitboards.GetBishopAttacks(square, position.AllPieces);
+        return potentialAttackers & diagonalSliders;
+    }
+
+    private static Bitboard FindOrthogonalAttacks(Square square, Position position, bool attackerIsWhite)
+    {
+        Bitboard orthogonalSliders = attackerIsWhite
+            ? position.WhiteRooks | position.WhiteQueens
+            : position.BlackRooks | position.BlackQueens;
+
+        if (orthogonalSliders == 0) return 0;
+
+        // Use magic bitboards to find which orthogonal sliders attack this square
+        Bitboard potentialAttackers = MagicBitboards.GetRookAttacks(square, position.AllPieces);
+        return potentialAttackers & orthogonalSliders;
     }
 
     private static Bitboard FindAttackingPieces(Position position, Square square, bool attackerIsWhite)
@@ -695,92 +665,6 @@ public static class MoveGeneration
 
         var knights = attackerIsWhite ? position.WhiteKnights : position.BlackKnights;
         return attacks & knights;
-    }
-
-    private static Bitboard FindDiagonalAttacks(Square square, Position position, bool attackerIsWhite)
-    {
-        Bitboard attacks = 0;
-        var file = square.GetFile();
-        var rank = square.GetRank();
-        var allPieces = position.AllPieces;
-
-        Span<(int fileDirection, int rankDirection)> diagonalDirections =
-        [
-            (1, 1), (1, -1), (-1, 1), (-1, -1)
-        ];
-
-        for (var i = 0; i < diagonalDirections.Length; i++)
-        {
-            var (fileDirection, rankDirection) = diagonalDirections[i];
-            var targetFile = file + fileDirection;
-            var targetRank = rank + rankDirection;
-
-            while (targetFile is >= 0 and < 8 && targetRank is >= 0 and < 8)
-            {
-                var targetSquare = targetRank * 8 + targetFile;
-                var targetMask = 1UL << targetSquare;
-
-                attacks |= targetMask;
-
-                // Stop if we hit a piece
-                if ((allPieces & targetMask) != 0)
-                {
-                    break;
-                }
-
-                targetFile += fileDirection;
-                targetRank += rankDirection;
-            }
-        }
-
-        var diagonalSliders = attackerIsWhite
-            ? position.WhiteBishops | position.WhiteQueens
-            : position.BlackBishops | position.BlackQueens;
-
-        return attacks & diagonalSliders;
-    }
-
-    private static Bitboard FindOrthogonalAttacks(Square square, Position position, bool attackerIsWhite)
-    {
-        Bitboard attacks = 0;
-        var file = square.GetFile();
-        var rank = square.GetRank();
-        var allPieces = position.AllPieces;
-
-        Span<(int fileDirection, int rankDirection)> orthogonalDirections =
-        [
-            (1, 0), (-1, 0), (0, 1), (0, -1)
-        ];
-
-        for (var i = 0; i < orthogonalDirections.Length; i++)
-        {
-            var (fileDirection, rankDirection) = orthogonalDirections[i];
-            var targetFile = file + fileDirection;
-            var targetRank = rank + rankDirection;
-
-            while (targetFile is >= 0 and < 8 && targetRank is >= 0 and < 8)
-            {
-                var targetSquare = targetRank * 8 + targetFile;
-                var targetMask = 1UL << targetSquare;
-
-                attacks |= targetMask;
-
-                // Stop if we hit a piece
-                if ((allPieces & targetMask) != 0)
-                {
-                    break;
-                }
-
-                targetFile += fileDirection;
-                targetRank += rankDirection;
-            }
-        }
-
-        var orthogonalSliders = attackerIsWhite
-            ? position.WhiteRooks | position.WhiteQueens
-            : position.BlackRooks | position.BlackQueens;
-
-        return attacks & orthogonalSliders;
     }
 
     private static Bitboard GetBlockingSquares(Position position, Square kingSquare, Square attackerSquare)
