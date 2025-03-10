@@ -16,4 +16,6 @@ public static class SquareExtensions
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsValid(this Square square) => square is >= Square.a1 and <= Square.h8;
+
+    public static Square FromRankFile(int rank, int file) => (Square)(rank * 8 + file);
 }

@@ -8,28 +8,22 @@ public static class AttackGeneration
     {
         Bitboard attacks = 0;
 
-        // Calculate pawn attacks
         var pawns = forWhite ? position.WhitePawns : position.BlackPawns;
         var pawnAttackTable = forWhite ? AttackTables.WhitePawnAttacks : AttackTables.BlackPawnAttacks;
         attacks |= CalculatePawnAttacksFromTable(pawns, pawnAttackTable);
 
-        // Calculate knight attacks
         var knights = forWhite ? position.WhiteKnights : position.BlackKnights;
         attacks |= CalculateKnightAttacksFromTable(knights);
 
-        // Calculate bishop attacks
         var bishops = forWhite ? position.WhiteBishops : position.BlackBishops;
         attacks |= CalculateBishopAttacks(bishops, position.AllPieces);
 
-        // Calculate rook attacks
         var rooks = forWhite ? position.WhiteRooks : position.BlackRooks;
         attacks |= CalculateRookAttacks(rooks, position.AllPieces);
 
-        // Calculate queen attacks
         var queens = forWhite ? position.WhiteQueens : position.BlackQueens;
         attacks |= CalculateQueenAttacks(queens, position.AllPieces);
 
-        // Calculate king attacks
         var king = forWhite ? position.WhiteKing : position.BlackKing;
         attacks |= CalculateKingAttacksFromTable(king);
 
@@ -45,13 +39,11 @@ public static class AttackGeneration
 
     public static Bitboard CalculateKnightAttacks(Bitboard knights)
     {
-        // Use the pre-computed table
         return CalculateKnightAttacksFromTable(knights);
     }
 
     public static Bitboard CalculateKingAttacks(Bitboard king)
     {
-        // Use the pre-computed table
         if (king == 0) return 0;
         var square = king.GetFirstSquare();
         return AttackTables.KingAttacks[(int)square];

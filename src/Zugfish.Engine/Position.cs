@@ -121,7 +121,7 @@ public class Position
 
     public bool IsInCheck()
     {
-        var kingSquare = WhiteToMove ? (Square)BitOperations.TrailingZeroCount(WhiteKing) : (Square)BitOperations.TrailingZeroCount(BlackKing);
+        var kingSquare = WhiteToMove ? WhiteKing.GetFirstSquare() : BlackKing.GetFirstSquare();
         return IsSquareAttacked(kingSquare, byWhite: !WhiteToMove);
     }
 
@@ -131,6 +131,7 @@ public class Position
         return enemyAttacks.Intersects(square);
     }
 
+    // TODO: move this out
     public bool IsDrawByRepetition()
     {
         var count = 0;
@@ -148,6 +149,7 @@ public class Position
         return false;
     }
 
+    // TODO: move this out
     public bool IsDrawByInsufficientMaterial()
     {
         var whiteMaterial = WhitePawns | WhiteKnights | WhiteBishops | WhiteRooks | WhiteQueens;

@@ -107,11 +107,8 @@ public static class MagicBitboards
     public static Bitboard GetBishopAttacks(Square square, Bitboard blockers)
     {
         var squareIndex = (int)square;
-        // Mask the blockers to get only the relevant ones
         var relevantBlockers = blockers & BishopMasks[squareIndex];
-        // Calculate the index using the magic number
         var index = (int)((relevantBlockers * BishopMagics[squareIndex]) >> BishopShifts[squareIndex]);
-        // Return the precomputed attack pattern
         return BishopAttacks[squareIndex][index];
     }
 
@@ -119,21 +116,16 @@ public static class MagicBitboards
     public static Bitboard GetRookAttacks(Square square, Bitboard blockers)
     {
         var squareIndex = (int)square;
-        // Mask the blockers to get only the relevant ones
         var relevantBlockers = blockers & RookMasks[squareIndex];
-        // Calculate the index using the magic number
         var index = (int)((relevantBlockers * RookMagics[squareIndex]) >> RookShifts[squareIndex]);
-        // Return the precomputed attack pattern
         return RookAttacks[squareIndex][index];
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bitboard GetQueenAttacks(Square square, Bitboard blockers)
     {
-        // Queen attacks = bishop attacks + rook attacks
         return GetBishopAttacks(square, blockers) | GetRookAttacks(square, blockers);
     }
-
 
     private static void InitializeMasks()
     {
