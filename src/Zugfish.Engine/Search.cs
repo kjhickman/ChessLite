@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Zugfish.Engine.Models;
 
 namespace Zugfish.Engine;
@@ -7,23 +8,80 @@ public class Search
     private readonly TranspositionTable _transpositionTable = new(1 << 20); // 1,048,576
     private readonly MoveExecutor _moveExecutor = new();
 
-    public Move? FindBestMove(Position position, int depth)
+    // Search limits and counters
+    private bool _stopSearch;
+    private int _nodesSearched;
+    private readonly int[] _searchDepthNodes = new int[100];
+    private readonly Stopwatch _searchTimer = new();
+    private TimeSpan _searchTimeLimit;
+
+    public void ResetCounters()
+    {
+        _nodesSearched = 0;
+        Array.Clear(_searchDepthNodes, 0, _searchDepthNodes.Length);
+    }
+
+    public SearchResult FindBestMove(Position position, int maxDepth, int timeLimit = 0)
+    {
+        _stopSearch = false;
+        ResetCounters();
+        _searchTimer.Restart();
+        _searchTimeLimit = timeLimit > 0 ? TimeSpan.FromMilliseconds(timeLimit) : TimeSpan.MaxValue;
+
+        var result = new SearchResult();
+        for (var depth = 1; depth <= maxDepth; depth++)
+        {
+            if (_searchTimer.Elapsed > _searchTimeLimit)
+            {
+                break;
+            }
+
+            var iterationResult = SearchAtDepth(position, depth);
+
+            if (!_stopSearch)
+            {
+                result = iterationResult;
+                result.Depth = depth;
+                result.NodesSearched = _nodesSearched;
+                result.TimeElapsed = _searchTimer.Elapsed;
+            }
+
+            if (_stopSearch || IsForcedMateScore(iterationResult.Score))
+            {
+                break;
+            }
+        }
+
+        _searchTimer.Stop();
+        return result;
+    }
+
+    private SearchResult SearchAtDepth(Position position, int depth)
     {
         Span<Move> movesBuffer = stackalloc Move[218];
         var moveCount = MoveGeneration.GenerateLegalMoves(position, movesBuffer);
 
         if (moveCount == 0)
         {
-            // checkmate or stalemate
-            return null;
+            // Checkmate or stalemate
+            var gameState = position.IsInCheck() ? GameState.Checkmate : GameState.Stalemate;
+            var score = gameState == GameState.Checkmate
+                ? position.WhiteToMove ? -10000 : 10000
+                : 0;
+            return new SearchResult
+            {
+                BestMove = null,
+                Score = score,
+                GameState = gameState
+            };
         }
 
         var ttMove = Move.NullMove;
-        if (_transpositionTable.TryGet(position.ZobristHash, out var ttEntry) && !ttEntry.BestMove.Equals(default))
+        if (_transpositionTable.TryGet(position.ZobristHash, out var ttEntry) && !ttEntry.BestMove.Equals(Move.NullMove))
         {
             ttMove = ttEntry.BestMove;
         }
-        OrderMoves(position, movesBuffer, moveCount, ttMove);
+        OrderMoves(movesBuffer, moveCount, ttMove);
 
         var isMaximizing = position.WhiteToMove;
         var bestMove = movesBuffer[0];
@@ -33,9 +91,15 @@ public class Search
 
         for (var i = 0; i < moveCount; i++)
         {
+            if (_searchTimer.Elapsed > _searchTimeLimit)
+            {
+                _stopSearch = true;
+                break;
+            }
+
             var move = movesBuffer[i];
             _moveExecutor.MakeMove(position, move);
-            var score = Minimax(position, depth - 1, alpha, beta, !isMaximizing).Score;
+            var score = AlphaBeta(position, depth - 1, alpha, beta, !isMaximizing, 1).Score;
             _moveExecutor.UndoMove(position);
 
             if (isMaximizing)
@@ -58,25 +122,39 @@ public class Search
 
                 beta = Math.Min(beta, score);
             }
-
-            if (beta <= alpha)
-            {
-                break;
-            }
         }
 
-        return bestMove;
+        if (!_stopSearch)
+        {
+            _transpositionTable.Store(position.ZobristHash, depth, bestScore,
+                TranspositionNodeType.Exact, bestMove);
+        }
+
+        return new SearchResult
+        {
+            BestMove = bestMove,
+            Score = bestScore,
+            GameState = GameState.Ongoing
+        };
     }
 
-    private EvaluationResult Minimax(Position position, int depth, int alpha, int beta, bool isMaximizing)
+    private EvaluationResult AlphaBeta(Position position, int depth, int alpha, int beta,
+        bool isMaximizing, int ply)
     {
-        // if halfmove clock is 100 or more, the game is a draw
+        _nodesSearched++;
+        _searchDepthNodes[depth]++;
+
+        if ((_nodesSearched & 4095) == 0 && _searchTimer.Elapsed > _searchTimeLimit)
+        {
+            _stopSearch = true;
+            return new EvaluationResult(0, GameState.Ongoing);
+        }
+
         if (position.HalfmoveClock >= 100)
         {
             return new EvaluationResult(0, GameState.DrawFiftyMove);
         }
 
-        // if the position is a draw by insufficient material, the game is a draw
         if (position.IsDrawByInsufficientMaterial())
         {
             return new EvaluationResult(0, GameState.DrawInsufficientMaterial);
@@ -87,83 +165,106 @@ public class Search
             return new EvaluationResult(0, GameState.DrawRepetition);
         }
 
+        var ttHit = false;
+        var ttMove = Move.NullMove;
         if (_transpositionTable.TryGet(position.ZobristHash, out var ttEntry) && ttEntry.Depth >= depth)
         {
+            ttHit = true;
+            ttMove = ttEntry.BestMove;
+
+            // We can use the TT score if:
+            // 1. It's an exact score, or
+            // 2. It's a lower bound and greater than or equal to beta, or
+            // 3. It's an upper bound and less than or equal to alpha
             switch (ttEntry.NodeType)
             {
                 case TranspositionNodeType.Exact:
+                case TranspositionNodeType.Alpha when ttEntry.Score >= beta:
+                case TranspositionNodeType.Beta when ttEntry.Score <= alpha:
                     return new EvaluationResult(ttEntry.Score, GameState.Ongoing);
-                case TranspositionNodeType.Alpha:
-                    alpha = Math.Max(alpha, ttEntry.Score);
-                    break;
-                case TranspositionNodeType.Beta:
-                    beta = Math.Min(beta, ttEntry.Score);
-                    break;
             }
-            if (alpha >= beta)
-                return new EvaluationResult(ttEntry.Score, GameState.Ongoing);
         }
 
+        // Check for leaf nodes
         Span<Move> movesBuffer = stackalloc Move[218];
         var moveCount = MoveGeneration.GenerateLegalMoves(position, movesBuffer);
 
         if (moveCount == 0)
         {
             return position.IsInCheck()
-                ? new EvaluationResult(isMaximizing ? int.MinValue : int.MaxValue, GameState.Checkmate)
+                ? new EvaluationResult(isMaximizing ? -10000 + ply : 10000 - ply, GameState.Checkmate)
                 : new EvaluationResult(0, GameState.Stalemate);
         }
 
-        if (depth == 0)
+        if (depth <= 0)
         {
+            // TODO: Could add quiescence search here
             return new EvaluationResult(position.Evaluate(), GameState.Ongoing);
         }
 
-        var ttMove = Move.NullMove;
-        if (_transpositionTable.TryGet(position.ZobristHash, out var entry) && !entry.BestMove.Equals(Move.NullMove))
+        // Move ordering
+        if (!ttHit)
         {
-            ttMove = entry.BestMove;
+            ttMove = Move.NullMove;
         }
-        OrderMoves(position, movesBuffer, moveCount, ttMove);
+        OrderMoves(movesBuffer, moveCount, ttMove);
 
         var originalAlpha = alpha;
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;
+        var bestMove = Move.NullMove;
 
+        // Main search loop
         for (var i = 0; i < moveCount; i++)
         {
+            if (_stopSearch) break;
+
             var move = movesBuffer[i];
             _moveExecutor.MakeMove(position, move);
-            var score = Minimax(position, depth - 1, alpha, beta, !isMaximizing).Score;
+            var score = AlphaBeta(position, depth - 1, alpha, beta, !isMaximizing, ply + 1).Score;
             _moveExecutor.UndoMove(position);
 
             if (isMaximizing)
             {
-                bestScore = Math.Max(bestScore, score);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestMove = move;
+                }
                 alpha = Math.Max(alpha, score);
             }
             else
             {
-                bestScore = Math.Min(bestScore, score);
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    bestMove = move;
+                }
                 beta = Math.Min(beta, score);
             }
 
-            if (beta <= alpha)
-            {
-                break;
-            }
+            if (beta <= alpha) break;
         }
 
-        TranspositionNodeType flag;
-        if (bestScore <= originalAlpha)
-            flag = TranspositionNodeType.Beta;
-        else if (bestScore >= beta)
-            flag = TranspositionNodeType.Alpha;
-        else
-            flag = TranspositionNodeType.Exact;
+        // Don't store anything if we had to abort
+        if (_stopSearch)
+        {
+            return new EvaluationResult(bestScore, GameState.Ongoing);
+        }
 
-        _transpositionTable.Store(position.ZobristHash, depth, bestScore, flag, new Move());
+        // Save this position to the transposition table
+        var nodeType = bestScore <= originalAlpha ? TranspositionNodeType.Beta :
+                       bestScore >= beta ? TranspositionNodeType.Alpha :
+                       TranspositionNodeType.Exact;
+
+        _transpositionTable.Store(position.ZobristHash, depth, bestScore, nodeType, bestMove);
 
         return new EvaluationResult(bestScore, GameState.Ongoing);
+    }
+
+    private bool IsForcedMateScore(int score)
+    {
+        // Detect forced mate scores (allowing some buffer for mate distance)
+        return Math.Abs(score) > 9000;
     }
 
     /// <summary>
@@ -171,16 +272,16 @@ public class Search
     /// Moves matching the TT best move are given a huge bonus; capture moves are scored using MVV–LVA;
     /// promotion moves are also boosted.
     /// </summary>
-    private void OrderMoves(Position pos, Span<Move> moves, int moveCount, Move ttMove)
+    private void OrderMoves(Span<Move> moves, int moveCount, Move ttMove)
     {
         // Compute a score for each move.
         Span<int> scores = stackalloc int[moveCount];
         for (var i = 0; i < moveCount; i++)
         {
-            scores[i] = ScoreMove(pos, moves[i], ttMove);
+            scores[i] = ScoreMove(moves[i], ttMove);
         }
 
-        // A simple (quadratic) sort on the small move list.
+        // A simple quadratic sort on the small move list.
         for (var i = 0; i < moveCount - 1; i++)
         {
             for (var j = i + 1; j < moveCount; j++)
@@ -196,7 +297,7 @@ public class Search
     /// <summary>
     /// Returns a score for the move. A higher score means the move is expected to be better.
     /// </summary>
-    private int ScoreMove(Position pos, Move move, Move ttMove)
+    private int ScoreMove(Move move, Move ttMove)
     {
         // Transposition table best move gets the highest score.
         if (move.Equals(ttMove))
@@ -204,12 +305,12 @@ public class Search
             return 1000000;
         }
 
-        int score = 0;
+        var score = 0;
         if (move.IsCapture)
         {
             // MVV-LVA: bonus = (captured value - mover value) plus a base bonus.
-            var captured = GetCapturedPieceType(pos, move);
-            var mover = GetPieceTypeAtSquare(pos, move.From);
+            var captured = move.CapturedPieceType;
+            var mover = move.PieceType;
             score = GetPieceValue(captured) - GetPieceValue(mover) + 10000;
         }
         else if (move.PromotedPieceType != PromotedPieceType.None)
@@ -235,49 +336,8 @@ public class Search
             }
             score += 800; // extra bonus for promotion moves
         }
-        // Quiet moves currently get a baseline score (you could incorporate history heuristics here).
+
         return score;
-    }
-
-    /// <summary>
-    /// Returns the piece type at the given square in the position.
-    /// </summary>
-    private PieceType GetPieceTypeAtSquare(Position pos, Square square)
-    {
-        var mask = Bitboard.Mask(square);
-        if ((pos.WhitePawns & mask) != 0) return PieceType.WhitePawn;
-        if ((pos.WhiteKnights & mask) != 0) return PieceType.WhiteKnight;
-        if ((pos.WhiteBishops & mask) != 0) return PieceType.WhiteBishop;
-        if ((pos.WhiteRooks & mask) != 0) return PieceType.WhiteRook;
-        if ((pos.WhiteQueens & mask) != 0) return PieceType.WhiteQueen;
-        if ((pos.WhiteKing & mask) != 0) return PieceType.WhiteKing;
-        if ((pos.BlackPawns & mask) != 0) return PieceType.BlackPawn;
-        if ((pos.BlackKnights & mask) != 0) return PieceType.BlackKnight;
-        if ((pos.BlackBishops & mask) != 0) return PieceType.BlackBishop;
-        if ((pos.BlackRooks & mask) != 0) return PieceType.BlackRook;
-        if ((pos.BlackQueens & mask) != 0) return PieceType.BlackQueen;
-        if ((pos.BlackKing & mask) != 0) return PieceType.BlackKing;
-        return PieceType.None;
-    }
-
-    /// <summary>
-    /// For capture moves, determines the piece type of the captured piece.
-    /// For en passant, it computes the actual square of the captured pawn.
-    /// </summary>
-    private PieceType GetCapturedPieceType(Position pos, Move move)
-    {
-        Square capturedSquare;
-        if (move.SpecialMoveType == SpecialMoveType.EnPassant)
-        {
-            // Use the same logic as in MakeMove: determine the pawn captured via en passant.
-            // capturedSquare = move.To + (move.To > move.From ? -8 : 8);
-            capturedSquare = pos.WhiteToMove ? move.To - 8 : move.To + 8;
-        }
-        else
-        {
-            capturedSquare = move.To;
-        }
-        return GetPieceTypeAtSquare(pos, capturedSquare);
     }
 
     /// <summary>
