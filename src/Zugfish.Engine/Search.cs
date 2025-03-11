@@ -6,7 +6,7 @@ namespace Zugfish.Engine;
 public class Search
 {
     private readonly TranspositionTable _transpositionTable = new(1 << 20); // 1,048,576
-    private readonly MoveExecutor _moveExecutor = new();
+    private readonly MoveExecutor _moveExecutor;
 
     // Search limits and counters
     private bool _stopSearch;
@@ -14,11 +14,18 @@ public class Search
     private readonly int[] _searchDepthNodes = new int[100];
     private readonly Stopwatch _searchTimer = new();
     private TimeSpan _searchTimeLimit;
+    private readonly IEngineLogger _engineLogger;
 
-    public void ResetCounters()
+    public Search(IEngineLogger? engineLogger = null, MoveExecutor? moveExecutor = null)
     {
-        _nodesSearched = 0;
-        Array.Clear(_searchDepthNodes, 0, _searchDepthNodes.Length);
+        _engineLogger = engineLogger ?? new ConsoleEngineLogger();
+        _moveExecutor = moveExecutor ?? new MoveExecutor();
+    }
+
+    public void Reset()
+    {
+        _transpositionTable.Clear();
+        _moveExecutor.ClearMoveHistory();
     }
 
     public SearchResult FindBestMove(Position position, int maxDepth, int timeLimit = 0)
@@ -38,6 +45,17 @@ public class Search
 
             var iterationResult = SearchAtDepth(position, depth);
 
+            var searchInfo = new SearchInfo
+            {
+                Depth = depth,
+                Score = iterationResult.Score,
+                IsMateScore = IsForcedMateScore(iterationResult.Score),
+                NodesSearched = _nodesSearched,
+                TimeElapsed = _searchTimer.Elapsed,
+                NodesPerSecond = (long)(_nodesSearched / _searchTimer.Elapsed.TotalSeconds)
+            };
+            _engineLogger.LogSearchInfo(searchInfo);
+
             if (!_stopSearch)
             {
                 result = iterationResult;
@@ -53,7 +71,15 @@ public class Search
         }
 
         _searchTimer.Stop();
+
+        _engineLogger.LogBestMove(result.BestMove);
         return result;
+    }
+
+    private void ResetCounters()
+    {
+        _nodesSearched = 0;
+        Array.Clear(_searchDepthNodes, 0, _searchDepthNodes.Length);
     }
 
     private SearchResult SearchAtDepth(Position position, int depth)

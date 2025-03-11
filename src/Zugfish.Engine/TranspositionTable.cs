@@ -47,6 +47,25 @@ public class TranspositionTable
         return false;
     }
 
+    /// <summary>
+    /// Returns an estimate of the transposition table occupancy as a permill value (0-1000).
+    /// </summary>
+    public int GetOccupancy()
+    {
+        const int sampleSize = 1000;
+        var occupied = 0;
+
+        for (var i = 0; i < sampleSize; i++)
+        {
+            if (_table[i].Hash != 0)
+            {
+                occupied++;
+            }
+        }
+
+        return occupied;
+    }
+
     public void Clear()
     {
         Array.Clear(_table, 0, _table.Length);
