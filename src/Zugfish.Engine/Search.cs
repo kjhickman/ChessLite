@@ -13,8 +13,8 @@ public class Search
     private bool _stopSearch;
     private int _nodesSearched;
     private readonly int[] _searchDepthNodes = new int[100];
-    private readonly Stopwatch _searchTimer = new();
     private TimeSpan _searchTimeLimit;
+    private long _searchStartTimeStamp;
     private readonly IEngineLogger _engineLogger;
 
     public Search(IEngineLogger? engineLogger = null, MoveExecutor? moveExecutor = null, int hashSizeMb = 16)
@@ -34,8 +34,8 @@ public class Search
     {
         _stopSearch = false;
         ResetCounters();
-        _searchTimer.Restart();
-        _searchTimeLimit = timeLimit > 0 ? TimeSpan.FromMilliseconds(timeLimit) : TimeSpan.MaxValue;
+        _searchStartTimeStamp = Stopwatch.GetTimestamp();
+        _searchTimeLimit = timeLimit > 0 ? TimeSpan.FromSeconds(timeLimit) : TimeSpan.MaxValue;
 
         // Start a new search generation
         _transpositionTable.NewSearch();
@@ -43,21 +43,22 @@ public class Search
         var result = new SearchResult();
         for (var depth = 1; depth <= maxDepth; depth++)
         {
-            if (_searchTimer.Elapsed > _searchTimeLimit)
+            if (Stopwatch.GetElapsedTime(_searchStartTimeStamp) > _searchTimeLimit)
             {
                 break;
             }
 
             var iterationResult = SearchAtDepth(position, depth);
 
+            var elapsedTime = Stopwatch.GetElapsedTime(_searchStartTimeStamp);
             var searchInfo = new SearchInfo
             {
                 Depth = depth,
                 Score = iterationResult.Score,
                 IsMateScore = IsForcedMateScore(iterationResult.Score),
                 NodesSearched = _nodesSearched,
-                TimeElapsed = _searchTimer.Elapsed,
-                NodesPerSecond = (long)(_nodesSearched / _searchTimer.Elapsed.TotalSeconds)
+                TimeElapsed = elapsedTime,
+                NodesPerSecond = (long)(_nodesSearched / elapsedTime.TotalSeconds)
             };
             _engineLogger.LogSearchInfo(searchInfo);
 
@@ -66,7 +67,7 @@ public class Search
                 result = iterationResult;
                 result.Depth = depth;
                 result.NodesSearched = _nodesSearched;
-                result.TimeElapsed = _searchTimer.Elapsed;
+                result.TimeElapsed = elapsedTime;
             }
 
             if (_stopSearch || IsForcedMateScore(iterationResult.Score))
@@ -74,8 +75,6 @@ public class Search
                 break;
             }
         }
-
-        _searchTimer.Stop();
 
         _engineLogger.LogBestMove(result.BestMove);
         return result;
@@ -126,7 +125,7 @@ public class Search
 
         for (var i = 0; i < moveCount; i++)
         {
-            if (_searchTimer.Elapsed > _searchTimeLimit)
+            if (Stopwatch.GetElapsedTime(_searchStartTimeStamp) > _searchTimeLimit)
             {
                 _stopSearch = true;
                 break;
@@ -184,7 +183,7 @@ public class Search
         _nodesSearched++;
         _searchDepthNodes[depth]++;
 
-        if ((_nodesSearched & 4095) == 0 && _searchTimer.Elapsed > _searchTimeLimit)
+        if ((_nodesSearched & 4095) == 0 && Stopwatch.GetElapsedTime(_searchStartTimeStamp) > _searchTimeLimit)
         {
             _stopSearch = true;
             return new EvaluationResult(0, GameState.Ongoing);
