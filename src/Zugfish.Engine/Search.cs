@@ -58,7 +58,8 @@ public class Search
                 IsMateScore = IsForcedMateScore(iterationResult.Score),
                 NodesSearched = _nodesSearched,
                 TimeElapsed = elapsedTime,
-                NodesPerSecond = (long)(_nodesSearched / elapsedTime.TotalSeconds)
+                NodesPerSecond = (long)(_nodesSearched / elapsedTime.TotalSeconds),
+                HashFull = _transpositionTable.GetOccupancy()
             };
             _engineLogger.LogSearchInfo(searchInfo);
 

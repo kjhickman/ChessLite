@@ -11,7 +11,7 @@ public class EngineSettings
 
     public static EngineSettings Default => new()
     {
-        Depth = 6,
+        Depth = 8,
         HashSizeInMb = 16,
         Threads = 1
     };

@@ -29,6 +29,7 @@ public class SearchInfo
     public long NodesSearched { get; set; }
     public TimeSpan TimeElapsed { get; set; }
     public long NodesPerSecond { get; set; }
+    public int HashFull { get; set; }
 }
 
 /// <summary>
@@ -38,7 +39,7 @@ public class ConsoleEngineLogger : IEngineLogger
 {
     public void LogSearchInfo(SearchInfo info)
     {
-        Console.WriteLine($"depth: {info.Depth}, score: {info.Score}, nodes: {info.NodesSearched}, time: {info.TimeElapsed.TotalMilliseconds:0}ms, nps: {info.NodesPerSecond}");
+        Console.WriteLine($"depth: {info.Depth}, score: {info.Score}, nodes: {info.NodesSearched}, time: {info.TimeElapsed.TotalMilliseconds:0}ms, nps: {info.NodesPerSecond}, hashfull: {info.HashFull}");
     }
 
     public void LogBestMove(Move? bestMove, Move? ponderMove = null)
