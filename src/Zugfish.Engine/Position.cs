@@ -266,4 +266,54 @@ public class Position
 
         return pinnedPieces;
     }
+
+    public Position Clone()
+    {
+        var clone = new Position
+        {
+            // Copy all bitboards
+            WhitePawns = WhitePawns,
+            WhiteKnights = WhiteKnights,
+            WhiteBishops = WhiteBishops,
+            WhiteRooks = WhiteRooks,
+            WhiteQueens = WhiteQueens,
+            WhiteKing = WhiteKing,
+            BlackPawns = BlackPawns,
+            BlackKnights = BlackKnights,
+            BlackBishops = BlackBishops,
+            BlackRooks = BlackRooks,
+            BlackQueens = BlackQueens,
+            BlackKing = BlackKing,
+
+            // Copy state variables
+            WhiteToMove = WhiteToMove,
+            CastlingRights = CastlingRights,
+            EnPassantTarget = EnPassantTarget,
+            HalfmoveClock = HalfmoveClock,
+            ZobristHash = ZobristHash,
+
+            // Copy derived bitboards
+            WhitePieces = WhitePieces,
+            BlackPieces = BlackPieces,
+            AllPieces = AllPieces,
+
+            // Copy attack bitboards
+            PinnedPieces = PinnedPieces,
+            WhiteAttacks = WhiteAttacks,
+            WhitePawnAttacks = WhitePawnAttacks,
+            WhiteKnightAttacks = WhiteKnightAttacks,
+            WhiteKingAttacks = WhiteKingAttacks,
+            BlackAttacks = BlackAttacks,
+            BlackPawnAttacks = BlackPawnAttacks,
+            BlackKnightAttacks = BlackKnightAttacks,
+            BlackKingAttacks = BlackKingAttacks,
+
+            // Initialize repetition table with the current hash
+            CurrentPly = CurrentPly
+        };
+
+        Array.Copy(RepetitionTable, clone.RepetitionTable, RepetitionTable.Length);
+
+        return clone;
+    }
 }
