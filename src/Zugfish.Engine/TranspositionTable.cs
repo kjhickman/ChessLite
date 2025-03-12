@@ -37,12 +37,22 @@ public class TranspositionTable
     /// </summary>
     public int GetOccupancy()
     {
-        const int sampleSize = 1000;
+        const int sampleSize = 333;
         var occupied = 0;
 
         for (var i = 0; i < sampleSize; i++)
         {
-            if (_table[i].Hash != 0)
+            if (_table[i].Entry1.HashVerification != 0)
+            {
+                occupied++;
+            }
+
+            if (_table[i].Entry2.HashVerification != 0)
+            {
+                occupied++;
+            }
+
+            if (_table[i].Entry3.HashVerification != 0)
             {
                 occupied++;
             }
@@ -139,16 +149,15 @@ public class TranspositionTable
             }
         }
 
-        // Update the entry
-        // replace.HashVerification = verification;
-        // replace.BestMove = move;
-        // replace.Score = score;
-        // replace.Evaluation = staticEval;
-        // replace.Depth = depth;
-        // replace.NodeType = nodeType;
-        // replace.Generation = _generation;
-
-        replace = new TranspositionEntry(); // TODO: this
+        replace = new TranspositionEntry(
+            move: move,
+            hashVerification: verification,
+            evaluation: staticEval,
+            score: score,
+            depth: depth,
+            generation: _generation,
+            nodeType: nodeType
+        );
     }
 
     /// <summary>

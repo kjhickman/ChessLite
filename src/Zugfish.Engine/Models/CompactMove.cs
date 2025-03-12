@@ -5,6 +5,7 @@ public readonly struct CompactMove : IEquatable<CompactMove>
     private readonly ushort _packed;
 
     public static implicit operator CompactMove(ushort value) => new(value);
+    public static implicit operator ushort(CompactMove value) => value._packed;
     public static bool operator ==(CompactMove left, CompactMove right) => left.Equals(right);
     public static bool operator !=(CompactMove left, CompactMove right) => !(left == right);
     public bool Equals(CompactMove other) => _packed == other._packed;

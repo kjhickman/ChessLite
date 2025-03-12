@@ -50,3 +50,14 @@ public class ConsoleEngineLogger : IEngineLogger
         }
     }
 }
+
+public class NullEngineLogger : IEngineLogger
+{
+    public void LogSearchInfo(SearchInfo info)
+    {
+    }
+
+    public void LogBestMove(Move? bestMove, Move? ponderMove = null)
+    {
+    }
+}

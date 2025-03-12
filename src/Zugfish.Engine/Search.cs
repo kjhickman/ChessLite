@@ -1,11 +1,12 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
+using Zugfish.Engine.Extensions;
 using Zugfish.Engine.Models;
 
 namespace Zugfish.Engine;
 
 public class Search
 {
-    private readonly TranspositionTableOld _transpositionTable = new(1 << 20); // 1,048,576
+    private readonly TranspositionTable _transpositionTable;
     private readonly MoveExecutor _moveExecutor;
 
     // Search limits and counters
@@ -16,10 +17,11 @@ public class Search
     private TimeSpan _searchTimeLimit;
     private readonly IEngineLogger _engineLogger;
 
-    public Search(IEngineLogger? engineLogger = null, MoveExecutor? moveExecutor = null)
+    public Search(IEngineLogger? engineLogger = null, MoveExecutor? moveExecutor = null, int hashSizeMb = 16)
     {
         _engineLogger = engineLogger ?? new ConsoleEngineLogger();
         _moveExecutor = moveExecutor ?? new MoveExecutor();
+        _transpositionTable = new TranspositionTable(hashSizeMb);
     }
 
     public void Reset()
@@ -34,6 +36,9 @@ public class Search
         ResetCounters();
         _searchTimer.Restart();
         _searchTimeLimit = timeLimit > 0 ? TimeSpan.FromMilliseconds(timeLimit) : TimeSpan.MaxValue;
+
+        // Start a new search generation
+        _transpositionTable.NewSearch();
 
         var result = new SearchResult();
         for (var depth = 1; depth <= maxDepth; depth++)
@@ -103,10 +108,14 @@ public class Search
         }
 
         var ttMove = Move.NullMove;
-        if (_transpositionTable.TryGet(position.ZobristHash, out var ttEntry) && !ttEntry.BestMove.Equals(Move.NullMove))
+        if (_transpositionTable.Probe(position.ZobristHash, out var ttCompactMove, out _, out _, out _, out _))
         {
-            ttMove = ttEntry.BestMove;
+            if (ttCompactMove != 0) // Check if not a null move
+            {
+                ttMove = ttCompactMove.FindMatchingMove(movesBuffer, moveCount);
+            }
         }
+
         OrderMoves(movesBuffer, moveCount, ttMove);
 
         var isMaximizing = position.WhiteToMove;
@@ -152,8 +161,13 @@ public class Search
 
         if (!_stopSearch)
         {
-            _transpositionTable.Store(position.ZobristHash, depth, bestScore,
-                TranspositionNodeType.Exact, bestMove);
+            _transpositionTable.Store(
+                position.ZobristHash,
+                bestMove.ToCompactMove(),
+                (short)bestScore,
+                (short)position.Evaluate(),
+                (byte)depth,
+                TranspositionNodeType.Exact);
         }
 
         return new SearchResult
@@ -191,23 +205,27 @@ public class Search
             return new EvaluationResult(0, GameState.DrawRepetition);
         }
 
+        // Transposition table lookup
         var ttHit = false;
         var ttMove = Move.NullMove;
-        if (_transpositionTable.TryGet(position.ZobristHash, out var ttEntry) && ttEntry.Depth >= depth)
+        if (_transpositionTable.Probe(position.ZobristHash, out var ttCompactMove, out var ttScore, out var ttEval, out var ttDepth, out var ttBound))
         {
             ttHit = true;
-            ttMove = ttEntry.BestMove;
 
-            // We can use the TT score if:
-            // 1. It's an exact score, or
-            // 2. It's a lower bound and greater than or equal to beta, or
-            // 3. It's an upper bound and less than or equal to alpha
-            switch (ttEntry.NodeType)
+            // Only use TT entries if their depth is sufficient
+            if (ttDepth >= depth)
             {
-                case TranspositionNodeType.Exact:
-                case TranspositionNodeType.Alpha when ttEntry.Score >= beta:
-                case TranspositionNodeType.Beta when ttEntry.Score <= alpha:
-                    return new EvaluationResult(ttEntry.Score, GameState.Ongoing);
+                // We can use the TT score if:
+                // 1. It's an exact score, or
+                // 2. It's a beta bound and score >= beta, or
+                // 3. It's an alpha bound and score <= alpha
+                switch (ttBound)
+                {
+                    case TranspositionNodeType.Exact:
+                    case TranspositionNodeType.Beta when ttScore <= alpha:
+                    case TranspositionNodeType.Alpha when ttScore >= beta:
+                        return new EvaluationResult(ttScore, GameState.Ongoing);
+                }
             }
         }
 
@@ -224,14 +242,14 @@ public class Search
 
         if (depth <= 0)
         {
-            // TODO: Could add quiescence search here
+            // Reached depth limit, evaluate the position
             return new EvaluationResult(position.Evaluate(), GameState.Ongoing);
         }
 
-        // Move ordering
-        if (!ttHit)
+        // Move ordering - try the TT move first if we have one
+        if (ttHit && ttCompactMove != 0)
         {
-            ttMove = Move.NullMove;
+            ttMove = ttCompactMove.FindMatchingMove(movesBuffer, moveCount);
         }
         OrderMoves(movesBuffer, moveCount, ttMove);
 
@@ -282,7 +300,13 @@ public class Search
                        bestScore >= beta ? TranspositionNodeType.Alpha :
                        TranspositionNodeType.Exact;
 
-        _transpositionTable.Store(position.ZobristHash, depth, bestScore, nodeType, bestMove);
+        _transpositionTable.Store(
+            position.ZobristHash,
+            bestMove.ToCompactMove(),
+            (short)bestScore,
+            (short)position.Evaluate(), // Evaluate position for static evaluation
+            (byte)depth,
+            nodeType);
 
         return new EvaluationResult(bestScore, GameState.Ongoing);
     }
@@ -295,7 +319,7 @@ public class Search
 
     /// <summary>
     /// Orders the moves in descending order according to a simple heuristic.
-    /// Moves matching the TT best move are given a huge bonus; capture moves are scored using MVV–LVA;
+    /// Moves matching the TT best move are given a huge bonus; capture moves are scored using MVV-LVA;
     /// promotion moves are also boosted.
     /// </summary>
     private void OrderMoves(Span<Move> moves, int moveCount, Move ttMove)

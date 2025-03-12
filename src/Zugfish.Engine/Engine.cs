@@ -2,23 +2,6 @@
 
 namespace Zugfish.Engine;
 
-public class EngineSettings
-{
-    // Meta engine settings
-    public int Depth { get; set; }
-
-    // UCI options
-    public int Hash { get; set; }
-    public int Threads { get; set; }
-
-    public static EngineSettings Default => new()
-    {
-        Depth = 7,
-        Hash = 16,
-        Threads = 1
-    };
-}
-
 public class Engine
 {
     private Position _position;
@@ -32,7 +15,7 @@ public class Engine
         _position = new Position();
         _moveExecutor = new MoveExecutor();
         IEngineLogger engineLogger = new ConsoleEngineLogger();
-        _search = new Search(engineLogger);
+        _search = new Search(engineLogger, _moveExecutor, _engineSettings.HashSizeInMb);
     }
 
     public Engine(IEngineLogger engineLogger, EngineSettings engineSettings)
@@ -40,7 +23,7 @@ public class Engine
         _engineSettings = engineSettings;
         _position = new Position();
         _moveExecutor = new MoveExecutor();
-        _search = new Search(engineLogger);
+        _search = new Search(engineLogger, _moveExecutor, _engineSettings.HashSizeInMb);
     }
 
     public Move? FindBestMove()
