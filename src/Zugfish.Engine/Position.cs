@@ -1,4 +1,4 @@
-using System.Numerics;
+using System.Text;
 using Zugfish.Engine.Extensions;
 using Zugfish.Engine.Models;
 
@@ -96,6 +96,60 @@ public class Position
         UpdatePinnedPieces();
         ZobristHash = Zobrist.ComputeHash(this);
         RepetitionTable[CurrentPly++] = ZobristHash;
+    }
+
+    public override string ToString()
+    {
+        Span<char> boardArray = stackalloc char[64];
+
+        // Fill with empty squares.
+        for (var i = 0; i < 64; i++)
+            boardArray[i] = '.';
+
+        // Place white pieces.
+        PlacePieces(WhitePawns, 'P', ref boardArray);
+        PlacePieces(WhiteKnights, 'N', ref boardArray);
+        PlacePieces(WhiteBishops, 'B', ref boardArray);
+        PlacePieces(WhiteRooks, 'R', ref boardArray);
+        PlacePieces(WhiteQueens, 'Q', ref boardArray);
+        PlacePieces(WhiteKing, 'K', ref boardArray);
+
+        // Place black pieces.
+        PlacePieces(BlackPawns, 'p', ref boardArray);
+        PlacePieces(BlackKnights, 'n', ref boardArray);
+        PlacePieces(BlackBishops, 'b', ref boardArray);
+        PlacePieces(BlackRooks, 'r', ref boardArray);
+        PlacePieces(BlackQueens, 'q', ref boardArray);
+        PlacePieces(BlackKing, 'k', ref boardArray);
+
+        // Build board string.
+        var sb = new StringBuilder();
+        sb.AppendLine("  a b c d e f g h");
+        sb.AppendLine("  ----------------");
+        for (var rank = 7; rank >= 0; rank--)  // Top-down rendering.
+        {
+            sb.Append($"{rank + 1}| ");
+            for (var file = 0; file < 8; file++)
+            {
+                sb.Append(boardArray[rank * 8 + file]);
+                sb.Append(' ');
+            }
+            sb.AppendLine("|");
+        }
+        sb.AppendLine("  ----------------");
+        return sb.ToString();
+
+        // Local function to place pieces based on bitboard.
+        void PlacePieces(Bitboard bitboard, char pieceChar, ref Span<char> boardArray)
+        {
+            for (var i = 0; i < 64; i++)
+            {
+                if (bitboard.Intersects((Square)i))
+                {
+                    boardArray[i] = pieceChar;
+                }
+            }
+        }
     }
 
     public ref Bitboard GetPieceBitboard(PieceType pieceType)
