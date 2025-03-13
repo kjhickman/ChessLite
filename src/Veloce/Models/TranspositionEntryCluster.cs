@@ -1,5 +1,8 @@
-﻿namespace Veloce.Models;
+﻿using System.Runtime.InteropServices;
 
+namespace Veloce.Models;
+
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct TranspositionEntryCluster
 {
     public TranspositionEntry Entry1;

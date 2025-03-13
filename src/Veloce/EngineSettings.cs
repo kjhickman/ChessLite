@@ -3,16 +3,16 @@ namespace Veloce;
 public class EngineSettings
 {
     // Meta engine settings
-    public int Depth { get; set; }
+    public int MaxDepth { get; set; } = 16;
 
     // UCI options
-    public int TranspositionTableSizeMb { get; set; }
-    public int Threads { get; set; }
+    public int TranspositionTableSizeMb { get; set; } = 32;
+    public int Threads { get; set; } = 1;
 
     public static EngineSettings Default => new()
     {
-        Depth = 8,
-        TranspositionTableSizeMb = 16,
+        MaxDepth = 16,
+        TranspositionTableSizeMb = 32,
         Threads = 1
     };
 }

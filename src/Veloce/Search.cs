@@ -15,12 +15,13 @@ public class Search
     private TimeSpan _searchTimeLimit;
     private long _searchStartTimeStamp;
     private readonly IEngineLogger _engineLogger;
+    private readonly EngineSettings _settings;
 
     public Search(IEngineLogger? engineLogger = null, EngineSettings? settings = null)
     {
         _engineLogger = engineLogger ?? new ConsoleEngineLogger();
-        var engineSettings = settings ?? EngineSettings.Default;
-        _transpositionTable = new TranspositionTable(engineSettings.TranspositionTableSizeMb);
+        _settings = settings ?? EngineSettings.Default;
+        _transpositionTable = new TranspositionTable(_settings.TranspositionTableSizeMb);
     }
 
     public void Reset()
@@ -28,18 +29,18 @@ public class Search
         _transpositionTable.Clear();
     }
 
-    public SearchResult FindBestMove(Game game, int maxDepth, int timeLimit = 0)
+    public SearchResult FindBestMove(Game game, int timeLimit = -1)
     {
         _stopSearch = false;
         ResetCounters();
         _searchStartTimeStamp = Stopwatch.GetTimestamp();
-        _searchTimeLimit = timeLimit > 0 ? TimeSpan.FromSeconds(timeLimit) : TimeSpan.MaxValue;
+        _searchTimeLimit = timeLimit > 0 ? TimeSpan.FromMilliseconds(timeLimit) : TimeSpan.MaxValue;
 
         // Start a new search generation
         _transpositionTable.NewSearch();
 
         var result = new SearchResult();
-        for (var depth = 1; depth <= maxDepth; depth++)
+        for (var depth = 1; depth <= _settings.MaxDepth; depth++)
         {
             if (Stopwatch.GetElapsedTime(_searchStartTimeStamp) > _searchTimeLimit)
             {
@@ -52,7 +53,7 @@ public class Search
             var searchInfo = new SearchInfo
             {
                 Depth = depth,
-                Score = iterationResult.Score,
+                Score = game.Position.WhiteToMove ? iterationResult.Score : -iterationResult.Score,
                 IsMateScore = IsForcedMateScore(iterationResult.Score),
                 NodesSearched = _nodesSearched,
                 TimeElapsed = elapsedTime,

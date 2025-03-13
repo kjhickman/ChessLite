@@ -38,6 +38,13 @@ public class Game
         _currentPly--;
     }
 
+    public void SetPosition(Position position)
+    {
+        Position = position;
+        _currentPly = 0;
+        Array.Clear(_repetitionTable, 0, _repetitionTable.Length);
+    }
+
     public bool IsInCheck()
     {
         var kingSquare = Position.WhiteToMove ? Position.WhiteKing.GetFirstSquare() : Position.BlackKing.GetFirstSquare();

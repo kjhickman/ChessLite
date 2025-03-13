@@ -25,7 +25,18 @@ public class Engine
 
     public Move? FindBestMove()
     {
-        return _search.FindBestMove(_game, _engineSettings.Depth).BestMove;
+        return _search.FindBestMove(_game).BestMove;
+    }
+
+    public SearchResult FindBestMove(TimeControl timeControl)
+    {
+        var timeToSearchMs = TimeManagement.CalculateMoveTime(timeControl);
+        return _search.FindBestMove(_game, timeToSearchMs);
+    }
+
+    public SearchResult FindBestMove(int timeToSearchMs)
+    {
+        return _search.FindBestMove(_game, timeToSearchMs);
     }
 
     public void MakeMove(Move move)
@@ -41,6 +52,6 @@ public class Engine
 
     public void SetPosition(Position position)
     {
-        _game.Position = position;
+        _game.SetPosition(position);
     }
 }
