@@ -29,7 +29,7 @@
 
 ## 🔍 Overview
 
-Veloce aims to be a modern, high-performance chess engine implemented in C#. The engine is compatible with the Universal Chess Interface (UCI) protocol, allowing it to be used with most chess GUIs. It's core chess engine is also available as a NuGet package for use in your .NET projects!
+Veloce aims to be a modern, high-performance chess engine implemented in C#. The engine is compatible with the Universal Chess Interface (UCI) protocol, allowing it to be used with most chess GUIs. Its core chess engine will eventually be available as a NuGet package for use in your .NET projects!
 
 ## ✨ Features
 
