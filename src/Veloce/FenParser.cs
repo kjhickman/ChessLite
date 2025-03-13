@@ -7,12 +7,12 @@ public static class FenParser
     public static FenData ParseFen(ReadOnlySpan<char> fen)
     {
         var result = new FenData();
-        var enumerator = fen.Split(' ');
-        enumerator.MoveNext();
 
-        // Parse piece placement
-        var piecePlacement = fen[enumerator.Current]; enumerator.MoveNext();
-        var square = 56; // Start at a8
+        Span<Range> ranges = stackalloc Range[6]; // FEN has 6 fields
+        fen.Split(ranges, ' ');
+
+        var piecePlacement = fen[ranges[0]];
+        var square = Square.a8;
         for (var i = 0; i < piecePlacement.Length; i++)
         {
             var c = piecePlacement[i];
@@ -67,7 +67,8 @@ public static class FenParser
             }
         }
 
-        var activeColor = fen[enumerator.Current]; enumerator.MoveNext();
+        // Active color (index 1)
+        var activeColor = fen[ranges[1]];
         result.WhiteToMove = activeColor[0] switch
         {
             'w' => true,
@@ -75,16 +76,16 @@ public static class FenParser
             _ => throw new ArgumentException("Invalid active color.")
         };
 
-        // Parse castling rights
-        var castlingRights = fen[enumerator.Current]; enumerator.MoveNext();
+        // Parse castling rights (index 2)
+        var castlingRights = fen[ranges[2]];
 
         if (castlingRights.IndexOf('K') != -1) result.CastlingRights |= CastlingRights.WhiteKingside;
         if (castlingRights.IndexOf('Q') != -1) result.CastlingRights |= CastlingRights.WhiteQueenside;
         if (castlingRights.IndexOf('k') != -1) result.CastlingRights |= CastlingRights.BlackKingside;
         if (castlingRights.IndexOf('q') != -1) result.CastlingRights |= CastlingRights.BlackQueenside;
 
-        // Parse en passant square
-        var enPassantSquare = fen[enumerator.Current]; enumerator.MoveNext();
+        // Parse en passant square (index 3)
+        var enPassantSquare = fen[ranges[3]];
         if (enPassantSquare is not "-")
         {
             result.EnPassantTarget = Enum.Parse<Square>(enPassantSquare);
@@ -94,8 +95,11 @@ public static class FenParser
             result.EnPassantTarget = Square.None;
         }
 
-        var halfmoveClock = fen[enumerator.Current]; enumerator.MoveNext();
+        // Halfmove clock (index 4)
+        var halfmoveClock = fen[ranges[4]];
         result.HalfmoveClock = int.Parse(halfmoveClock);
+
+        // Index 5 is the fullmove number, which we do no use
 
         return result;
     }

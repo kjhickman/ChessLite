@@ -42,6 +42,7 @@ Veloce aims to be a modern, high-performance chess engine implemented in C#. The
 - **Zobrist Hashing**: Fast position hashing for repetition detection
 - **Legal Move Generation**: 100% accurate move generation, proven by extensive perft test suite
 - **Evaluation**: Basic positional and material evaluation
+- **Native AOT Compatible**: The core engine library is fully Native AOT compatible
 
 ## 🚀 Performance
 
@@ -54,7 +55,7 @@ Veloce is designed with performance as a priority:
 
 ## 💻 Requirements
 
-- .NET 9.0 SDK or later
+- .NET 8.0 SDK or later
 - Compatible with Windows, macOS, and Linux
 
 ## 🚀 Getting Started
@@ -85,7 +86,7 @@ TODO: instructions on publishing binary
 
 ### As a Library
 
-You can also use Veloce as a library in your own C# projects:
+You can also use Veloce as a library in your own C# projects (.NET 8 and above):
 
 ```csharp
 using Veloce;
