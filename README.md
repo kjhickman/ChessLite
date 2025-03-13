@@ -165,8 +165,8 @@ Future development plans include:
 
 ## 🙏 Acknowledgments
 
-- Inspiration from other chess engines like Stockfish and Leela Chess Zero
-- The chess programming community at [Computer Chess Wiki](https://www.chessprogramming.org/Main_Page)
+- For the inspiration to start this project, [this video](https://youtu.be/w4FFX_otR-4?si=gOWyYTxIoEBOXrBn) by [Bartek Spitza](https://github.com/bartekspitza)
+- The chess programming community at the [Chess Programming Wiki](https://www.chessprogramming.org)
 
 ---
 
