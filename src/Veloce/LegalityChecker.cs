@@ -17,7 +17,7 @@ public static class LegalityChecker
             return !WouldKingBeAttacked(position, targetSquare, kingSquare, !isWhite);
         }
 
-        if (position.IsInCheck())
+        if (MoveGeneration.IsSquareAttacked(position, kingSquare, !isWhite))
         {
             var checkingPieces = FindAttackingPieces(position, kingSquare, !isWhite);
             var checkCount = checkingPieces.Count();

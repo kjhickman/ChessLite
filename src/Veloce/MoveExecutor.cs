@@ -38,7 +38,6 @@ public class MoveExecutor
         position.WhiteToMove = !position.WhiteToMove;
         position.UpdatePinnedPieces(); // Must be called after toggling the turn
         position.ZobristHash = Zobrist.ComputeHash(position);
-        position.RepetitionTable[position.CurrentPly++] = position.ZobristHash;
     }
 
     private void SaveMoveHistory(Position position, Move move)
@@ -329,7 +328,6 @@ public class MoveExecutor
 
         UpdateCombinedBitboards(position);
         position.WhiteToMove = !position.WhiteToMove;
-        if (position.CurrentPly > 0) position.CurrentPly--;
         position.ZobristHash = moveHistory.PreviousZobristHash;
         position.WhiteAttacks = moveHistory.PreviousWhiteAttacks;
         position.WhitePawnAttacks = moveHistory.PreviousWhitePawnAttacks;

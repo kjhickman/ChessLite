@@ -7,7 +7,6 @@ namespace Veloce;
 public class Search
 {
     private readonly TranspositionTable _transpositionTable;
-    private readonly MoveExecutor _moveExecutor;
 
     // Search limits and counters
     private bool _stopSearch;
@@ -17,20 +16,19 @@ public class Search
     private long _searchStartTimeStamp;
     private readonly IEngineLogger _engineLogger;
 
-    public Search(IEngineLogger? engineLogger = null, MoveExecutor? moveExecutor = null, int hashSizeMb = 16)
+    public Search(IEngineLogger? engineLogger = null, EngineSettings? settings = null)
     {
         _engineLogger = engineLogger ?? new ConsoleEngineLogger();
-        _moveExecutor = moveExecutor ?? new MoveExecutor();
-        _transpositionTable = new TranspositionTable(hashSizeMb);
+        var engineSettings = settings ?? EngineSettings.Default;
+        _transpositionTable = new TranspositionTable(engineSettings.TranspositionTableSizeMb);
     }
 
     public void Reset()
     {
         _transpositionTable.Clear();
-        _moveExecutor.ClearMoveHistory();
     }
 
-    public SearchResult FindBestMove(Position position, int maxDepth, int timeLimit = 0)
+    public SearchResult FindBestMove(Game game, int maxDepth, int timeLimit = 0)
     {
         _stopSearch = false;
         ResetCounters();
@@ -48,7 +46,7 @@ public class Search
                 break;
             }
 
-            var iterationResult = SearchAtDepth(position, depth);
+            var iterationResult = SearchAtDepth(game, depth);
 
             var elapsedTime = Stopwatch.GetElapsedTime(_searchStartTimeStamp);
             var searchInfo = new SearchInfo
@@ -87,17 +85,17 @@ public class Search
         Array.Clear(_searchDepthNodes, 0, _searchDepthNodes.Length);
     }
 
-    private SearchResult SearchAtDepth(Position position, int depth)
+    private SearchResult SearchAtDepth(Game game, int depth)
     {
         Span<Move> movesBuffer = stackalloc Move[218];
-        var moveCount = MoveGeneration.GenerateLegalMoves(position, movesBuffer);
+        var moveCount = MoveGeneration.GenerateLegalMoves(game.Position, movesBuffer);
 
         if (moveCount == 0)
         {
             // Checkmate or stalemate
-            var gameState = position.IsInCheck() ? GameState.Checkmate : GameState.Stalemate;
+            var gameState = game.IsInCheck() ? GameState.Checkmate : GameState.Stalemate;
             var score = gameState == GameState.Checkmate
-                ? position.WhiteToMove ? -10000 : 10000
+                ? game.Position.WhiteToMove ? -10000 : 10000
                 : 0;
             return new SearchResult
             {
@@ -107,6 +105,7 @@ public class Search
             };
         }
 
+        var position = game.Position;
         var ttMove = Move.NullMove;
         if (_transpositionTable.Probe(position.ZobristHash, out var ttCompactMove, out _, out _, out _, out _))
         {
@@ -133,9 +132,9 @@ public class Search
             }
 
             var move = movesBuffer[i];
-            _moveExecutor.MakeMove(position, move);
-            var score = AlphaBeta(position, depth - 1, alpha, beta, !isMaximizing, 1).Score;
-            _moveExecutor.UndoMove(position);
+            game.MakeMove(move);
+            var score = AlphaBeta(game, depth - 1, alpha, beta, !isMaximizing, 1).Score;
+            game.UndoMove();
 
             if (isMaximizing)
             {
@@ -178,7 +177,7 @@ public class Search
         };
     }
 
-    private EvaluationResult AlphaBeta(Position position, int depth, int alpha, int beta,
+    private EvaluationResult AlphaBeta(Game game, int depth, int alpha, int beta,
         bool isMaximizing, int ply)
     {
         _nodesSearched++;
@@ -190,17 +189,17 @@ public class Search
             return new EvaluationResult(0, GameState.Ongoing);
         }
 
-        if (position.HalfmoveClock >= 100)
+        if (game.IsDrawByFiftyMoves())
         {
             return new EvaluationResult(0, GameState.DrawFiftyMove);
         }
 
-        if (position.IsDrawByInsufficientMaterial())
+        if (game.IsDrawByInsufficientMaterial())
         {
             return new EvaluationResult(0, GameState.DrawInsufficientMaterial);
         }
 
-        if (position.IsDrawByRepetition())
+        if (game.IsDrawByRepetition())
         {
             return new EvaluationResult(0, GameState.DrawRepetition);
         }
@@ -208,6 +207,7 @@ public class Search
         // Transposition table lookup
         var ttHit = false;
         var ttMove = Move.NullMove;
+        var position = game.Position;
         if (_transpositionTable.Probe(position.ZobristHash, out var ttCompactMove, out var ttScore, out var ttEval, out var ttDepth, out var ttBound))
         {
             ttHit = true;
@@ -235,7 +235,7 @@ public class Search
 
         if (moveCount == 0)
         {
-            return position.IsInCheck()
+            return game.IsInCheck()
                 ? new EvaluationResult(isMaximizing ? -10000 + ply : 10000 - ply, GameState.Checkmate)
                 : new EvaluationResult(0, GameState.Stalemate);
         }
@@ -263,9 +263,9 @@ public class Search
             if (_stopSearch) break;
 
             var move = movesBuffer[i];
-            _moveExecutor.MakeMove(position, move);
-            var score = AlphaBeta(position, depth - 1, alpha, beta, !isMaximizing, ply + 1).Score;
-            _moveExecutor.UndoMove(position);
+            game.MakeMove(move);
+            var score = AlphaBeta(game, depth - 1, alpha, beta, !isMaximizing, ply + 1).Score;
+            game.UndoMove();
 
             if (isMaximizing)
             {

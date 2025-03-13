@@ -52,10 +52,6 @@ public class Position
 
     #endregion
 
-    // TODO: move this out
-    public readonly ulong[] RepetitionTable = new ulong[256];
-    public int CurrentPly;
-
     /// <summary>
     /// Default constructor: sets up the standard starting position.
     /// </summary>
@@ -95,7 +91,6 @@ public class Position
         UpdateAttacks();
         UpdatePinnedPieces();
         ZobristHash = Zobrist.ComputeHash(this);
-        RepetitionTable[CurrentPly++] = ZobristHash;
     }
 
     public override string ToString()
@@ -171,73 +166,6 @@ public class Position
             case PieceType.None:
             default: throw new InvalidOperationException("No matching piece found for given piece type.");
         }
-    }
-
-    public bool IsInCheck()
-    {
-        var kingSquare = WhiteToMove ? WhiteKing.GetFirstSquare() : BlackKing.GetFirstSquare();
-        return IsSquareAttacked(kingSquare, byWhite: !WhiteToMove);
-    }
-
-    public bool IsSquareAttacked(Square square, bool byWhite)
-    {
-        var enemyAttacks = byWhite ? WhiteAttacks : BlackAttacks;
-        return enemyAttacks.Intersects(square);
-    }
-
-    // TODO: move this out
-    public bool IsDrawByRepetition()
-    {
-        var count = 0;
-        for (var i = 0; i < CurrentPly; i++)
-        {
-            if (RepetitionTable[i] != ZobristHash) continue;
-
-            count++;
-            if (count >= 3)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // TODO: move this out
-    public bool IsDrawByInsufficientMaterial()
-    {
-        var whiteMaterial = WhitePawns | WhiteKnights | WhiteBishops | WhiteRooks | WhiteQueens;
-        var blackMaterial = BlackPawns | BlackKnights | BlackBishops | BlackRooks | BlackQueens;
-
-        // Both sides have just kings
-        if (whiteMaterial.IsEmpty() && blackMaterial.IsEmpty())
-        {
-            return true;
-        }
-
-        // If white has only its king
-        if (whiteMaterial.IsEmpty())
-        {
-            // Black has exactly one knight
-            if (blackMaterial == BlackKnights && blackMaterial.Count() == 1)
-                return true;
-            // or exactly one bishop
-            if (blackMaterial == BlackBishops && blackMaterial.Count() == 1)
-                return true;
-        }
-
-        // If black has only its king
-        if (blackMaterial.IsEmpty())
-        {
-            // White has exactly one knight
-            if (whiteMaterial == WhiteKnights && whiteMaterial.Count() == 1)
-                return true;
-            // or exactly one bishop
-            if (whiteMaterial == WhiteBishops && whiteMaterial.Count() == 1)
-                return true;
-        }
-
-        return false;
     }
 
     private void UpdateCombinedBitboards()
@@ -361,12 +289,7 @@ public class Position
             BlackPawnAttacks = BlackPawnAttacks,
             BlackKnightAttacks = BlackKnightAttacks,
             BlackKingAttacks = BlackKingAttacks,
-
-            // Initialize repetition table with the current hash
-            CurrentPly = CurrentPly
         };
-
-        Array.Copy(RepetitionTable, clone.RepetitionTable, RepetitionTable.Length);
 
         return clone;
     }

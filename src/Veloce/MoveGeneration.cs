@@ -341,9 +341,9 @@ public static class MoveGeneration
             if (position.CastlingRights.Contains(CastlingRights.WhiteKingside))
             {
                 if (position.AllPieces.DoesNotIntersect(Constants.WhiteShortCastleEmptySquares)
-                    && !position.IsSquareAttacked(Square.e1, false)
-                    && !position.IsSquareAttacked(Square.f1, false)
-                    && !position.IsSquareAttacked(Square.g1, false))
+                    && !IsSquareAttacked(position, Square.e1, false)
+                    && !IsSquareAttacked(position, Square.f1, false)
+                    && !IsSquareAttacked(position, Square.g1, false))
                 {
                     movesBuffer[bufferIndex++] = Move.CreateShortCastle(position.WhiteToMove);
                 }
@@ -352,9 +352,9 @@ public static class MoveGeneration
             if (position.CastlingRights.Contains(CastlingRights.WhiteQueenside))
             {
                 if (position.AllPieces.DoesNotIntersect(Constants.WhiteLongCastleEmptySquares)
-                    && !position.IsSquareAttacked(Square.e1, false)
-                    && !position.IsSquareAttacked(Square.d1, false)
-                    && !position.IsSquareAttacked(Square.c1, false))
+                    && !IsSquareAttacked(position, Square.e1, false)
+                    && !IsSquareAttacked(position, Square.d1, false)
+                    && !IsSquareAttacked(position, Square.c1, false))
                 {
                     movesBuffer[bufferIndex++] = Move.CreateLongCastle(position.WhiteToMove);
                 }
@@ -367,9 +367,9 @@ public static class MoveGeneration
             if (position.CastlingRights.Contains(CastlingRights.BlackKingside))
             {
                 if (position.AllPieces.DoesNotIntersect(Constants.BlackShortCastleEmptySquares)
-                    && !position.IsSquareAttacked(Square.e8, true)
-                    && !position.IsSquareAttacked(Square.f8, true)
-                    && !position.IsSquareAttacked(Square.g8, true))
+                    && !IsSquareAttacked(position, Square.e8, true)
+                    && !IsSquareAttacked(position, Square.f8, true)
+                    && !IsSquareAttacked(position, Square.g8, true))
                 {
                     movesBuffer[bufferIndex++] = Move.CreateShortCastle(position.WhiteToMove);
                 }
@@ -378,9 +378,9 @@ public static class MoveGeneration
             if (position.CastlingRights.Contains(CastlingRights.BlackQueenside))
             {
                 if (position.AllPieces.DoesNotIntersect(Constants.BlackLongCastleEmptySquares)
-                    && !position.IsSquareAttacked(Square.e8, true)
-                    && !position.IsSquareAttacked(Square.d8, true)
-                    && !position.IsSquareAttacked(Square.c8, true))
+                    && !IsSquareAttacked(position, Square.e8, true)
+                    && !IsSquareAttacked(position, Square.d8, true)
+                    && !IsSquareAttacked(position, Square.c8, true))
                 {
                     movesBuffer[bufferIndex++] = Move.CreateLongCastle(position.WhiteToMove);
                 }
@@ -438,6 +438,12 @@ public static class MoveGeneration
 
             pieces &= pieces - 1;
         }
+    }
+
+    public static bool IsSquareAttacked(Position position, Square square, bool byWhite)
+    {
+        var enemyAttacks = byWhite ? position.WhiteAttacks : position.BlackAttacks;
+        return enemyAttacks.Intersects(square);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
