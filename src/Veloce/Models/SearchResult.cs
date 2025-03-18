@@ -3,7 +3,7 @@ namespace Veloce.Models;
 /// <summary>
 /// Represents the result of a search operation
 /// </summary>
-public class SearchResult
+public struct SearchResult
 {
     /// <summary>
     /// The best move found by the search, or null if no legal moves exist

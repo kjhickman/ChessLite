@@ -21,7 +21,7 @@ public interface IEngineLogger
 /// <summary>
 /// Container for search information that can be passed to loggers.
 /// </summary>
-public class SearchInfo
+public struct SearchInfo
 {
     public int Depth { get; set; }
     public int Score { get; set; }
