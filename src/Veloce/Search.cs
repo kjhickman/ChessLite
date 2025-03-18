@@ -19,7 +19,7 @@ public class Search
 
     public Search(IEngineLogger? engineLogger = null, EngineSettings? settings = null)
     {
-        _engineLogger = engineLogger ?? new ConsoleEngineLogger();
+        _engineLogger = engineLogger ?? new NullEngineLogger();
         _settings = settings ?? EngineSettings.Default;
         _transpositionTable = new TranspositionTable(_settings.TranspositionTableSizeMb);
     }
