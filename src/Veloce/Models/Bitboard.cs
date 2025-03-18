@@ -8,30 +8,27 @@ namespace Veloce.Models;
 /// </summary>
 public readonly struct Bitboard : IEquatable<Bitboard>
 {
-    public readonly ulong Value;
+    private readonly ulong _value;
 
-    public Bitboard(ulong value) => Value = value;
+    private Bitboard(ulong value) => _value = value;
 
     // Implicit conversions for ease of use
-    public static implicit operator ulong(Bitboard b) => b.Value;
+    public static implicit operator ulong(Bitboard b) => b._value;
     public static implicit operator Bitboard(ulong value) => new(value);
 
     // Operator overloads
-    public static Bitboard operator |(Bitboard a, Bitboard b) => new(a.Value | b.Value);
-    public static Bitboard operator &(Bitboard a, Bitboard b) => new(a.Value & b.Value);
-    public static Bitboard operator ^(Bitboard a, Bitboard b) => new(a.Value ^ b.Value);
-    public static Bitboard operator ~(Bitboard a) => new(~a.Value);
+    public static Bitboard operator |(Bitboard a, Bitboard b) => new(a._value | b._value);
+    public static Bitboard operator &(Bitboard a, Bitboard b) => new(a._value & b._value);
+    public static Bitboard operator ^(Bitboard a, Bitboard b) => new(a._value ^ b._value);
+    public static Bitboard operator ~(Bitboard a) => new(~a._value);
     public static bool operator ==(Bitboard left, Bitboard right) => left.Equals(right);
     public static bool operator !=(Bitboard left, Bitboard right) => !(left == right);
-    public bool Equals(Bitboard other) => Value == other.Value;
+    public bool Equals(Bitboard other) => _value == other._value;
     public override bool Equals(object? obj) => obj is Bitboard other && Equals(other);
-    public override int GetHashCode() => Value.GetHashCode();
-    public override string ToString() => Convert.ToString((long)Value, 2).PadLeft(64, '0');
+    public override int GetHashCode() => _value.GetHashCode();
+    public override string ToString() => Convert.ToString((long)_value, 2).PadLeft(64, '0');
 
     #region Helper methods
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard Mask(int square) => 1UL << square;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bitboard Mask(Square square) => 1UL << (int)square;
@@ -40,60 +37,48 @@ public readonly struct Bitboard : IEquatable<Bitboard>
     /// Returns true if no bits are set.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool IsEmpty() => Value == 0;
+    public bool IsEmpty() => _value == 0;
 
     /// <summary>
     /// Returns true if no bits are set.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool IsNotEmpty() => Value != 0;
+    public bool IsNotEmpty() => _value != 0;
 
     /// <summary>
     /// Returns the number of set bits.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public int Count() => BitOperations.PopCount(Value);
-
-    /// <summary>
-    /// Returns true if the given square is set in the bitboard.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool IsSet(Square square) => (Value & Mask(square)) != 0;
+    public int Count() => BitOperations.PopCount(_value);
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bitboard SetSquare(Square square)
     {
-        return new Bitboard(Value | Mask(square));
+        return new Bitboard(_value | Mask(square));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bitboard SetSquares(Bitboard bits)
     {
-        return new Bitboard(Value | bits);
+        return new Bitboard(_value | bits);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bitboard ClearSquare(Square square)
     {
-        return new Bitboard(Value & ~Mask(square));
+        return new Bitboard(_value & ~Mask(square));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bitboard ClearSquares(Bitboard bits)
     {
-        return new Bitboard(Value & ~bits);
+        return new Bitboard(_value & ~bits);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bitboard MoveSquare(Square from, Square to)
     {
         return ClearSquare(from).SetSquare(to);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard MoveSquares(Bitboard from, Bitboard to)
-    {
-        return ClearSquares(from).SetSquares(to);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -108,6 +93,7 @@ public readonly struct Bitboard : IEquatable<Bitboard>
         return (this & other) != 0;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Intersects(Square square)
     {
         return (this & Mask(square)) != 0;
@@ -128,6 +114,5 @@ public readonly struct Bitboard : IEquatable<Bitboard>
         return 0xFFUL << (rank * 8);
     }
 
-    public static Bitboard AllOnes = ulong.MaxValue;
     #endregion
 }

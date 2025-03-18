@@ -16,7 +16,7 @@ public static class LegalityChecker
         if (move.PieceType is PieceType.WhiteKing or PieceType.BlackKing)
         {
             var enemyAttacksWithoutKing = !position.WhiteToMove ? position.WhiteAttacksWithoutBlackKing : position.BlackAttacksWithoutWhiteKing;
-            return !enemyAttacksWithoutKing.Intersects(move.To);
+            return !enemyAttacksWithoutKing.Intersects(targetSquare);
         }
 
         // If the king is in check, check if the move resolves it
