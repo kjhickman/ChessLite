@@ -1,4 +1,3 @@
-using System.Numerics;
 using System.Runtime.CompilerServices;
 using Veloce.Extensions;
 using Veloce.Models;
@@ -161,12 +160,12 @@ public static class MagicBitboards
         var bits = mask.Count();
         for (var i = 0; i < bits; i++)
         {
-            var bitPos = BitOperations.TrailingZeroCount(mask);
+            var square = mask.GetFirstSquare();
             mask &= mask - 1; // Clear the least significant bit
 
             if ((index & (1 << i)) != 0)
             {
-                blockers |= 1UL << bitPos;
+                blockers = blockers.SetSquare(square);
             }
         }
         return blockers;
@@ -178,116 +177,116 @@ public static class MagicBitboards
         var rank = square.GetRank();
         var file = square.GetFile();
 
-        // Diagonal rays in all 4 directions, stopping one square from the edge
-        for (int r = rank + 1, f = file + 1; r < 7 && f < 7; r++, f++)
-            mask |= 1UL << (r * 8 + f);
-        for (int r = rank + 1, f = file - 1; r < 7 && f > 0; r++, f--)
-            mask |= 1UL << (r * 8 + f);
-        for (int r = rank - 1, f = file + 1; r > 0 && f < 7; r--, f++)
-            mask |= 1UL << (r * 8 + f);
-        for (int r = rank - 1, f = file - 1; r > 0 && f > 0; r--, f--)
-            mask |= 1UL << (r * 8 + f);
+        mask |= GenerateDiagonalRay(rank, file, 1, 1); // Northeast
+        mask |= GenerateDiagonalRay(rank, file, 1, -1); // Northwest
+        mask |= GenerateDiagonalRay(rank, file, -1, 1); // Southeast
+        mask |= GenerateDiagonalRay(rank, file, -1, -1); // Southwest
 
         return mask;
+    }
+
+    private static Bitboard GenerateDiagonalRay(int startRank, int startFile, int rankDir, int fileDir)
+    {
+        Bitboard ray = 0;
+        var rank = startRank + rankDir;
+        var file = startFile + fileDir;
+
+        // Stop one square before the edge
+        while (rank is > 0 and < 7 && file is > 0 and < 7)
+        {
+            ray = ray.SetSquare(SquareExtensions.FromRankFile(rank, file));
+            rank += rankDir;
+            file += fileDir;
+        }
+
+        return ray;
     }
 
     private static Bitboard GenerateRookMask(Square square)
     {
-        Bitboard mask = 0;
         var rank = square.GetRank();
         var file = square.GetFile();
 
-        // Horizontal and vertical rays, stopping one square from the edge
-        for (var r = rank + 1; r < 7; r++)
-            mask |= 1UL << (r * 8 + file);
-        for (var r = rank - 1; r > 0; r--)
-            mask |= 1UL << (r * 8 + file);
-        for (var f = file + 1; f < 7; f++)
-            mask |= 1UL << (rank * 8 + f);
-        for (var f = file - 1; f > 0; f--)
-            mask |= 1UL << (rank * 8 + f);
+        Bitboard mask = 0;
+        mask |= GenerateOrthogonalRay(rank, file, 1, 0);  // North
+        mask |= GenerateOrthogonalRay(rank, file, -1, 0); // South
+        mask |= GenerateOrthogonalRay(rank, file, 0, 1);  // East
+        mask |= GenerateOrthogonalRay(rank, file, 0, -1); // West
 
         return mask;
     }
 
+    private static Bitboard GenerateOrthogonalRay(int startRank, int startFile, int rankDelta, int fileDelta)
+    {
+        Bitboard ray = 0;
+        var rank = startRank + rankDelta;
+        var file = startFile + fileDelta;
+
+        while (true)
+        {
+            // Check if we're out of bounds
+            if (rankDelta != 0 && rank is <= 0 or >= 7) break;
+            if (fileDelta != 0 && file is <= 0 or >= 7) break;
+
+            ray |= SquareExtensions.FromRankFile(rank, file).ToMask();
+            rank += rankDelta;
+            file += fileDelta;
+        }
+
+        return ray;
+    }
+
     private static Bitboard GenerateBishopAttacksOnTheFly(Square square, Bitboard blockers)
     {
+        var startRank = square.GetRank();
+        var startFile = square.GetFile();
+
         Bitboard attacks = 0;
-        var rank = square.GetRank();
-        var file = square.GetFile();
-        int r, f;
 
-        // Northeast
-        for (r = rank + 1, f = file + 1; r < 8 && f < 8; r++, f++)
-        {
-            Bitboard bit = 1UL << (r * 8 + f);
-            attacks |= bit;
-            if ((blockers & bit) != 0) break;
-        }
-
-        // Northwest
-        for (r = rank + 1, f = file - 1; r < 8 && f >= 0; r++, f--)
-        {
-            Bitboard bit = 1UL << (r * 8 + f);
-            attacks |= bit;
-            if ((blockers & bit) != 0) break;
-        }
-
-        // Southeast
-        for (r = rank - 1, f = file + 1; r >= 0 && f < 8; r--, f++)
-        {
-            Bitboard bit = 1UL << (r * 8 + f);
-            attacks |= bit;
-            if ((blockers & bit) != 0) break;
-        }
-
-        // Southwest
-        for (r = rank - 1, f = file - 1; r >= 0 && f >= 0; r--, f--)
-        {
-            Bitboard bit = 1UL << (r * 8 + f);
-            attacks |= bit;
-            if ((blockers & bit) != 0) break;
-        }
+        // Generate attacks in all four diagonal directions
+        attacks |= GenerateAttackRay(startRank, startFile, 1, 1, blockers);   // Northeast
+        attacks |= GenerateAttackRay(startRank, startFile, 1, -1, blockers);  // Northwest
+        attacks |= GenerateAttackRay(startRank, startFile, -1, 1, blockers);  // Southeast
+        attacks |= GenerateAttackRay(startRank, startFile, -1, -1, blockers); // Southwest
 
         return attacks;
     }
 
     private static Bitboard GenerateRookAttacksOnTheFly(Square square, Bitboard blockers)
     {
+        var startRank = square.GetRank();
+        var startFile = square.GetFile();
+
         Bitboard attacks = 0;
-        var rank = square.GetRank();
-        var file = square.GetFile();
 
-        // North
-        for (var r = rank + 1; r < 8; r++)
-        {
-            Bitboard bit = 1UL << (r * 8 + file);
-            attacks |= bit;
-            if ((blockers & bit) != 0) break;
-        }
+        // Generate attacks in all four orthogonal directions
+        attacks |= GenerateAttackRay(startRank, startFile, 1, 0, blockers);   // North
+        attacks |= GenerateAttackRay(startRank, startFile, -1, 0, blockers);  // South
+        attacks |= GenerateAttackRay(startRank, startFile, 0, 1, blockers);   // East
+        attacks |= GenerateAttackRay(startRank, startFile, 0, -1, blockers);  // West
 
-        // South
-        for (var r = rank - 1; r >= 0; r--)
-        {
-            Bitboard bit = 1UL << (r * 8 + file);
-            attacks |= bit;
-            if ((blockers & bit) != 0) break;
-        }
+        return attacks;
+    }
 
-        // East
-        for (var f = file + 1; f < 8; f++)
-        {
-            Bitboard bit = 1UL << (rank * 8 + f);
-            attacks |= bit;
-            if ((blockers & bit) != 0) break;
-        }
+    private static Bitboard GenerateAttackRay(int startRank, int startFile, int rankDir, int fileDir, Bitboard blockers)
+    {
+        Bitboard attacks = 0;
+        var rank = startRank + rankDir;
+        var file = startFile + fileDir;
 
-        // West
-        for (var f = file - 1; f >= 0; f--)
+        while (rank is >= 0 and < 8 && file is >= 0 and < 8)
         {
-            Bitboard bit = 1UL << (rank * 8 + f);
-            attacks |= bit;
-            if ((blockers & bit) != 0) break;
+            var square = SquareExtensions.FromRankFile(rank, file).ToMask();
+            attacks |= square;
+
+            // Stop ray when hitting a blocker
+            if (blockers.Intersects(square))
+            {
+                break;
+            }
+
+            rank += rankDir;
+            file += fileDir;
         }
 
         return attacks;

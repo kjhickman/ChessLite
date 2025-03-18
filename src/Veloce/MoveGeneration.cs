@@ -6,7 +6,25 @@ namespace Veloce;
 
 public static class MoveGeneration
 {
-    public static int GenerateLegalMoves(Position position, Span<Move> movesBuffer)
+    public static int GenerateLegalMoves(Position position, Span<Move> legalMovesBuffer)
+    {
+        Span<Move> pseudoLegalMovesBuffer = stackalloc Move[256];
+        var pseudoLegalMoveCount = GeneratePseudoLegalMoves(position, pseudoLegalMovesBuffer);
+
+        var legalMoveCount = 0;
+        for (var i = 0; i < pseudoLegalMoveCount; i++)
+        {
+            var move = pseudoLegalMovesBuffer[i];
+            if (LegalityChecker.IsMoveLegal(position, move))
+            {
+                legalMovesBuffer[legalMoveCount++] = move;
+            }
+        }
+
+        return legalMoveCount;
+    }
+
+    private static int GeneratePseudoLegalMoves(Position position, Span<Move> movesBuffer)
     {
         var moveCount = 0;
 
@@ -44,19 +62,14 @@ public static class MoveGeneration
             {
                 if ((int)oneStep is > 55 or < 8)
                 {
-                    var queenPromotion = Move.CreatePromotion(from, oneStep, pieceType, PromotedPieceType.Queen);
-                    var rookPromotion = Move.CreatePromotion(from, oneStep, pieceType, PromotedPieceType.Rook);
-                    var bishopPromotion = Move.CreatePromotion(from, oneStep, pieceType, PromotedPieceType.Bishop);
-                    var knightPromotion = Move.CreatePromotion(from, oneStep, pieceType, PromotedPieceType.Knight);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, queenPromotion);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, rookPromotion);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, bishopPromotion);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, knightPromotion);
+                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, oneStep, pieceType, PromotedPieceType.Queen);
+                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, oneStep, pieceType, PromotedPieceType.Rook);
+                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, oneStep, pieceType, PromotedPieceType.Bishop);
+                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, oneStep, pieceType, PromotedPieceType.Knight);
                 }
                 else
                 {
-                    var move = Move.CreateQuiet(from, oneStep, pieceType);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
+                    movesBuffer[bufferIndex++] = Move.CreateQuiet(from, oneStep, pieceType);
                 }
             }
 
@@ -65,8 +78,7 @@ public static class MoveGeneration
             var twoStepsMask = Bitboard.Mask(twoSteps) | oneStepMask; // Mask for both squares in front of the pawn
             if (twoSteps.IsValid() && twoStepsMask.DoesNotIntersect(allPieces) && Bitboard.Mask(from).Intersects(startingRank))
             {
-                var move = Move.CreateDoublePawnPush(from, twoSteps, pieceType);
-                AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
+                movesBuffer[bufferIndex++] = Move.CreateDoublePawnPush(from, twoSteps, pieceType);
             }
 
             // Left capture
@@ -79,25 +91,19 @@ public static class MoveGeneration
 
                 if ((int)leftCaptureTo is > 55 or < 8)
                 {
-                    var queenPromotion = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Queen);
-                    var rookPromotion = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Rook);
-                    var bishopPromotion = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Bishop);
-                    var knightPromotion = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Knight);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, queenPromotion);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, rookPromotion);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, bishopPromotion);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, knightPromotion);
+                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Queen);
+                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Rook);
+                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Bishop);
+                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Knight);
                 }
                 else
                 {
-                    var move = Move.CreateCapture(from, leftCaptureTo, pieceType, leftCapturedPieceType);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
+                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, leftCaptureTo, pieceType, leftCapturedPieceType);
                 }
             }
             else if (leftCaptureTo == enPassantTarget && fromFile != 0)
             {
-                var move = Move.CreateEnPassant(from, leftCaptureTo, isWhite);
-                AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
+                movesBuffer[bufferIndex++] = Move.CreateEnPassant(from, leftCaptureTo, isWhite);
             }
 
             // Right capture
@@ -108,25 +114,19 @@ public static class MoveGeneration
                 var rightCapturedPieceType = DetermineCapturedPieceType(position, rightCaptureMask, isWhite);
                 if ((int)rightCaptureTo is > 55 or < 8)
                 {
-                    var queenPromotion = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Queen);
-                    var rookPromotion = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Rook);
-                    var bishopPromotion = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Bishop);
-                    var knightPromotion = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Knight);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, queenPromotion);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, rookPromotion);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, bishopPromotion);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, knightPromotion);
+                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Queen);
+                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Rook);
+                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Bishop);
+                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Knight);
                 }
                 else
                 {
-                    var move = Move.CreateCapture(from, rightCaptureTo, pieceType, rightCapturedPieceType);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
+                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, rightCaptureTo, pieceType, rightCapturedPieceType);
                 }
             }
             else if (rightCaptureTo == enPassantTarget && fromFile != 7)
             {
-                var move = Move.CreateEnPassant(from, rightCaptureTo, isWhite);
-                AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
+                movesBuffer[bufferIndex++] = Move.CreateEnPassant(from, rightCaptureTo, isWhite);
             }
 
             // Clear the least significant bit
@@ -196,58 +196,37 @@ public static class MoveGeneration
 
     private static void GenerateKnightMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
-        Span<int> knightOffsets = [17, 15, 10, 6, -6, -10, -15, -17];
         var knights = position.WhiteToMove ? position.WhiteKnights : position.BlackKnights;
         var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
         var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
         var pieceType = position.WhiteToMove ? PieceType.WhiteKnight : PieceType.BlackKnight;
 
-        var currentKnights = knights;
-        while (currentKnights.IsNotEmpty())
+        while (knights != 0)
         {
-            var from = currentKnights.GetFirstSquare();
-            var fromFile = from.GetFile();
-            var fromRank = from.GetRank();
+            var from = knights.GetFirstSquare();
+            // Use precomputed attack table directly rather than computing offsets
+            var attacks = AttackTables.KnightAttacks[(int)from] & ~friendlyPieces;
 
-            for (var i = 0;  i < knightOffsets.Length; i++)
+            // Generate captures
+            var captures = attacks & enemyPieces;
+            while (captures != 0)
             {
-                var to = from + knightOffsets[i];
-                if (!to.IsValid())
-                {
-                    // Out of bounds
-                    continue;
-                }
-
-                var toFile = to.GetFile();
-                var toRank = to.GetRank();
-
-                if (Math.Abs(toFile - fromFile) > 2 || Math.Abs(toRank - fromRank) > 2)
-                {
-                    // Invalid move (wraps around the board)
-                    continue;
-                }
-
-                var toMask = Bitboard.Mask(to);
-                if (toMask.Intersects(friendlyPieces))
-                {
-                    continue;
-                }
-
-                Move move;
-                if (toMask.Intersects(enemyPieces))
-                {
-                    var capturedPieceType = DetermineCapturedPieceType(position, toMask, position.WhiteToMove);
-                    move = Move.CreateCapture(from, to, pieceType, capturedPieceType);
-                }
-                else
-                {
-                    move = Move.CreateQuiet(from, to, pieceType);
-                }
-
-                AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
+                var to = captures.GetFirstSquare();
+                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), position.WhiteToMove);
+                movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
+                captures &= captures - 1;
             }
 
-            currentKnights &= currentKnights - 1;
+            // Generate quiet moves
+            var quiets = attacks & ~enemyPieces;
+            while (quiets != 0)
+            {
+                var to = quiets.GetFirstSquare();
+                movesBuffer[bufferIndex++] = Move.CreateQuiet(from, to, pieceType);
+                quiets &= quiets - 1;
+            }
+
+            knights &= knights - 1;
         }
     }
 
@@ -290,46 +269,40 @@ public static class MoveGeneration
         var fromFile = from.GetFile();
         var fromRank = from.GetRank();
 
-        // TODO: refactor to use single loop like queen directions?
-        for (var fileDirection = -1; fileDirection <= 1; fileDirection++)
+        Span<(int fileDirection, int rankDirection)> kingDirections = stackalloc (int, int)[]
         {
-            for (var rankDirection = -1; rankDirection <= 1; rankDirection++)
+            (1, 1), (-1, 1), (1, -1), (-1, -1),
+            (1, 0), (-1, 0), (0, 1), (0, -1)
+        };
+
+        for (var i = 0; i < kingDirections.Length; i++)
+        {
+            var (fileDirection, rankDirection) = kingDirections[i];
+            var newFile = fromFile + fileDirection;
+            var newRank = fromRank + rankDirection;
+
+            if (newFile < 0 || newFile >= 8 || newRank < 0 || newRank >= 8)
             {
-                if (fileDirection == 0 && rankDirection == 0)
-                {
-                    // Skip the king's current position
-                    continue;
-                }
+                // Out of bounds
+                continue;
+            }
 
-                var newFile = fromFile + fileDirection;
-                var newRank = fromRank + rankDirection;
+            var to = (Square)(newRank * 8 + newFile);
+            var toMask = Bitboard.Mask(to);
 
-                if (newFile < 0 || newFile >= 8 || newRank < 0 || newRank >= 8)
-                {
-                    // Out of bounds
-                    continue;
-                }
+            if (toMask.Intersects(friendlyPieces))
+            {
+                continue;
+            }
 
-                var to = (Square)(newFile + newRank * 8);
-                var toMask = Bitboard.Mask(to);
-
-                if (toMask.Intersects(friendlyPieces))
-                {
-                    continue;
-                }
-
-                Move move;
-                if (toMask.Intersects(enemyPieces))
-                {
-                    var capturedPieceType = DetermineCapturedPieceType(position, toMask, position.WhiteToMove);
-                    move = Move.CreateCapture(from, to, pieceType, capturedPieceType);
-                }
-                else
-                {
-                    move = Move.CreateQuiet(from, to, pieceType);
-                }
-
-                AddMoveIfLegal(position, ref bufferIndex, movesBuffer, move);
+            if (toMask.Intersects(enemyPieces))
+            {
+                var capturedPieceType = DetermineCapturedPieceType(position, toMask, position.WhiteToMove);
+                movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
+            }
+            else
+            {
+                movesBuffer[bufferIndex++] = Move.CreateQuiet(from, to, pieceType);
             }
         }
 
@@ -426,13 +399,11 @@ public static class MoveGeneration
                     if (toMask.Intersects(enemyPieces))
                     {
                         var capturedPieceType = DetermineCapturedPieceType(position, toMask, position.WhiteToMove);
-                        var captureMove = Move.CreateCapture(from, to, pieceType, capturedPieceType);
-                        AddMoveIfLegal(position, ref bufferIndex, movesBuffer, captureMove);
+                        movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
                         break;
                     }
 
-                    var quietMove = Move.CreateQuiet(from, to, pieceType);
-                    AddMoveIfLegal(position, ref bufferIndex, movesBuffer, quietMove);
+                    movesBuffer[bufferIndex++] = Move.CreateQuiet(from, to, pieceType);
                 }
             }
 
@@ -440,18 +411,10 @@ public static class MoveGeneration
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsSquareAttacked(Position position, Square square, bool byWhite)
     {
         var enemyAttacks = byWhite ? position.WhiteAttacks : position.BlackAttacks;
         return enemyAttacks.Intersects(square);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void AddMoveIfLegal(Position position, ref int bufferIndex, Span<Move> movesBuffer, Move move)
-    {
-        if (LegalityChecker.IsMoveLegal(position, move))
-        {
-            movesBuffer[bufferIndex++] = move;
-        }
     }
 }

@@ -9,11 +9,10 @@ public static class AttackGeneration
         Bitboard attacks = 0;
 
         var pawns = forWhite ? position.WhitePawns : position.BlackPawns;
-        var pawnAttackTable = forWhite ? AttackTables.WhitePawnAttacks : AttackTables.BlackPawnAttacks;
-        attacks |= CalculatePawnAttacksFromTable(pawns, pawnAttackTable);
+        attacks |= CalculatePawnAttacks(pawns, forWhite);
 
         var knights = forWhite ? position.WhiteKnights : position.BlackKnights;
-        attacks |= CalculateKnightAttacksFromTable(knights);
+        attacks |= CalculateKnightAttacks(knights);
 
         var bishops = forWhite ? position.WhiteBishops : position.BlackBishops;
         attacks |= CalculateBishopAttacks(bishops, position.AllPieces);
@@ -25,26 +24,71 @@ public static class AttackGeneration
         attacks |= CalculateQueenAttacks(queens, position.AllPieces);
 
         var king = forWhite ? position.WhiteKing : position.BlackKing;
-        attacks |= CalculateKingAttacksFromTable(king);
+        attacks |= CalculateKingAttacks(king);
+
+        return attacks;
+    }
+
+    public static Bitboard CalculateAttacksWithoutOpposingKing(Position position, bool forWhite)
+    {
+        Bitboard attacks = 0;
+
+        var pawns = forWhite ? position.WhitePawns : position.BlackPawns;
+        attacks |= CalculatePawnAttacks(pawns, forWhite);
+
+        var knights = forWhite ? position.WhiteKnights : position.BlackKnights;
+        attacks |= CalculateKnightAttacks(knights);
+
+        var kingMask = forWhite ? position.BlackKing : position.WhiteKing;
+        var bishops = forWhite ? position.WhiteBishops : position.BlackBishops;
+        attacks |= CalculateBishopAttacks(bishops, position.AllPieces.ClearSquares(kingMask));
+
+        var rooks = forWhite ? position.WhiteRooks : position.BlackRooks;
+        attacks |= CalculateRookAttacks(rooks, position.AllPieces.ClearSquares(kingMask));
+
+        var queens = forWhite ? position.WhiteQueens : position.BlackQueens;
+        attacks |= CalculateQueenAttacks(queens, position.AllPieces.ClearSquares(kingMask));
+
+        var king = forWhite ? position.WhiteKing : position.BlackKing;
+        attacks |= CalculateKingAttacks(king);
 
         return attacks;
     }
 
     public static Bitboard CalculatePawnAttacks(Bitboard pawns, bool forWhite)
     {
-        // Use the pre-computed tables
         var attackTable = forWhite ? AttackTables.WhitePawnAttacks : AttackTables.BlackPawnAttacks;
-        return CalculatePawnAttacksFromTable(pawns, attackTable);
+        Bitboard attacks = 0;
+        var currentPawns = pawns;
+
+        while (currentPawns.IsNotEmpty())
+        {
+            var square = currentPawns.GetFirstSquare();
+            attacks |= attackTable[(int)square];
+            currentPawns &= currentPawns - 1; // Clear the least significant bit
+        }
+
+        return attacks;
     }
 
     public static Bitboard CalculateKnightAttacks(Bitboard knights)
     {
-        return CalculateKnightAttacksFromTable(knights);
+        Bitboard attacks = 0;
+        var currentKnights = knights;
+
+        while (currentKnights.IsNotEmpty())
+        {
+            var square = currentKnights.GetFirstSquare();
+            attacks |= AttackTables.KnightAttacks[(int)square];
+            currentKnights &= currentKnights - 1; // Clear the least significant bit
+        }
+
+        return attacks;
     }
 
     public static Bitboard CalculateKingAttacks(Bitboard king)
     {
-        if (king == 0) return 0;
+        if (king.IsEmpty()) return 0;
         var square = king.GetFirstSquare();
         return AttackTables.KingAttacks[(int)square];
     }
@@ -92,42 +136,5 @@ public static class AttackGeneration
         }
 
         return attacks;
-    }
-
-    private static Bitboard CalculatePawnAttacksFromTable(Bitboard pawns, Bitboard[] attackTable)
-    {
-        Bitboard attacks = 0;
-        var currentPawns = pawns;
-
-        while (currentPawns.IsNotEmpty())
-        {
-            var square = currentPawns.GetFirstSquare();
-            attacks |= attackTable[(int)square];
-            currentPawns &= currentPawns - 1; // Clear the least significant bit
-        }
-
-        return attacks;
-    }
-
-    private static Bitboard CalculateKnightAttacksFromTable(Bitboard knights)
-    {
-        Bitboard attacks = 0;
-        var currentKnights = knights;
-
-        while (currentKnights.IsNotEmpty())
-        {
-            var square = currentKnights.GetFirstSquare();
-            attacks |= AttackTables.KnightAttacks[(int)square];
-            currentKnights &= currentKnights - 1; // Clear the least significant bit
-        }
-
-        return attacks;
-    }
-
-    private static Bitboard CalculateKingAttacksFromTable(Bitboard king)
-    {
-        if (king == 0) return 0;
-        var square = king.GetFirstSquare();
-        return AttackTables.KingAttacks[(int)square];
     }
 }

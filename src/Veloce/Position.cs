@@ -42,10 +42,12 @@ public class Position
 
     public Bitboard PinnedPieces;
     public Bitboard WhiteAttacks;
+    public Bitboard WhiteAttacksWithoutBlackKing;
     public Bitboard WhitePawnAttacks;
     public Bitboard WhiteKnightAttacks;
     public Bitboard WhiteKingAttacks;
     public Bitboard BlackAttacks;
+    public Bitboard BlackAttacksWithoutWhiteKing;
     public Bitboard BlackPawnAttacks;
     public Bitboard BlackKnightAttacks;
     public Bitboard BlackKingAttacks;
@@ -178,11 +180,13 @@ public class Position
     public void UpdateAttacks()
     {
         WhiteAttacks = AttackGeneration.CalculateAttacks(this, forWhite: true);
+        WhiteAttacksWithoutBlackKing = AttackGeneration.CalculateAttacksWithoutOpposingKing(this, forWhite: true);
         WhitePawnAttacks = AttackGeneration.CalculatePawnAttacks(WhitePawns, forWhite: true);
         WhiteKnightAttacks = AttackGeneration.CalculateKnightAttacks(WhiteKnights);
         WhiteKingAttacks = AttackGeneration.CalculateKingAttacks(WhiteKing);
 
         BlackAttacks = AttackGeneration.CalculateAttacks(this, forWhite: false);
+        BlackAttacksWithoutWhiteKing = AttackGeneration.CalculateAttacksWithoutOpposingKing(this, forWhite: false);
         BlackPawnAttacks = AttackGeneration.CalculatePawnAttacks(BlackPawns, forWhite: false);
         BlackKnightAttacks = AttackGeneration.CalculateKnightAttacks(BlackKnights);
         BlackKingAttacks = AttackGeneration.CalculateKingAttacks(BlackKing);

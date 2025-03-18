@@ -1,4 +1,4 @@
-using System.Numerics;
+using System.Runtime.CompilerServices;
 using Veloce.Extensions;
 using Veloce.Models;
 
@@ -12,11 +12,14 @@ public static class LegalityChecker
         var kingSquare = isWhite ? position.WhiteKing.GetFirstSquare() : position.BlackKing.GetFirstSquare();
         var targetSquare = move.To;
 
+        // If the king is moving, check that it doesn't move into check
         if (move.PieceType is PieceType.WhiteKing or PieceType.BlackKing)
         {
-            return !WouldKingBeAttacked(position, targetSquare, kingSquare, !isWhite);
+            var enemyAttacksWithoutKing = !position.WhiteToMove ? position.WhiteAttacksWithoutBlackKing : position.BlackAttacksWithoutWhiteKing;
+            return !enemyAttacksWithoutKing.Intersects(move.To);
         }
 
+        // If the king is in check, check if the move resolves it
         if (MoveGeneration.IsSquareAttacked(position, kingSquare, !isWhite))
         {
             var checkingPieces = FindAttackingPieces(position, kingSquare, !isWhite);
@@ -46,79 +49,6 @@ public static class LegalityChecker
         }
 
         return true;
-    }
-
-    private static bool WouldKingBeAttacked(Position position, Square kingTargetSquare, Square currentKingSquare, bool byWhite)
-    {
-        var targetSquareMask = Bitboard.Mask(kingTargetSquare);
-
-        // Check pawn attacks
-        var pawnAttacks = byWhite ? position.WhitePawnAttacks : position.BlackPawnAttacks;
-        if (targetSquareMask.Intersects(pawnAttacks)) return true;
-
-        // Check knight attacks
-        var knightAttacks = byWhite ? position.WhiteKnightAttacks : position.BlackKnightAttacks;
-        if (targetSquareMask.Intersects(knightAttacks)) return true;
-
-        // Check king attacks
-        var kingAttacks = byWhite ? position.WhiteKingAttacks : position.BlackKingAttacks;
-        if (targetSquareMask.Intersects(kingAttacks)) return true;
-
-        // For sliding piece attacks, we need calculate the rays excluding the king
-
-        // Create a modified position bitboard for ray calculation
-        var allPiecesExceptKing = position.AllPieces.ClearSquare(currentKingSquare);
-
-        // Check bishop/queen diagonal attacks
-        var bishopsQueens = byWhite
-            ? position.WhiteBishops | position.WhiteQueens
-            : position.BlackBishops | position.BlackQueens;
-
-        if (bishopsQueens != 0)
-        {
-            var diagonalAttacks = CalculateDiagonalAttacks(allPiecesExceptKing, bishopsQueens);
-            if (targetSquareMask.Intersects(diagonalAttacks)) return true;
-        }
-
-        // Check rook/queen orthogonal attacks
-        var rooksQueens =
-            byWhite ? position.WhiteRooks | position.WhiteQueens : position.BlackRooks | position.BlackQueens;
-
-        if (rooksQueens != 0)
-        {
-            var orthogonalAttacks = CalculateOrthogonalAttacks(allPiecesExceptKing, rooksQueens);
-            if (targetSquareMask.Intersects(orthogonalAttacks)) return true;
-        }
-
-        return false; // No attacks found
-    }
-
-    private static Bitboard CalculateDiagonalAttacks(Bitboard allPiecesExceptKing, Bitboard diagonalRayAttackers)
-    {
-        Bitboard attacks = 0;
-
-        while (diagonalRayAttackers != 0)
-        {
-            var pieceSquare = BitOperations.TrailingZeroCount(diagonalRayAttackers);
-            attacks |= MagicBitboards.GetBishopAttacks((Square)pieceSquare, allPiecesExceptKing);
-            diagonalRayAttackers &= diagonalRayAttackers - 1;
-        }
-
-        return attacks;
-    }
-
-    private static Bitboard CalculateOrthogonalAttacks(Bitboard allPiecesExceptKing, Bitboard orthogonalRayAttackers)
-    {
-        Bitboard attacks = 0;
-
-        while (orthogonalRayAttackers != 0)
-        {
-            var pieceSquare = BitOperations.TrailingZeroCount(orthogonalRayAttackers);
-            attacks |= MagicBitboards.GetRookAttacks((Square)pieceSquare, allPiecesExceptKing);
-            orthogonalRayAttackers &= orthogonalRayAttackers - 1;
-        }
-
-        return attacks;
     }
 
     private static Bitboard FindAttackingPieces(Position position, Square square, bool forWhite)
@@ -158,72 +88,32 @@ public static class LegalityChecker
 
     private static bool IsEnPassantPinned(Position position, Move move, Square kingSquare)
     {
+        // If king is not on the same rank, no horizontal pin possible
+        if (kingSquare.GetRank() != move.From.GetRank()) return false;
+
         var capturedPawnSquare = position.WhiteToMove
-            ? move.To - 8 // White capturing a black pawn (pawn is one rank below destination)
-            : move.To + 8; // Black capturing a white pawn (pawn is one rank above destination)
+            ? move.To - 8
+            : move.To + 8;
 
-        // For a horizontal pin to be possible, the king and the capturing pawn must be on the same rank
-        var kingRank = kingSquare.GetRank();
-        var fromRank = move.From.GetRank();
-
-        // If king is not on the same rank as the capturing pawn, no horizontal pin is possible
-        if (kingRank != fromRank) return false;
-
-        // Create a bitboard with both the capturing pawn and captured pawn removed
+        // Create bitboard with both pawns removed
         var allPiecesWithoutPawns = position.AllPieces
             .ClearSquare(move.From)
             .ClearSquare(capturedPawnSquare);
 
-        // Check for enemy rooks/queens
+        // Get enemy rooks/queens
         var enemyRooksQueens = position.WhiteToMove
             ? position.BlackRooks | position.BlackQueens
             : position.WhiteRooks | position.WhiteQueens;
 
-        // No enemy rooks/queens, no pin possible
         if (enemyRooksQueens == 0) return false;
 
-        var kingFile = kingSquare.GetFile();
-
-        // Check for attacking rooks/queens to the left of the king
-        for (var file = kingFile - 1; file >= 0; file--)
-        {
-            var square = (Square)(kingRank * 8 + file);
-            var squareMask = Bitboard.Mask(square);
-
-            if (allPiecesWithoutPawns.Intersects(squareMask))
-            {
-                // If we hit an enemy rook/queen, we have a pin
-                if (enemyRooksQueens.Intersects(squareMask)) return true;
-
-                // Otherwise, this piece blocks any potential pin from this direction
-                break;
-            }
-        }
-
-        // Check for attacking rooks/queens to the right of the king
-        for (var file = kingFile + 1; file < 8; file++)
-        {
-            var square = (Square)(kingRank * 8 + file);
-            var squareMask = Bitboard.Mask(square);
-
-            if (allPiecesWithoutPawns.Intersects(squareMask))
-            {
-                // If we hit an enemy rook/queen, we have a pin
-                if (enemyRooksQueens.Intersects(squareMask)) return true;
-
-                // Otherwise, this piece blocks any potential pin from this direction
-                break;
-            }
-        }
-
-        // No pin found
-        return false;
+        // Check for horizontal pin in ONE pass using magic bitboards
+        var horizontalAttacks = MagicBitboards.GetRookAttacks(kingSquare, allPiecesWithoutPawns);
+        return horizontalAttacks.Intersects(enemyRooksQueens);
     }
 
     private static Bitboard GetBlockingSquares(Position position, Square kingSquare, Square attackerSquare)
     {
-        Bitboard blockingSquares = 0;
-
         // Only sliding pieces can be blocked
         var attackerPieceType = GetPieceTypeAtSquare(position, attackerSquare);
         if (!IsSlidingPiece(attackerPieceType))
@@ -232,7 +122,7 @@ public static class LegalityChecker
         }
 
         // Get squares between king and attacker
-        blockingSquares = GetRayBetween(kingSquare, attackerSquare);
+        var blockingSquares = GetRayBetween(kingSquare, attackerSquare);
 
         return blockingSquares;
     }
@@ -255,6 +145,7 @@ public static class LegalityChecker
         return PieceType.None;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsSlidingPiece(PieceType pieceType)
     {
         return pieceType
@@ -268,45 +159,28 @@ public static class LegalityChecker
 
     private static Bitboard GetRayBetween(Square from, Square to)
     {
-        Bitboard ray = 0;
-
+        // Early exit for non-aligned squares
         var fromFile = from.GetFile();
         var fromRank = from.GetRank();
         var toFile = to.GetFile();
         var toRank = to.GetRank();
-
-        // Check if squares are aligned (same rank, file, or diagonal)
         var fileDelta = toFile - fromFile;
         var rankDelta = toRank - fromRank;
 
-        // Squares must be aligned for a ray to exist between them
         if (fileDelta != 0 && rankDelta != 0 && Math.Abs(fileDelta) != Math.Abs(rankDelta))
+            return 0;
+
+        // Use magic bitboards to get sliding piece attacks
+        if (fileDelta == 0 || rankDelta == 0)
         {
-            return 0; // Not aligned, no ray exists
+            // Orthogonal ray
+            var rookAttacks = MagicBitboards.GetRookAttacks(from, Bitboard.Mask(to));
+            return rookAttacks & MagicBitboards.GetRookAttacks(to, Bitboard.Mask(from));
         }
 
-        // Determine direction
-        var fileStep = fileDelta == 0 ? 0 : fileDelta > 0 ? 1 : -1;
-        var rankStep = rankDelta == 0 ? 0 : rankDelta > 0 ? 1 : -1;
-
-        // Create ray (excluding the endpoint squares)
-        var currentFile = fromFile + fileStep;
-        var currentRank = fromRank + rankStep;
-
-        while (currentFile != toFile || currentRank != toRank)
-        {
-            // Safety check to prevent infinite loops
-            if (currentFile < 0 || currentFile >= 8 || currentRank < 0 || currentRank >= 8)
-            {
-                break;
-            }
-
-            ray |= 1UL << (currentRank * 8 + currentFile);
-            currentFile += fileStep;
-            currentRank += rankStep;
-        }
-
-        return ray;
+        // Diagonal ray
+        var bishopAttacks = MagicBitboards.GetBishopAttacks(from, Bitboard.Mask(to));
+        return bishopAttacks & MagicBitboards.GetBishopAttacks(to, Bitboard.Mask(from));
     }
 
     private static bool IsMovingAlongPinRay(Move move, Square kingSquare)

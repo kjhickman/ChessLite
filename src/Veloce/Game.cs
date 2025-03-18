@@ -70,14 +70,13 @@ public class Game
 
     public bool IsDrawByFiftyMoves()
     {
-        // Check if the last 50 moves have been captures or pawn moves
         return Position.HalfmoveClock >= 100;
     }
 
     public bool IsDrawByInsufficientMaterial()
     {
-        var whiteMaterial = Position.WhitePawns | Position.WhiteKnights | Position.WhiteBishops | Position.WhiteRooks | Position.WhiteQueens;
-        var blackMaterial = Position.BlackPawns | Position.BlackKnights | Position.BlackBishops | Position.BlackRooks | Position.BlackQueens;
+        var whiteMaterial = Position.WhitePieces & ~Position.WhiteKing;
+        var blackMaterial = Position.BlackPieces & ~Position.BlackKing;
 
         // Both sides have just kings
         if (whiteMaterial.IsEmpty() && blackMaterial.IsEmpty())
@@ -90,10 +89,14 @@ public class Game
         {
             // Black has exactly one knight
             if (blackMaterial == Position.BlackKnights && blackMaterial.Count() == 1)
+            {
                 return true;
+            }
             // or exactly one bishop
             if (blackMaterial == Position.BlackBishops && blackMaterial.Count() == 1)
+            {
                 return true;
+            }
         }
 
         // If black has only its king
