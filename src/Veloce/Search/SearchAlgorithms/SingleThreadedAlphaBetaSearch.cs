@@ -31,13 +31,13 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
     }
 
     public long NodesSearched => _nodesSearched;
-    
+
     public Action<SearchInfo>? OnSearchInfoAvailable { get; set; }
 
-    public bool ShouldStop 
-    { 
-        get => _shouldStop; 
-        set => _shouldStop = value; 
+    public bool ShouldStop
+    {
+        get => _shouldStop;
+        set => _shouldStop = value;
     }
 
     public SearchResult FindBestMove(Game game, int maxDepth, int timeLimit, CancellationToken cancellationToken = default)
@@ -72,7 +72,7 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
                 NodesPerSecond = (long)(_nodesSearched / elapsedTime.TotalSeconds),
                 HashFull = _transpositionTable.GetOccupancy(),
             };
-            
+
             OnSearchInfoAvailable?.Invoke(searchInfo);
 
             if (!_shouldStop)
@@ -108,8 +108,8 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
 
     private bool ShouldStopSearch()
     {
-        return _shouldStop || 
-               _cancellationToken.IsCancellationRequested || 
+        return _shouldStop ||
+               _cancellationToken.IsCancellationRequested ||
                Stopwatch.GetElapsedTime(_searchStartTimeStamp) > _searchTimeLimit;
     }
 
@@ -143,7 +143,7 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
             }
         }
 
-        SearchHelpers.OrderMoves(movesBuffer, moveCount, ttMove);
+        MoveOrdering.OrderMoves(movesBuffer, moveCount, ttMove);
 
         var isMaximizing = position.WhiteToMove;
         var bestMove = movesBuffer[0];
@@ -279,7 +279,7 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
         {
             ttMove = ttCompactMove.FindMatchingMove(movesBuffer, moveCount);
         }
-        SearchHelpers.OrderMoves(movesBuffer, moveCount, ttMove);
+        MoveOrdering.OrderMoves(movesBuffer, moveCount, ttMove);
 
         var originalAlpha = alpha;
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;

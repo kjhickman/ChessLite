@@ -199,7 +199,7 @@ public class SharedHashTableSearch : ISearchAlgorithm
         }
 
         // Order moves
-        SearchHelpers.OrderMoves(movesBuffer, moveCount, ttMove, threadId);
+        MoveOrdering.OrderMoves(movesBuffer, moveCount, ttMove, threadId);
 
         var isMaximizing = game.Position.WhiteToMove;
         var bestMove = movesBuffer[0];
@@ -326,7 +326,7 @@ public class SharedHashTableSearch : ISearchAlgorithm
         {
             bestMove = ttMove.FindMatchingMove(movesBuffer, moveCount);
         }
-        SearchHelpers.OrderMoves(movesBuffer, moveCount, bestMove, threadId);
+        MoveOrdering.OrderMoves(movesBuffer, moveCount, bestMove, threadId);
 
         var originalAlpha = alpha;
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;
