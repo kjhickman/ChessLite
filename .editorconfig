@@ -1,0 +1,20 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,vb}]
+indent_style = space
+indent_size = 4
+
+[*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
+indent_size = 2
+
+[*.{json,js,jsx,ts,tsx}]
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_size = 2
