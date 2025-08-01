@@ -1,37 +1,12 @@
-<!-- <p align="center">
-  <img src="assets/logo.webp" alt="Veloce Chess Engine Logo" width="200"/>
-</p> -->
+# Veloce
 
-<h1 align="center">Veloce</h1>
+A *temporarily* low-performance  chess engine written in C#
 
-<p align="center">
-  <em>veh-LOH-cheh</em>
-</p>
+## Overview
 
-<p align="center">
-  <strong>A low-performance (for now) chess engine written in C#</strong>
-</p>
+Veloce aims to be a modern, high-performance chess engine implemented in C#. The engine is compatible with the Universal Chess Interface (UCI) protocol, allowing it to be used with most chess GUIs. The core chess engine will be available as a package for use in your .NET projects!
 
-## 📋 Table of Contents
-
-- [Overview](#-overview)
-- [Features](#-features)
-- [Performance](#-performance)
-- [Requirements](#-requirements)
-- [Getting Started](#-getting-started)
-  - [Building from Source](#building-from-source)
-- [Usage](#-usage)
-  - [UCI Interface](#uci-interface)
-  - [As a Library](#as-a-library)
-- [Project Structure](#-project-structure)
-- [Roadmap](#-roadmap)
-- [Acknowledgments](#-acknowledgments)
-
-## 🔍 Overview
-
-Veloce aims to be a modern, high-performance chess engine implemented in C#. The engine is compatible with the Universal Chess Interface (UCI) protocol, allowing it to be used with most chess GUIs. Its core chess engine will eventually be available as a NuGet package for use in your .NET projects!
-
-## ✨ Features
+## Features
 
 - **Bitboard Representation**: Efficient board state management using 64-bit bitboards
 - **Alpha-Beta Pruning**: Enhanced search algorithm with alpha-beta pruning
@@ -44,7 +19,7 @@ Veloce aims to be a modern, high-performance chess engine implemented in C#. The
 - **Evaluation**: Basic positional and material evaluation
 - **Native AOT Compatible**: The core engine library is fully Native AOT compatible
 
-## 🚀 Performance
+## Performance
 
 Veloce is designed with performance as a priority:
 
@@ -53,12 +28,12 @@ Veloce is designed with performance as a priority:
 - Optimized bitboard operations for move generation and evaluation
 - Low memory footprint with compact state representation
 
-## 💻 Requirements
+## Requirements
 
 - .NET 8.0 SDK or later
 - Compatible with Windows, macOS, and Linux
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Building from Source
 
@@ -78,63 +53,7 @@ Veloce is designed with performance as a priority:
    dotnet test
    ```
 
-## 🎮 Usage
-
-### UCI Interface
-
-TODO: instructions on publishing binary
-
-### As a Library
-
-You can also use Veloce as a library in your own C# projects (.NET 8 and above):
-
-```csharp
-using Veloce;
-using Veloce.Models;
-
-// Create a new engine
-var engine = new Engine();
-
-// Set up a position (default is the starting position)
-var position = new Position();
-engine.SetPosition(position);
-
-// Find the best move
-var bestMove = engine.FindBestMove();
-
-// Make the move
-if (bestMove.HasValue)
-{
-    engine.MakeMove(bestMove.Value);
-}
-```
-
-### Custom Search Depth
-
-```csharp
-// Create engine with custom settings
-var settings = new EngineSettings 
-{
-    Depth = 8,        // Search depth
-    HashSizeInMb = 64  // Transposition table size
-};
-var engine = new Engine(new ConsoleEngineLogger(), settings);
-
-// Find best move with specific depth
-var result = engine.FindBestMove();
-```
-
-### Perft Testing
-
-You can run performance tests to verify move generation:
-
-```bash
-dotnet run --project src/Veloce.Perft/Veloce.Perft.csproj 5 "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-```
-
-The command above runs a PERFT test at depth 5 from the starting position.
-
-## 📁 Project Structure
+## Project Structure
 
 The solution is organized into several projects:
 
@@ -146,7 +65,7 @@ The solution is organized into several projects:
 - **Veloce.Tests**: Unit and integration tests
 - **Veloce.Benchmarks**: Performance benchmarks
 
-## 🗺️ Roadmap
+## Roadmap
 
 Future development plans include:
 
@@ -163,13 +82,7 @@ Future development plans include:
 - [ ] NNUE (Efficiently Updatable Neural Network) evaluation
 - [ ] Engine vs. engine match testing
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - For the inspiration to start this project, [this video](https://youtu.be/w4FFX_otR-4?si=gOWyYTxIoEBOXrBn) by [Bartek Spitza](https://github.com/bartekspitza)
 - The chess programming community at the [Chess Programming Wiki](https://www.chessprogramming.org)
-
----
-
-<p align="center">
-  <a href="#">Back to top</a>
-</p>
