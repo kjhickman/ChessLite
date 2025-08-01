@@ -191,7 +191,7 @@ public class MoveExecutor
                 PromotedPieceType.Rook => PieceType.WhiteRook,
                 PromotedPieceType.Bishop => PieceType.WhiteBishop,
                 PromotedPieceType.Knight => PieceType.WhiteKnight,
-                _ => throw new ArgumentOutOfRangeException()
+                _ => throw new ArgumentOutOfRangeException(),
             };
         }
         else
@@ -202,7 +202,7 @@ public class MoveExecutor
                 PromotedPieceType.Rook => PieceType.BlackRook,
                 PromotedPieceType.Bishop => PieceType.BlackBishop,
                 PromotedPieceType.Knight => PieceType.BlackKnight,
-                _ => throw new ArgumentOutOfRangeException()
+                _ => throw new ArgumentOutOfRangeException(),
             };
         }
 
@@ -376,7 +376,7 @@ public class MoveExecutor
                 PromotedPieceType.Rook => PieceType.WhiteRook,
                 PromotedPieceType.Bishop => PieceType.WhiteBishop,
                 PromotedPieceType.Knight => PieceType.WhiteKnight,
-                _ => throw new ArgumentOutOfRangeException()
+                _ => throw new ArgumentOutOfRangeException(),
             };
         }
         else
@@ -387,7 +387,7 @@ public class MoveExecutor
                 PromotedPieceType.Rook => PieceType.BlackRook,
                 PromotedPieceType.Bishop => PieceType.BlackBishop,
                 PromotedPieceType.Knight => PieceType.BlackKnight,
-                _ => throw new ArgumentOutOfRangeException()
+                _ => throw new ArgumentOutOfRangeException(),
             };
         }
 

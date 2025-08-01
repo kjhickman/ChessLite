@@ -253,7 +253,7 @@ public static class MoveGeneration
         Span<(int fileDirection, int rankDirection)> queenDirections =
         [
             (1, 1), (-1, 1), (1, -1), (-1, -1),
-            (1, 0), (-1, 0), (0, 1), (0, -1)
+            (1, 0), (-1, 0), (0, 1), (0, -1),
         ];
         var queens = position.WhiteToMove ? position.WhiteQueens : position.BlackQueens;
         var pieceType = position.WhiteToMove ? PieceType.WhiteQueen : PieceType.BlackQueen;
@@ -274,7 +274,7 @@ public static class MoveGeneration
         Span<(int fileDirection, int rankDirection)> kingDirections = stackalloc (int, int)[]
         {
             (1, 1), (-1, 1), (1, -1), (-1, -1),
-            (1, 0), (-1, 0), (0, 1), (0, -1)
+            (1, 0), (-1, 0), (0, 1), (0, -1),
         };
 
         for (var i = 0; i < kingDirections.Length; i++)

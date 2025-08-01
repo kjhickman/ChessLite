@@ -13,6 +13,6 @@ public class EngineSettings
     {
         MaxDepth = 16,
         TranspositionTableSizeMb = 32,
-        Threads = 1
+        Threads = 1,
     };
 }

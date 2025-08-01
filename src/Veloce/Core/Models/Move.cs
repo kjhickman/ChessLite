@@ -54,7 +54,7 @@ public readonly struct Move : IEquatable<Move>
             PromotedPieceType.Bishop => "b",
             PromotedPieceType.Rook => "r",
             PromotedPieceType.Queen => "q",
-            _ => throw new ArgumentOutOfRangeException()
+            _ => throw new ArgumentOutOfRangeException(),
         };
 
         return $"{From}{To}{promotion}";

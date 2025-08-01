@@ -62,7 +62,7 @@ public class MoveFinder
                 NodesSearched = _nodesSearched,
                 TimeElapsed = elapsedTime,
                 NodesPerSecond = (long)(_nodesSearched / elapsedTime.TotalSeconds),
-                HashFull = _transpositionTable.GetOccupancy()
+                HashFull = _transpositionTable.GetOccupancy(),
             };
             _engineLogger.LogSearchInfo(searchInfo);
 
@@ -106,7 +106,7 @@ public class MoveFinder
             {
                 BestMove = null,
                 Score = score,
-                GameState = gameState
+                GameState = gameState,
             };
         }
 
@@ -178,7 +178,7 @@ public class MoveFinder
         {
             BestMove = bestMove,
             Score = bestScore,
-            GameState = GameState.Ongoing
+            GameState = GameState.Ongoing,
         };
     }
 

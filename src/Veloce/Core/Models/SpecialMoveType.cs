@@ -6,5 +6,5 @@ public enum SpecialMoveType
     DoublePawnPush = 1,
     EnPassant = 2,
     ShortCastle = 3,
-    LongCastle = 4
+    LongCastle = 4,
 }

@@ -7,5 +7,5 @@ public enum PromotedPieceType : byte
     Knight = 1,
     Bishop = 2,
     Rook = 4,
-    Queen = 8
+    Queen = 8,
 }

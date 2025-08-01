@@ -73,7 +73,7 @@ public static class FenParser
         {
             'w' => true,
             'b' => false,
-            _ => throw new ArgumentException("Invalid active color.")
+            _ => throw new ArgumentException("Invalid active color."),
         };
 
         // Parse castling rights (index 2)

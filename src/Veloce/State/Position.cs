@@ -208,7 +208,7 @@ public class Position
 
         Span<(int fileDir, int rankDir)> directions = stackalloc (int, int)[]
         {
-            (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)
+            (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1),
         };
 
         for (var i = 0; i < directions.Length; i++)

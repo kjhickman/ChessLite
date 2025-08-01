@@ -6,7 +6,7 @@ namespace Veloce.Engine;
 
 public class VeloceEngine
 {
-    private readonly Search.MoveFinder _moveFinder;
+    private readonly MoveFinder _moveFinder;
     private readonly EngineSettings _engineSettings;
     private Game _game;
 
@@ -15,14 +15,14 @@ public class VeloceEngine
         _engineSettings = EngineSettings.Default;
         _game = new Game();
         IEngineLogger engineLogger = new ConsoleEngineLogger();
-        _moveFinder = new Search.MoveFinder(engineLogger, _engineSettings);
+        _moveFinder = new MoveFinder(engineLogger, _engineSettings);
     }
 
     public VeloceEngine(IEngineLogger engineLogger, EngineSettings engineSettings)
     {
         _engineSettings = engineSettings;
         _game = new Game();
-        _moveFinder = new Search.MoveFinder(engineLogger, _engineSettings);
+        _moveFinder = new MoveFinder(engineLogger, _engineSettings);
     }
 
     public Move? FindBestMove()

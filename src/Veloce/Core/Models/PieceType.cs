@@ -14,5 +14,5 @@ public enum PieceType
     BlackBishop,
     BlackRook,
     BlackQueen,
-    BlackKing
+    BlackKing,
 }

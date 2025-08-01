@@ -7,5 +7,5 @@ public enum CastlingRights : byte
     WhiteKingside = 1,
     WhiteQueenside = 2,
     BlackKingside = 4,
-    BlackQueenside = 8
+    BlackQueenside = 8,
 }
