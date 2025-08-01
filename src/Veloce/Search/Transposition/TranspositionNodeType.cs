@@ -1,4 +1,4 @@
-namespace Veloce.Search;
+namespace Veloce.Search.Transposition;
 
 public enum TranspositionNodeType
 {

@@ -38,22 +38,4 @@ public struct SearchResult
     /// The state of the game after the best move
     /// </summary>
     public GameState GameState { get; set; }
-
-    /// <summary>
-    /// Returns the nodes per second (NPS) calculation
-    /// </summary>
-    public long NodesPerSecond =>
-        TimeElapsed.TotalSeconds > 0
-            ? (long)(NodesSearched / TimeElapsed.TotalSeconds)
-            : 0;
-
-    /// <summary>
-    /// Returns if the score indicates a checkmate
-    /// </summary>
-    public bool IsMateScore => Math.Abs(Score) > 9000;
-
-    /// <summary>
-    /// Returns the mate in N moves (positive if we're winning, negative if we're losing)
-    /// </summary>
-    public int MateInMoves => IsMateScore ? Score > 0 ? (10000 - Score + 1) / 2 : (-10000 - Score + 1) / 2 : 0;
 }

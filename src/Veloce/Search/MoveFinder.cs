@@ -1,4 +1,6 @@
 ﻿using Veloce.Engine;
+using Veloce.Search.Interfaces;
+using Veloce.Search.Logging;
 using Veloce.State;
 
 namespace Veloce.Search;

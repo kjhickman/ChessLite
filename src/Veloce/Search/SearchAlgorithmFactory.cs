@@ -1,4 +1,5 @@
 using Veloce.Engine;
+using Veloce.Search.Interfaces;
 using Veloce.Search.SearchAlgorithms;
 
 namespace Veloce.Search;

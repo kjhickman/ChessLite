@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using Veloce.Core.Models;
 
-namespace Veloce.Search;
+namespace Veloce.Search.Transposition;
 
 public class TranspositionTable
 {
@@ -14,22 +14,6 @@ public class TranspositionTable
     public TranspositionTable(int megabytes)
     {
         SetSize(megabytes);
-    }
-
-    /// <summary>
-    /// Resizes the transposition table to the specified size in MB and clears it.
-    /// </summary>
-    public void SetSize(int megabytes)
-    {
-        // Calculate total bytes and cluster count
-        var maxPossibleClusters = megabytes * 32768;
-
-        // Find the largest power of 2 less than or equal to maxPossibleClusters using bit manipulation
-        var power = BitOperations.Log2((ulong)maxPossibleClusters);
-
-        _clusterCount = 1 << power; // 2^power
-        _clusterMask = _clusterCount - 1;
-        _table = new TranspositionEntryCluster[_clusterCount];
     }
 
     /// <summary>
@@ -62,15 +46,6 @@ public class TranspositionTable
     }
 
     /// <summary>
-    /// Clear the table and increment the generation counter
-    /// </summary>
-    public void Clear()
-    {
-        Array.Clear(_table, 0, _table.Length);
-        _generation = 0;
-    }
-
-    /// <summary>
     /// Start a new search generation
     /// </summary>
     public void NewSearch()
@@ -79,21 +54,12 @@ public class TranspositionTable
     }
 
     /// <summary>
-    /// Calculate the cluster index for a given hash key
+    /// Clear the table and increment the generation counter
     /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetClusterIndex(ulong key)
+    public void Clear()
     {
-        return (int)(key & (ulong)_clusterMask);
-    }
-
-    /// <summary>
-    /// Extract the verification bits from a hash key
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private ushort GetVerification(ulong key)
-    {
-        return (ushort)(key >> 48);
+        Array.Clear(_table, 0, _table.Length);
+        _generation = 0;
     }
 
     /// <summary>
@@ -226,5 +192,39 @@ public class TranspositionTable
         depth = 0;
         bound = TranspositionNodeType.None;
         return false;
+    }
+
+    /// <summary>
+    /// Resizes the transposition table to the specified size in MB and clears it.
+    /// </summary>
+    private void SetSize(int megabytes)
+    {
+        // Calculate total bytes and cluster count
+        var maxPossibleClusters = megabytes * 32768;
+
+        // Find the largest power of 2 less than or equal to maxPossibleClusters using bit manipulation
+        var power = BitOperations.Log2((ulong)maxPossibleClusters);
+
+        _clusterCount = 1 << power; // 2^power
+        _clusterMask = _clusterCount - 1;
+        _table = new TranspositionEntryCluster[_clusterCount];
+    }
+
+    /// <summary>
+    /// Calculate the cluster index for a given hash key
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int GetClusterIndex(ulong key)
+    {
+        return (int)(key & (ulong)_clusterMask);
+    }
+
+    /// <summary>
+    /// Extract the verification bits from a hash key
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private ushort GetVerification(ulong key)
+    {
+        return (ushort)(key >> 48);
     }
 }

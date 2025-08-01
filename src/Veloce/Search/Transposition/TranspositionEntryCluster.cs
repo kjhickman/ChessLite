@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace Veloce.Search;
+namespace Veloce.Search.Transposition;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public struct TranspositionEntryCluster

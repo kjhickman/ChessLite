@@ -1,5 +1,7 @@
 ﻿using Veloce.Core.Models;
 using Veloce.Search;
+using Veloce.Search.Interfaces;
+using Veloce.Search.Logging;
 using Veloce.State;
 
 namespace Veloce.Engine;

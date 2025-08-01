@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using Veloce.Core.Models;
 
-namespace Veloce.Search;
+namespace Veloce.Search.Transposition;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 public readonly struct TranspositionEntry : IEquatable<TranspositionEntry>

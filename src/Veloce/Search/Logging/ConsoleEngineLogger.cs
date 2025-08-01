@@ -1,6 +1,7 @@
 using Veloce.Core.Models;
+using Veloce.Search.Interfaces;
 
-namespace Veloce.Search;
+namespace Veloce.Search.Logging;
 
 /// <summary>
 /// Basic implementation that outputs to console or specified TextWriter.

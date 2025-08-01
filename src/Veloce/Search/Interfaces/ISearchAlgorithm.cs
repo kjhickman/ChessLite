@@ -1,6 +1,7 @@
+using Veloce.Search.Logging;
 using Veloce.State;
 
-namespace Veloce.Search;
+namespace Veloce.Search.Interfaces;
 
 public interface ISearchAlgorithm
 {

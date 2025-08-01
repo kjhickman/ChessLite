@@ -1,6 +1,7 @@
 using Veloce.Core.Models;
+using Veloce.Search.Interfaces;
 
-namespace Veloce.Search;
+namespace Veloce.Search.Logging;
 
 public class NullEngineLogger : IEngineLogger
 {

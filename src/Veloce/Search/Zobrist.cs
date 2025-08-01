@@ -11,10 +11,10 @@ public static class Zobrist
     // 3: White Rook, 4: White Queen, 5: White King,
     // 6: Black Pawn, 7: Black Knight, 8: Black Bishop,
     // 9: Black Rook, 10: Black Queen, 11: Black King.
-    public static readonly ulong[,] PieceKeys = new ulong[12, 64];
-    public static readonly ulong[] CastlingKeys = new ulong[16];
-    public static readonly ulong[] EnPassantKeys = new ulong[64];
-    public static readonly ulong SideKey;
+    private static readonly ulong[,] PieceKeys = new ulong[12, 64];
+    private static readonly ulong[] CastlingKeys = new ulong[16];
+    private static readonly ulong[] EnPassantKeys = new ulong[64];
+    private static readonly ulong SideKey;
 
     static Zobrist()
     {

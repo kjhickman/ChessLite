@@ -1,6 +1,7 @@
 using Veloce.Core.Models;
+using Veloce.Search.Logging;
 
-namespace Veloce.Search;
+namespace Veloce.Search.Interfaces;
 
 /// <summary>
 /// Interface for logging search information, allowing different implementations (console, UCI, etc.)

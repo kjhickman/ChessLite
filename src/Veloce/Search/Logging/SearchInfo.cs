@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Veloce.Search;
+namespace Veloce.Search.Logging;
 
 /// <summary>
 /// Container for search information that can be passed to loggers.
