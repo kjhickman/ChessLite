@@ -1,4 +1,4 @@
-using Veloce.Core.Models;
+using Veloce.Core;
 
 namespace Veloce.State;
 

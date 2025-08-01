@@ -1,4 +1,4 @@
-namespace Veloce.Core.Models;
+namespace Veloce.Core;
 
 public enum SpecialMoveType
 {

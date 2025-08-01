@@ -1,7 +1,5 @@
 using System.Text;
 using Veloce.Core;
-using Veloce.Core.Extensions;
-using Veloce.Core.Models;
 using Veloce.Movement;
 using Veloce.Search;
 

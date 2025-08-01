@@ -1,7 +1,5 @@
 using System.Runtime.CompilerServices;
 using Veloce.Core;
-using Veloce.Core.Extensions;
-using Veloce.Core.Models;
 using Veloce.State;
 
 namespace Veloce.Movement;

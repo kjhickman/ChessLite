@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 using System.Runtime.CompilerServices;
-using Veloce.Core.Models;
+using Veloce.Core;
 
 namespace Veloce.Search.Transposition;
 

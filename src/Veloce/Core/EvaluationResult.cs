@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace Veloce.Core.Models;
+namespace Veloce.Core;
 
 [StructLayout(LayoutKind.Auto)]
 public struct EvaluationResult

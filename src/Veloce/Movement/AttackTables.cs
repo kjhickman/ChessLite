@@ -1,5 +1,4 @@
-using Veloce.Core.Extensions;
-using Veloce.Core.Models;
+using Veloce.Core;
 
 namespace Veloce.Movement;
 

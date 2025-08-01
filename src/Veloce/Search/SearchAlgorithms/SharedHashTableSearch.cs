@@ -1,6 +1,5 @@
 using System.Diagnostics;
-using Veloce.Core.Extensions;
-using Veloce.Core.Models;
+using Veloce.Core;
 using Veloce.Engine;
 using Veloce.Evaluation;
 using Veloce.Movement;

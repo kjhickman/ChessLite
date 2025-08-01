@@ -1,8 +1,18 @@
 using System.Runtime.CompilerServices;
-using Veloce.Core.Models;
 
-namespace Veloce.Core.Extensions;
+namespace Veloce.Core;
 
+[Flags]
+public enum CastlingRights : byte
+{
+    None = 0,
+    WhiteKingside = 1,
+    WhiteQueenside = 2,
+    BlackKingside = 4,
+    BlackQueenside = 8,
+}
+
+#pragma warning disable MA0048
 public static class CastlingRightsExtensions
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

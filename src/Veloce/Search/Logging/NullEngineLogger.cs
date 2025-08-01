@@ -1,4 +1,4 @@
-using Veloce.Core.Models;
+using Veloce.Core;
 using Veloce.Search.Interfaces;
 
 namespace Veloce.Search.Logging;
