@@ -9,7 +9,7 @@ public static class SearchAlgorithmFactory
     {
         if (settings.Threads > 1)
         {
-            return new SharedHashTableSearch(new ConsoleEngineLogger(), settings);
+            return new SharedHashTableSearch(settings);
         }
 
         return new SingleThreadedAlphaBetaSearch(settings);

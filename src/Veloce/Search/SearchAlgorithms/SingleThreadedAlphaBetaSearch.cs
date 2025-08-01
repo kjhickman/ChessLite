@@ -66,7 +66,7 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
             {
                 Depth = depth,
                 Score = game.Position.WhiteToMove ? iterationResult.Score : -iterationResult.Score,
-                IsMateScore = IsForcedMateScore(iterationResult.Score),
+                IsMateScore = SearchHelpers.IsMateScore(iterationResult.Score),
                 NodesSearched = _nodesSearched,
                 TimeElapsed = elapsedTime,
                 NodesPerSecond = (long)(_nodesSearched / elapsedTime.TotalSeconds),
@@ -83,7 +83,7 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
                 result.TimeElapsed = elapsedTime;
             }
 
-            if (_shouldStop || IsForcedMateScore(iterationResult.Score))
+            if (_shouldStop || SearchHelpers.IsMateScore(iterationResult.Score))
             {
                 break;
             }
@@ -143,7 +143,7 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
             }
         }
 
-        OrderMoves(movesBuffer, moveCount, ttMove);
+        SearchHelpers.OrderMoves(movesBuffer, moveCount, ttMove);
 
         var isMaximizing = position.WhiteToMove;
         var bestMove = movesBuffer[0];
@@ -279,7 +279,7 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
         {
             ttMove = ttCompactMove.FindMatchingMove(movesBuffer, moveCount);
         }
-        OrderMoves(movesBuffer, moveCount, ttMove);
+        SearchHelpers.OrderMoves(movesBuffer, moveCount, ttMove);
 
         var originalAlpha = alpha;
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;
@@ -339,109 +339,4 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
         return new EvaluationResult(bestScore, GameState.Ongoing);
     }
 
-    private bool IsForcedMateScore(int score)
-    {
-        // Detect forced mate scores (allowing some buffer for mate distance)
-        return Math.Abs(score) > 9000;
-    }
-
-    /// <summary>
-    /// Orders the moves in descending order according to a simple heuristic.
-    /// Moves matching the TT best move are given a huge bonus; capture moves are scored using MVV-LVA;
-    /// promotion moves are also boosted.
-    /// </summary>
-    private void OrderMoves(Span<Move> moves, int moveCount, Move ttMove)
-    {
-        // Compute a score for each move.
-        Span<int> scores = stackalloc int[moveCount];
-        for (var i = 0; i < moveCount; i++)
-        {
-            scores[i] = ScoreMove(moves[i], ttMove);
-        }
-
-        // A simple quadratic sort on the small move list.
-        for (var i = 0; i < moveCount - 1; i++)
-        {
-            for (var j = i + 1; j < moveCount; j++)
-            {
-                if (scores[j] <= scores[i]) continue;
-
-                (moves[i], moves[j]) = (moves[j], moves[i]);
-                (scores[i], scores[j]) = (scores[j], scores[i]);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Returns a score for the move. A higher score means the move is expected to be better.
-    /// </summary>
-    private int ScoreMove(Move move, Move ttMove)
-    {
-        // Transposition table best move gets the highest score.
-        if (move.Equals(ttMove))
-        {
-            return 1000000;
-        }
-
-        var score = 0;
-        if (move.IsCapture)
-        {
-            // MVV-LVA: bonus = (captured value - mover value) plus a base bonus.
-            var captured = move.CapturedPieceType;
-            var mover = move.PieceType;
-            score = GetPieceValue(captured) - GetPieceValue(mover) + 10000;
-        }
-        else if (move.PromotedPieceType != PromotedPieceType.None)
-        {
-            // Give a bonus based on the promotion piece (promotion to queen is best)
-            switch (move.PromotedPieceType)
-            {
-                case PromotedPieceType.Queen:
-                    score = 900;
-                    break;
-                case PromotedPieceType.Rook:
-                    score = 500;
-                    break;
-                case PromotedPieceType.Bishop:
-                    score = 330;
-                    break;
-                case PromotedPieceType.Knight:
-                    score = 320;
-                    break;
-                default:
-                    score = 0;
-                    break;
-            }
-            score += 800; // extra bonus for promotion moves
-        }
-
-        return score;
-    }
-
-    /// <summary>
-    /// Returns a basic material value for a piece type.
-    /// </summary>
-    private int GetPieceValue(PieceType piece)
-    {
-        switch (piece)
-        {
-            case PieceType.WhitePawn:
-            case PieceType.BlackPawn:
-                return 100;
-            case PieceType.WhiteKnight:
-            case PieceType.BlackKnight:
-                return 320;
-            case PieceType.WhiteBishop:
-            case PieceType.BlackBishop:
-                return 330;
-            case PieceType.WhiteRook:
-            case PieceType.BlackRook:
-                return 500;
-            case PieceType.WhiteQueen:
-            case PieceType.BlackQueen:
-                return 900;
-            default:
-                return 0;
-        }
-    }
 }

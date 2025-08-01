@@ -11,9 +11,7 @@ namespace Veloce.Search.SearchAlgorithms;
 public class SharedHashTableSearch : ISearchAlgorithm
 {
     private readonly TranspositionTable _sharedTranspositionTable;
-    private readonly IEngineLogger _engineLogger;
     private readonly EngineSettings _settings;
-    private readonly Random _random;
 
     // Thread coordination
     private volatile bool _shouldStop;
@@ -26,12 +24,10 @@ public class SharedHashTableSearch : ISearchAlgorithm
     private long _searchStartTime;
     private TimeSpan _timeLimit;
 
-    public SharedHashTableSearch(IEngineLogger? engineLogger = null, EngineSettings? settings = null)
+    public SharedHashTableSearch(EngineSettings? settings = null)
     {
-        _engineLogger = engineLogger ?? new NullEngineLogger();
-        _settings = settings ?? new EngineSettings();
+        _settings = settings ?? EngineSettings.Default;
         _sharedTranspositionTable = new TranspositionTable(_settings.TranspositionTableSizeMb);
-        _random = new Random();
         _threadCount = Math.Max(1, Environment.ProcessorCount - 1); // Leave one core free
     }
 
@@ -131,7 +127,7 @@ public class SharedHashTableSearch : ISearchAlgorithm
                 }
 
                 // Stop if we found a mate
-                if (IsMateScore(result.Score))
+                if (SearchHelpers.IsMateScore(result.Score))
                 {
                     break;
                 }
@@ -203,7 +199,7 @@ public class SharedHashTableSearch : ISearchAlgorithm
         }
 
         // Order moves
-        OrderMoves(movesBuffer, moveCount, ttMove, threadId);
+        SearchHelpers.OrderMoves(movesBuffer, moveCount, ttMove, threadId);
 
         var isMaximizing = game.Position.WhiteToMove;
         var bestMove = movesBuffer[0];
@@ -330,7 +326,7 @@ public class SharedHashTableSearch : ISearchAlgorithm
         {
             bestMove = ttMove.FindMatchingMove(movesBuffer, moveCount);
         }
-        OrderMoves(movesBuffer, moveCount, bestMove, threadId);
+        SearchHelpers.OrderMoves(movesBuffer, moveCount, bestMove, threadId);
 
         var originalAlpha = alpha;
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;
@@ -387,62 +383,11 @@ public class SharedHashTableSearch : ISearchAlgorithm
         return bestScore;
     }
 
-    /// <summary>
-    /// Orders moves with TT move first, then captures, then quiet moves
-    /// </summary>
-    private void OrderMoves(Span<Move> moves, int moveCount, Move ttMove, int threadId)
-    {
-        // Simple move ordering with thread-specific randomization for Lazy SMP
-        Span<int> scores = stackalloc int[moveCount];
-
-        for (int i = 0; i < moveCount; i++)
-        {
-            var move = moves[i];
-            var score = 0;
-
-            // TT move gets highest priority
-            if (move.Equals(ttMove))
-            {
-                score = 1000000;
-            }
-            else if (move.IsCapture)
-            {
-                // MVV-LVA for captures
-                score = GetPieceValue(move.CapturedPieceType) - GetPieceValue(move.PieceType) + 10000;
-            }
-            else if (move.PromotedPieceType != PromotedPieceType.None)
-            {
-                // Promotions
-                score = 800 + GetPromotionValue(move.PromotedPieceType);
-            }
-
-            // Add small random factor for helper threads to explore different move orders
-            if (threadId > 0)
-            {
-                score += _random.Next(-10, 11);
-            }
-
-            scores[i] = score;
-        }
-
-        // Sort moves by score (simple selection sort for small arrays)
-        for (int i = 0; i < moveCount - 1; i++)
-        {
-            for (int j = i + 1; j < moveCount; j++)
-            {
-                if (scores[j] > scores[i])
-                {
-                    (moves[i], moves[j]) = (moves[j], moves[i]);
-                    (scores[i], scores[j]) = (scores[j], scores[i]);
-                }
-            }
-        }
-    }
 
     /// <summary>
     /// Updates the best result if the new one is better
     /// </summary>
-    private void UpdateBestResult(SearchResult result, int depth)
+    private void UpdateBestResult(SearchResult result, int _)
     {
         lock (_resultLock)
         {
@@ -457,7 +402,7 @@ public class SharedHashTableSearch : ISearchAlgorithm
             {
                 // Same depth - compare scores
                 if (_bestResult.BestMove == null ||
-                    (result.BestMove != null && IsScoreBetter(result.Score, _bestResult.Score, result.BestMove != null)))
+                    (result.BestMove != null && SearchHelpers.IsScoreBetter(result.Score, _bestResult.Score, result.BestMove != null)))
                 {
                     isBetter = true;
                 }
@@ -482,7 +427,7 @@ public class SharedHashTableSearch : ISearchAlgorithm
         {
             Depth = depth,
             Score = result.Score,
-            IsMateScore = IsMateScore(result.Score),
+            IsMateScore = SearchHelpers.IsMateScore(result.Score),
             NodesSearched = nodes,
             TimeElapsed = elapsed,
             NodesPerSecond = elapsed.TotalSeconds > 0 ? (long)(nodes / elapsed.TotalSeconds) : 0,
@@ -490,43 +435,5 @@ public class SharedHashTableSearch : ISearchAlgorithm
         };
 
         OnSearchInfoAvailable?.Invoke(searchInfo);
-    }
-
-    // Helper methods
-    private static bool IsMateScore(int score)
-    {
-        if (score == int.MinValue) return false;
-        return Math.Abs(score) > 9000;
-    }
-
-    private static bool IsScoreBetter(int newScore, int oldScore, bool isWhiteToMove)
-    {
-        return isWhiteToMove ? newScore > oldScore : newScore < oldScore;
-    }
-
-    private static int GetPieceValue(PieceType piece)
-    {
-        return piece switch
-        {
-            PieceType.WhitePawn or PieceType.BlackPawn => 100,
-            PieceType.WhiteKnight or PieceType.BlackKnight => 320,
-            PieceType.WhiteBishop or PieceType.BlackBishop => 330,
-            PieceType.WhiteRook or PieceType.BlackRook => 500,
-            PieceType.WhiteQueen or PieceType.BlackQueen => 900,
-            PieceType.WhiteKing or PieceType.BlackKing => 20000,
-            _ => 0
-        };
-    }
-
-    private static int GetPromotionValue(PromotedPieceType piece)
-    {
-        return piece switch
-        {
-            PromotedPieceType.Queen => 900,
-            PromotedPieceType.Rook => 500,
-            PromotedPieceType.Bishop => 330,
-            PromotedPieceType.Knight => 320,
-            _ => 0
-        };
     }
 }
