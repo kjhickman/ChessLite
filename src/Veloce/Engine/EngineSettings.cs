@@ -15,4 +15,14 @@ public class EngineSettings
         TranspositionTableSizeMb = 32,
         Threads = 1,
     };
+
+    public void SetThreads(int threads)
+    {
+        if (threads < 1)
+        {
+            threads = 1;
+        }
+
+        Threads = threads;
+    }
 }

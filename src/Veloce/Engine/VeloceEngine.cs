@@ -6,23 +6,25 @@ namespace Veloce.Engine;
 
 public class VeloceEngine
 {
-    private readonly MoveFinder _moveFinder;
+    private MoveFinder _moveFinder;
     private readonly EngineSettings _engineSettings;
+    private readonly IEngineLogger _engineLogger;
     private Game _game;
 
     public VeloceEngine()
     {
         _engineSettings = EngineSettings.Default;
         _game = new Game();
-        IEngineLogger engineLogger = new ConsoleEngineLogger();
-        _moveFinder = new MoveFinder(engineLogger, _engineSettings);
+        _engineLogger = new ConsoleEngineLogger();
+        _moveFinder = new MoveFinder(_engineLogger, _engineSettings);
     }
 
     public VeloceEngine(IEngineLogger engineLogger, EngineSettings engineSettings)
     {
         _engineSettings = engineSettings;
+        _engineLogger = engineLogger;
         _game = new Game();
-        _moveFinder = new MoveFinder(engineLogger, _engineSettings);
+        _moveFinder = new MoveFinder(_engineLogger, _engineSettings);
     }
 
     public Move? FindBestMove()
@@ -55,5 +57,16 @@ public class VeloceEngine
     public void SetPosition(Position position)
     {
         _game.SetPosition(position);
+    }
+
+    public void SetThreads(int threads)
+    {
+        _engineSettings.SetThreads(threads);
+        _moveFinder = new MoveFinder(_engineLogger, _engineSettings);
+    }
+
+    public void SetHashSize(int hashSizeMb)
+    {
+        _engineSettings.TranspositionTableSizeMb = Math.Max(1, Math.Min(128, hashSizeMb));
     }
 }
