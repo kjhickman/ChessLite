@@ -151,7 +151,20 @@ public class TranspositionTable
 
         replace = new TranspositionEntry(
             move: move,
-            hashVerification: verification,
+            hashVerification: 0, // Zero out hash first
+            evaluation: staticEval,
+            score: score,
+            depth: depth,
+            generation: _generation,
+            nodeType: nodeType
+        );
+
+        // Memory barrier to ensure the above write completes before we set the hash
+        Thread.MemoryBarrier();
+
+        replace = new TranspositionEntry(
+            move: move,
+            hashVerification: verification, // Set correct hash last
             evaluation: staticEval,
             score: score,
             depth: depth,
