@@ -1,5 +1,8 @@
+using System.Runtime.InteropServices;
+
 namespace Veloce.Engine;
 
+[StructLayout(LayoutKind.Auto)]
 public readonly struct TimeControl
 {
     public TimeControl(int timeLeft, int increment = -1, int movesToGo = -1)

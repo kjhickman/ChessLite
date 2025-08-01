@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Veloce.Core.Models;
 
 namespace Veloce.Search;
@@ -5,6 +6,7 @@ namespace Veloce.Search;
 /// <summary>
 /// Represents the result of a search operation
 /// </summary>
+[StructLayout(LayoutKind.Auto)]
 public struct SearchResult
 {
     /// <summary>

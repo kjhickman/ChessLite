@@ -1,8 +1,11 @@
+using System.Runtime.InteropServices;
+
 namespace Veloce.Search;
 
 /// <summary>
 /// Container for search information that can be passed to loggers.
 /// </summary>
+[StructLayout(LayoutKind.Auto)]
 public struct SearchInfo
 {
     public int Depth { get; set; }

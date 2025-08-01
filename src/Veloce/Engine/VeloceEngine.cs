@@ -4,41 +4,41 @@ using Veloce.State;
 
 namespace Veloce.Engine;
 
-public class Engine
+public class VeloceEngine
 {
-    private readonly Search.Search _search;
+    private readonly Search.MoveFinder _moveFinder;
     private readonly EngineSettings _engineSettings;
     private Game _game;
 
-    public Engine()
+    public VeloceEngine()
     {
         _engineSettings = EngineSettings.Default;
         _game = new Game();
         IEngineLogger engineLogger = new ConsoleEngineLogger();
-        _search = new Search.Search(engineLogger, _engineSettings);
+        _moveFinder = new Search.MoveFinder(engineLogger, _engineSettings);
     }
 
-    public Engine(IEngineLogger engineLogger, EngineSettings engineSettings)
+    public VeloceEngine(IEngineLogger engineLogger, EngineSettings engineSettings)
     {
         _engineSettings = engineSettings;
         _game = new Game();
-        _search = new Search.Search(engineLogger, _engineSettings);
+        _moveFinder = new Search.MoveFinder(engineLogger, _engineSettings);
     }
 
     public Move? FindBestMove()
     {
-        return _search.FindBestMove(_game).BestMove;
+        return _moveFinder.FindBestMove(_game).BestMove;
     }
 
     public SearchResult FindBestMove(TimeControl timeControl)
     {
         var timeToSearchMs = TimeManagement.CalculateMoveTime(timeControl);
-        return _search.FindBestMove(_game, timeToSearchMs);
+        return _moveFinder.FindBestMove(_game, timeToSearchMs);
     }
 
     public SearchResult FindBestMove(int timeToSearchMs)
     {
-        return _search.FindBestMove(_game, timeToSearchMs);
+        return _moveFinder.FindBestMove(_game, timeToSearchMs);
     }
 
     public void MakeMove(Move move)
@@ -49,7 +49,7 @@ public class Engine
     public void NewGame()
     {
         _game = new Game();
-        _search.Reset();
+        _moveFinder.Reset();
     }
 
     public void SetPosition(Position position)

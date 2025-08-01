@@ -1,8 +1,10 @@
 ﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Veloce.Core.Models;
 
 namespace Veloce.Search;
 
+[StructLayout(LayoutKind.Auto)]
 public readonly struct TranspositionEntry : IEquatable<TranspositionEntry>
 {
     /// The internal packed representation of the transposition entry.

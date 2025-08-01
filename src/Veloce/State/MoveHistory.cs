@@ -1,7 +1,9 @@
+using System.Runtime.InteropServices;
 using Veloce.Core.Models;
 
 namespace Veloce.State;
 
+[StructLayout(LayoutKind.Auto)]
 public struct MoveHistory
 {
     public Move Move;

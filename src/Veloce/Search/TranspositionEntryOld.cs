@@ -1,7 +1,9 @@
+using System.Runtime.InteropServices;
 using Veloce.Core.Models;
 
 namespace Veloce.Search;
 
+[StructLayout(LayoutKind.Auto)]
 public struct TranspositionEntryOld
 {
     // A key of 0 is assumed to mean the slot is unused.

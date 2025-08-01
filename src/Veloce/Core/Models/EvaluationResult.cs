@@ -1,5 +1,8 @@
-﻿namespace Veloce.Core.Models;
+﻿using System.Runtime.InteropServices;
 
+namespace Veloce.Core.Models;
+
+[StructLayout(LayoutKind.Auto)]
 public struct EvaluationResult
 {
     public int Score { get; }

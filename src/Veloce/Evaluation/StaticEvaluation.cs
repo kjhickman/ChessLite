@@ -3,7 +3,7 @@ using Veloce.State;
 
 namespace Veloce.Evaluation;
 
-public static class Evaluation
+public static class StaticEvaluation
 {
     private const int PawnValue = 100;
     private const int KnightValue = 320;

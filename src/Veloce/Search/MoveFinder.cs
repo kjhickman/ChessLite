@@ -8,7 +8,7 @@ using Veloce.State;
 
 namespace Veloce.Search;
 
-public class Search
+public class MoveFinder
 {
     private readonly TranspositionTable _transpositionTable;
 
@@ -21,7 +21,7 @@ public class Search
     private readonly IEngineLogger _engineLogger;
     private readonly EngineSettings _settings;
 
-    public Search(IEngineLogger? engineLogger = null, EngineSettings? settings = null)
+    public MoveFinder(IEngineLogger? engineLogger = null, EngineSettings? settings = null)
     {
         _engineLogger = engineLogger ?? new NullEngineLogger();
         _settings = settings ?? EngineSettings.Default;
