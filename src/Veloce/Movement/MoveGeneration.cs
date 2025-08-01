@@ -269,11 +269,11 @@ public static class MoveGeneration
         var fromFile = from.GetFile();
         var fromRank = from.GetRank();
 
-        Span<(int fileDirection, int rankDirection)> kingDirections = stackalloc (int, int)[]
-        {
+        Span<(int fileDirection, int rankDirection)> kingDirections =
+        [
             (1, 1), (-1, 1), (1, -1), (-1, -1),
-            (1, 0), (-1, 0), (0, 1), (0, -1),
-        };
+            (1, 0), (-1, 0), (0, 1), (0, -1)
+        ];
 
         for (var i = 0; i < kingDirections.Length; i++)
         {

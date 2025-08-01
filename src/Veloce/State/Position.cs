@@ -204,10 +204,10 @@ public class Position
         var kingSquare = WhiteToMove ? WhiteKing.GetFirstSquare() : BlackKing.GetFirstSquare();
         var friendlyPieces = WhiteToMove ? WhitePieces : BlackPieces;
 
-        Span<(int fileDir, int rankDir)> directions = stackalloc (int, int)[]
-        {
-            (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1),
-        };
+        Span<(int fileDir, int rankDir)> directions =
+        [
+            (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)
+        ];
 
         for (var i = 0; i < directions.Length; i++)
         {
