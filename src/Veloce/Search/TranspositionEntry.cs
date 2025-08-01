@@ -4,7 +4,7 @@ using Veloce.Core.Models;
 
 namespace Veloce.Search;
 
-[StructLayout(LayoutKind.Auto)]
+[StructLayout(LayoutKind.Sequential, Pack = 1)]
 public readonly struct TranspositionEntry : IEquatable<TranspositionEntry>
 {
     /// The internal packed representation of the transposition entry.
