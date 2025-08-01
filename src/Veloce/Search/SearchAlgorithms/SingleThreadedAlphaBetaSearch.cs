@@ -163,7 +163,10 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
 
             var move = movesBuffer[i];
             game.MakeMove(move);
-            var score = AlphaBeta(game, depth - 1, alpha, beta, !isMaximizing, 1).Score;
+
+            var context = SearchContext.CreateRoot(depth - 1, alpha, beta);
+            var score = AlphaBeta(game, context, !isMaximizing).Score;
+
             game.UndoMove();
 
             if (isMaximizing)
@@ -207,11 +210,11 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
         };
     }
 
-    private EvaluationResult AlphaBeta(Game game, int depth, int alpha, int beta,
-        bool isMaximizing, int ply)
+    private EvaluationResult AlphaBeta(Game game, SearchContext context, bool isMaximizing)
     {
         _nodesSearched++;
-        _searchDepthNodes[depth]++;
+        _searchDepthNodes[context.Depth]++;
+        context.Stats = context.Stats with { NodesSearched = context.Stats.NodesSearched + 1 };
 
         if ((_nodesSearched & 4095) == 0 && ShouldStopSearch())
         {
@@ -243,7 +246,7 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
             ttHit = true;
 
             // Only use TT entries if their depth is sufficient
-            if (ttDepth >= depth)
+            if (ttDepth >= context.Depth)
             {
                 // We can use the TT score if:
                 // 1. It's an exact score, or
@@ -252,8 +255,13 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
                 switch (ttBound)
                 {
                     case TranspositionNodeType.Exact:
-                    case TranspositionNodeType.Beta when ttScore <= alpha:
-                    case TranspositionNodeType.Alpha when ttScore >= beta:
+                        context.Stats = context.Stats with { TranspositionHits = context.Stats.TranspositionHits + 1 };
+                        return new EvaluationResult(ttScore, GameState.Ongoing);
+                    case TranspositionNodeType.Beta when ttScore <= context.Alpha:
+                        context.Stats = context.Stats with { TranspositionHits = context.Stats.TranspositionHits + 1 };
+                        return new EvaluationResult(ttScore, GameState.Ongoing);
+                    case TranspositionNodeType.Alpha when ttScore >= context.Beta:
+                        context.Stats = context.Stats with { TranspositionHits = context.Stats.TranspositionHits + 1 };
                         return new EvaluationResult(ttScore, GameState.Ongoing);
                 }
             }
@@ -266,11 +274,11 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
         if (moveCount == 0)
         {
             return game.IsInCheck()
-                ? new EvaluationResult(isMaximizing ? -10000 + ply : 10000 - ply, GameState.Checkmate)
+                ? new EvaluationResult(isMaximizing ? -10000 + context.Ply : 10000 - context.Ply, GameState.Checkmate)
                 : new EvaluationResult(0, GameState.Stalemate);
         }
 
-        if (depth <= 0)
+        if (context.Depth <= 0)
         {
             // Reached depth limit, evaluate the position
             return new EvaluationResult(position.Evaluate(), GameState.Ongoing);
@@ -283,7 +291,7 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
         }
         MoveOrdering.OrderMoves(movesBuffer, moveCount, ttMove);
 
-        var originalAlpha = alpha;
+        var originalAlpha = context.Alpha;
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;
         var bestMove = Move.NullMove;
 
@@ -294,7 +302,8 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
 
             var move = movesBuffer[i];
             game.MakeMove(move);
-            var score = AlphaBeta(game, depth - 1, alpha, beta, !isMaximizing, ply + 1).Score;
+            var childContext = context.CreateChild(context.Depth - 1, context.Alpha, context.Beta);
+            var score = AlphaBeta(game, childContext, !isMaximizing).Score;
             game.UndoMove();
 
             if (isMaximizing)
@@ -303,8 +312,12 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
                 {
                     bestScore = score;
                     bestMove = move;
+                    if (context.Ply < context.PrincipalVariation.Length)
+                    {
+                        context.PrincipalVariation[context.Ply] = move;
+                    }
                 }
-                alpha = Math.Max(alpha, score);
+                context.Alpha = Math.Max(context.Alpha, score);
             }
             else
             {
@@ -312,11 +325,19 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
                 {
                     bestScore = score;
                     bestMove = move;
+                    if (context.Ply < context.PrincipalVariation.Length)
+                    {
+                        context.PrincipalVariation[context.Ply] = move;
+                    }
                 }
-                beta = Math.Min(beta, score);
+                context.Beta = Math.Min(context.Beta, score);
             }
 
-            if (beta <= alpha) break;
+            if (context.Beta <= context.Alpha)
+            {
+                context.Stats = context.Stats with { AlphaBetaCutoffs = context.Stats.AlphaBetaCutoffs + 1 };
+                break;
+            }
         }
 
         // Don't store anything if we had to abort
@@ -327,7 +348,7 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
 
         // Save this position to the transposition table
         var nodeType = bestScore <= originalAlpha ? TranspositionNodeType.Beta :
-                       bestScore >= beta ? TranspositionNodeType.Alpha :
+                       bestScore >= context.Beta ? TranspositionNodeType.Alpha :
                        TranspositionNodeType.Exact;
 
         _transpositionTable.Store(
@@ -335,10 +356,9 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
             bestMove.ToCompactMove(),
             (short)bestScore,
             (short)position.Evaluate(), // Evaluate position for static evaluation
-            (byte)depth,
+            (byte)context.Depth,
             nodeType);
 
         return new EvaluationResult(bestScore, GameState.Ongoing);
     }
-
 }

@@ -179,7 +179,7 @@ public class SharedHashTableSearch : ISearchAlgorithm
             // No legal moves - checkmate or stalemate
             var gameState = game.IsInCheck() ? GameState.Checkmate : GameState.Stalemate;
             var score = gameState == GameState.Checkmate
-                ? (game.Position.WhiteToMove ? -10000 : 10000)
+                ? game.Position.WhiteToMove ? -10000 : 10000
                 : 0;
             return new SearchResult
             {
@@ -215,7 +215,8 @@ public class SharedHashTableSearch : ISearchAlgorithm
             var move = movesBuffer[i];
             game.MakeMove(move);
 
-            var score = AlphaBeta(game, depth - 1, alpha, beta, !isMaximizing, 1, threadId);
+            var context = SearchContext.CreateRoot(depth - 1, alpha, beta);
+            var score = AlphaBeta(game, context, !isMaximizing, threadId);
 
             game.UndoMove();
 
@@ -263,7 +264,7 @@ public class SharedHashTableSearch : ISearchAlgorithm
     /// <summary>
     /// Alpha-beta search with shared transposition table
     /// </summary>
-    private int AlphaBeta(Game game, int depth, int alpha, int beta, bool isMaximizing, int ply, int threadId)
+    private int AlphaBeta(Game game, SearchContext context, bool isMaximizing, int threadId)
     {
         // Increment node counter atomically
         Interlocked.Increment(ref _totalNodesSearched);
@@ -290,16 +291,19 @@ public class SharedHashTableSearch : ISearchAlgorithm
         var position = game.Position;
         if (_sharedTranspositionTable.Probe(position.ZobristHash, out var ttMove, out var ttScore, out _, out var ttDepth, out var ttBound))
         {
-            if (ttDepth >= depth)
+            if (ttDepth >= context.Depth)
             {
                 switch (ttBound)
                 {
                     case TranspositionNodeType.Exact:
+                        context.Stats = context.Stats with { TranspositionHits = context.Stats.TranspositionHits + 1 };
                         return ttScore;
-                    case TranspositionNodeType.Beta when ttScore <= alpha:
-                        return alpha;
-                    case TranspositionNodeType.Alpha when ttScore >= beta:
-                        return beta;
+                    case TranspositionNodeType.Beta when ttScore <= context.Alpha:
+                        context.Stats = context.Stats with { TranspositionHits = context.Stats.TranspositionHits + 1 };
+                        return context.Alpha;
+                    case TranspositionNodeType.Alpha when ttScore >= context.Beta:
+                        context.Stats = context.Stats with { TranspositionHits = context.Stats.TranspositionHits + 1 };
+                        return context.Beta;
                 }
             }
         }
@@ -312,11 +316,11 @@ public class SharedHashTableSearch : ISearchAlgorithm
         {
             // Terminal position
             return game.IsInCheck()
-                ? (isMaximizing ? -10000 + ply : 10000 - ply)
+                ? (isMaximizing ? -10000 + context.Ply : 10000 - context.Ply)
                 : 0;
         }
 
-        if (depth <= 0)
+        if (context.Depth <= 0)
         {
             // Leaf node - return static evaluation
             return position.Evaluate();
@@ -330,7 +334,7 @@ public class SharedHashTableSearch : ISearchAlgorithm
         }
         MoveOrdering.OrderMoves(movesBuffer, moveCount, bestMove, threadId);
 
-        var originalAlpha = alpha;
+        var originalAlpha = context.Alpha;
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;
         bestMove = Move.NullMove;
 
@@ -340,7 +344,8 @@ public class SharedHashTableSearch : ISearchAlgorithm
             var move = movesBuffer[i];
             game.MakeMove(move);
 
-            var score = AlphaBeta(game, depth - 1, alpha, beta, !isMaximizing, ply + 1, threadId);
+            var childContext = context.CreateChild(context.Depth - 1, context.Alpha, context.Beta);
+            var score = AlphaBeta(game, childContext, !isMaximizing, threadId);
 
             game.UndoMove();
 
@@ -350,8 +355,12 @@ public class SharedHashTableSearch : ISearchAlgorithm
                 {
                     bestScore = score;
                     bestMove = move;
+                    if (context.Ply < context.PrincipalVariation.Length)
+                    {
+                        context.PrincipalVariation[context.Ply] = move;
+                    }
                 }
-                alpha = Math.Max(alpha, score);
+                context.Alpha = Math.Max(context.Alpha, score);
             }
             else
             {
@@ -359,18 +368,26 @@ public class SharedHashTableSearch : ISearchAlgorithm
                 {
                     bestScore = score;
                     bestMove = move;
+                    if (context.Ply < context.PrincipalVariation.Length)
+                    {
+                        context.PrincipalVariation[context.Ply] = move;
+                    }
                 }
-                beta = Math.Min(beta, score);
+                context.Beta = Math.Min(context.Beta, score);
             }
 
-            if (beta <= alpha) break; // Alpha-beta cutoff
+            if (context.Beta <= context.Alpha)
+            {
+                context.Stats = context.Stats with { AlphaBetaCutoffs = context.Stats.AlphaBetaCutoffs + 1 };
+                break; // Alpha-beta cutoff
+            }
         }
 
         // Store in transposition table
         if (!_shouldStop)
         {
             var nodeType = bestScore <= originalAlpha ? TranspositionNodeType.Beta :
-                          bestScore >= beta ? TranspositionNodeType.Alpha :
+                          bestScore >= context.Beta ? TranspositionNodeType.Alpha :
                           TranspositionNodeType.Exact;
 
             _sharedTranspositionTable.Store(
@@ -378,13 +395,12 @@ public class SharedHashTableSearch : ISearchAlgorithm
                 bestMove.ToCompactMove(),
                 (short)bestScore,
                 (short)position.Evaluate(),
-                (byte)depth,
+                (byte)context.Depth,
                 nodeType);
         }
 
         return bestScore;
     }
-
 
     /// <summary>
     /// Updates the best result if the new one is better
@@ -433,7 +449,7 @@ public class SharedHashTableSearch : ISearchAlgorithm
             NodesSearched = nodes,
             TimeElapsed = elapsed,
             NodesPerSecond = elapsed.TotalSeconds > 0 ? (long)(nodes / elapsed.TotalSeconds) : 0,
-            HashFull = _sharedTranspositionTable.GetOccupancy()
+            HashFull = _sharedTranspositionTable.GetOccupancy(),
         };
 
         OnSearchInfoAvailable?.Invoke(searchInfo);
