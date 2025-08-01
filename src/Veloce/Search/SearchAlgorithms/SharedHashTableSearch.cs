@@ -4,7 +4,6 @@ using Veloce.Engine;
 using Veloce.Evaluation;
 using Veloce.Movement;
 using Veloce.Search.Interfaces;
-using Veloce.Search.Logging;
 using Veloce.Search.Transposition;
 using Veloce.State;
 

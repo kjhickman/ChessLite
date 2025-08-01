@@ -1,7 +1,6 @@
 ﻿using Veloce.Core;
 using Veloce.Search;
 using Veloce.Search.Interfaces;
-using Veloce.Search.Logging;
 using Veloce.State;
 
 namespace Veloce.Engine;
@@ -10,39 +9,37 @@ public class VeloceEngine
 {
     private MoveFinder _moveFinder;
     private readonly EngineSettings _engineSettings;
-    private readonly IEngineLogger _engineLogger;
+    private readonly IEngineLogger? _engineLogger;
     private Game _game;
 
-    public VeloceEngine()
+    public VeloceEngine(EngineSettings? engineSettings = null, IEngineLogger? engineLogger = null)
     {
-        _engineSettings = EngineSettings.Default;
-        _game = new Game();
-        _engineLogger = new ConsoleEngineLogger();
-        _moveFinder = new MoveFinder(_engineLogger, _engineSettings);
-    }
-
-    public VeloceEngine(IEngineLogger engineLogger, EngineSettings engineSettings)
-    {
-        _engineSettings = engineSettings;
+        _engineSettings = engineSettings ?? EngineSettings.Default;
         _engineLogger = engineLogger;
+        _moveFinder = new MoveFinder(_engineSettings, _engineLogger);
         _game = new Game();
-        _moveFinder = new MoveFinder(_engineLogger, _engineSettings);
     }
 
     public Move? FindBestMove()
     {
-        return _moveFinder.FindBestMove(_game).BestMove;
+        var bestMove = _moveFinder.FindBestMove(_game).BestMove;
+        _engineLogger?.LogBestMove(bestMove);
+        return bestMove;
     }
 
     public SearchResult FindBestMove(TimeControl timeControl)
     {
         var timeToSearchMs = TimeManagement.CalculateMoveTime(timeControl);
-        return _moveFinder.FindBestMove(_game, timeToSearchMs);
+        var searchResult = _moveFinder.FindBestMove(_game, timeToSearchMs);
+        _engineLogger?.LogBestMove(searchResult.BestMove);
+        return searchResult;
     }
 
     public SearchResult FindBestMove(int timeToSearchMs)
     {
-        return _moveFinder.FindBestMove(_game, timeToSearchMs);
+        var searchResult = _moveFinder.FindBestMove(_game, timeToSearchMs);
+        _engineLogger?.LogBestMove(searchResult.BestMove);
+        return searchResult;
     }
 
     public void MakeMove(Move move)
@@ -64,7 +61,7 @@ public class VeloceEngine
     public void SetThreads(int threads)
     {
         _engineSettings.SetThreads(threads);
-        _moveFinder = new MoveFinder(_engineLogger, _engineSettings);
+        _moveFinder = new MoveFinder(_engineSettings,  _engineLogger);
     }
 
     public void SetHashSize(int hashSizeMb)

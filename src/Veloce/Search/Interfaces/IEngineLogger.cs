@@ -1,5 +1,4 @@
 using Veloce.Core;
-using Veloce.Search.Logging;
 
 namespace Veloce.Search.Interfaces;
 

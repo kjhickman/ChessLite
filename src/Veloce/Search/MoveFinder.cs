@@ -1,6 +1,5 @@
 ﻿using Veloce.Engine;
 using Veloce.Search.Interfaces;
-using Veloce.Search.Logging;
 using Veloce.State;
 
 namespace Veloce.Search;
@@ -8,24 +7,24 @@ namespace Veloce.Search;
 public class MoveFinder
 {
     private readonly ISearchAlgorithm _searchAlgorithm;
-    private readonly IEngineLogger _engineLogger;
+    private readonly IEngineLogger? _engineLogger;
     private readonly EngineSettings _settings;
 
-    public MoveFinder(IEngineLogger? engineLogger = null, EngineSettings? settings = null)
+    public MoveFinder(EngineSettings? settings = null, IEngineLogger? engineLogger = null)
     {
-        _engineLogger = engineLogger ?? new NullEngineLogger();
         _settings = settings ?? EngineSettings.Default;
+        _engineLogger = engineLogger;
         _searchAlgorithm = SearchAlgorithmFactory.CreateSearchAlgorithm(_settings);
-        _searchAlgorithm.OnSearchInfoAvailable = _engineLogger.LogSearchInfo;
+        if (_engineLogger != null) _searchAlgorithm.OnSearchInfoAvailable = _engineLogger.LogSearchInfo;
     }
 
     // Uses the provided search algorithm (for testing purposes)
-    public MoveFinder(ISearchAlgorithm searchAlgorithm, IEngineLogger? engineLogger = null, EngineSettings? settings = null)
+    public MoveFinder(ISearchAlgorithm searchAlgorithm, EngineSettings? settings = null, IEngineLogger? engineLogger = null)
     {
-        _searchAlgorithm = searchAlgorithm ?? throw new ArgumentNullException(nameof(searchAlgorithm));
-        _engineLogger = engineLogger ?? new NullEngineLogger();
         _settings = settings ?? EngineSettings.Default;
-        _searchAlgorithm.OnSearchInfoAvailable = _engineLogger.LogSearchInfo;
+        _engineLogger = engineLogger;
+        _searchAlgorithm = searchAlgorithm ?? throw new ArgumentNullException(nameof(searchAlgorithm));
+        if (_engineLogger != null) _searchAlgorithm.OnSearchInfoAvailable = _engineLogger.LogSearchInfo;
     }
 
     public void Reset()
@@ -42,8 +41,6 @@ public class MoveFinder
         }
 
         var result = _searchAlgorithm.FindBestMove(game, _settings.MaxDepth, timeLimit, cts.Token);
-        
-        _engineLogger.LogBestMove(result.BestMove);
         return result;
     }
 
