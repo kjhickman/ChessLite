@@ -287,10 +287,12 @@ public class Position
             // Copy attack bitboards
             PinnedPieces = PinnedPieces,
             WhiteAttacks = WhiteAttacks,
+            WhiteAttacksWithoutBlackKing = WhiteAttacksWithoutBlackKing,
             WhitePawnAttacks = WhitePawnAttacks,
             WhiteKnightAttacks = WhiteKnightAttacks,
             WhiteKingAttacks = WhiteKingAttacks,
             BlackAttacks = BlackAttacks,
+            BlackAttacksWithoutWhiteKing = BlackAttacksWithoutWhiteKing,
             BlackPawnAttacks = BlackPawnAttacks,
             BlackKnightAttacks = BlackKnightAttacks,
             BlackKingAttacks = BlackKingAttacks,
