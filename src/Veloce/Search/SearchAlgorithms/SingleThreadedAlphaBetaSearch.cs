@@ -256,10 +256,10 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
                     case TranspositionNodeType.Exact:
                         context.Stats = context.Stats with { TranspositionHits = context.Stats.TranspositionHits + 1 };
                         return new EvaluationResult(ttScore, GameState.Ongoing);
-                    case TranspositionNodeType.Beta when ttScore <= context.Alpha:
+                    case TranspositionNodeType.Alpha when ttScore <= context.Alpha:
                         context.Stats = context.Stats with { TranspositionHits = context.Stats.TranspositionHits + 1 };
                         return new EvaluationResult(ttScore, GameState.Ongoing);
-                    case TranspositionNodeType.Alpha when ttScore >= context.Beta:
+                    case TranspositionNodeType.Beta when ttScore >= context.Beta:
                         context.Stats = context.Stats with { TranspositionHits = context.Stats.TranspositionHits + 1 };
                         return new EvaluationResult(ttScore, GameState.Ongoing);
                 }
@@ -291,6 +291,7 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
         MoveOrdering.OrderMoves(movesBuffer, moveCount, ttMove);
 
         var originalAlpha = context.Alpha;
+        var originalBeta = context.Beta;
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;
         var bestMove = Move.NullMove;
 
@@ -346,9 +347,15 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
         }
 
         // Save this position to the transposition table
-        var nodeType = bestScore <= originalAlpha ? TranspositionNodeType.Beta :
-                       bestScore >= context.Beta ? TranspositionNodeType.Alpha :
-                       TranspositionNodeType.Exact;
+        var nodeType = TranspositionNodeType.Exact;
+        if (bestScore <= originalAlpha)
+        {
+            nodeType = TranspositionNodeType.Alpha;
+        }
+        else if (bestScore >= originalBeta)
+        {
+            nodeType = TranspositionNodeType.Beta;
+        }
 
         _transpositionTable.Store(
             position.ZobristHash,
