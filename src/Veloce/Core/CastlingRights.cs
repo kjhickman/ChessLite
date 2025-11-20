@@ -15,10 +15,12 @@ public enum CastlingRights : byte
 #pragma warning disable MA0048
 public static class CastlingRightsExtensions
 {
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool Contains(this CastlingRights rights, CastlingRights other) =>
-        (rights & other) != CastlingRights.None;
+    extension(CastlingRights rights)
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Contains(CastlingRights other) => (rights & other) != CastlingRights.None;
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static CastlingRights Remove(this CastlingRights rights, CastlingRights other) => rights & ~other;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public CastlingRights Remove(CastlingRights other) => rights & ~other;
+    }
 }
