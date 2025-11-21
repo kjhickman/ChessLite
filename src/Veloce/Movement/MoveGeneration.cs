@@ -89,16 +89,19 @@ public static class MoveGeneration
             {
                 var leftCapturedPieceType = DetermineCapturedPieceType(position, leftCaptureMask, isWhite);
 
-                if ((int)leftCaptureTo is > 55 or < 8)
+                if (leftCapturedPieceType != PieceType.None)
                 {
-                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Queen);
-                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Rook);
-                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Bishop);
-                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Knight);
-                }
-                else
-                {
-                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, leftCaptureTo, pieceType, leftCapturedPieceType);
+                    if ((int)leftCaptureTo is > 55 or < 8)
+                    {
+                        movesBuffer[bufferIndex++] = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Queen);
+                        movesBuffer[bufferIndex++] = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Rook);
+                        movesBuffer[bufferIndex++] = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Bishop);
+                        movesBuffer[bufferIndex++] = Move.CreatePromotion(from, leftCaptureTo, pieceType, leftCapturedPieceType, PromotedPieceType.Knight);
+                    }
+                    else
+                    {
+                        movesBuffer[bufferIndex++] = Move.CreateCapture(from, leftCaptureTo, pieceType, leftCapturedPieceType);
+                    }
                 }
             }
             else if (leftCaptureTo == enPassantTarget && fromFile != 0)
@@ -112,16 +115,19 @@ public static class MoveGeneration
             if (rightCaptureTo.IsValid() && rightCaptureMask.Intersects(enemyPieces) && fromFile != 7)
             {
                 var rightCapturedPieceType = DetermineCapturedPieceType(position, rightCaptureMask, isWhite);
-                if ((int)rightCaptureTo is > 55 or < 8)
+                if (rightCapturedPieceType != PieceType.None)
                 {
-                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Queen);
-                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Rook);
-                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Bishop);
-                    movesBuffer[bufferIndex++] = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Knight);
-                }
-                else
-                {
-                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, rightCaptureTo, pieceType, rightCapturedPieceType);
+                    if ((int)rightCaptureTo is > 55 or < 8)
+                    {
+                        movesBuffer[bufferIndex++] = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Queen);
+                        movesBuffer[bufferIndex++] = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Rook);
+                        movesBuffer[bufferIndex++] = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Bishop);
+                        movesBuffer[bufferIndex++] = Move.CreatePromotion(from, rightCaptureTo, pieceType, rightCapturedPieceType, PromotedPieceType.Knight);
+                    }
+                    else
+                    {
+                        movesBuffer[bufferIndex++] = Move.CreateCapture(from, rightCaptureTo, pieceType, rightCapturedPieceType);
+                    }
                 }
             }
             else if (rightCaptureTo == enPassantTarget && fromFile != 7)
@@ -160,7 +166,7 @@ public static class MoveGeneration
             }
             if ((position.BlackKing & toMask) != 0)
             {
-                return PieceType.BlackKing;
+                return PieceType.None; // Cannot capture king
             }
         }
         else
@@ -187,7 +193,7 @@ public static class MoveGeneration
             }
             if ((position.WhiteKing & toMask) != 0)
             {
-                return PieceType.WhiteKing;
+                return PieceType.None; // Cannot capture king
             }
         }
 
@@ -213,7 +219,10 @@ public static class MoveGeneration
             {
                 var to = captures.GetFirstSquare();
                 var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), position.WhiteToMove);
-                movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
+                if (capturedPieceType != PieceType.None)
+                {
+                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
+                }
                 captures &= captures - 1;
             }
 
@@ -298,7 +307,10 @@ public static class MoveGeneration
             if (toMask.Intersects(enemyPieces))
             {
                 var capturedPieceType = DetermineCapturedPieceType(position, toMask, position.WhiteToMove);
-                movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
+                if (capturedPieceType != PieceType.None)
+                {
+                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
+                }
             }
             else
             {
@@ -399,7 +411,10 @@ public static class MoveGeneration
                     if (toMask.Intersects(enemyPieces))
                     {
                         var capturedPieceType = DetermineCapturedPieceType(position, toMask, position.WhiteToMove);
-                        movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
+                        if (capturedPieceType != PieceType.None)
+                        {
+                            movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
+                        }
                         break;
                     }
 

@@ -15,7 +15,7 @@ public class Game
     {
         Position = new Position();
         _moveExecutor = new MoveExecutor();
-        _repetitionTable = new ulong[128];
+        _repetitionTable = new ulong[512];
         _currentPly = 0;
     }
 
@@ -23,7 +23,7 @@ public class Game
     {
         Position = new Position(fen);
         _moveExecutor = new MoveExecutor();
-        _repetitionTable = new ulong[128];
+        _repetitionTable = new ulong[512];
         _currentPly = 0;
     }
 
