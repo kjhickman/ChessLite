@@ -288,8 +288,8 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
 
         if (context.Depth <= 0)
         {
-            // Reached depth limit, evaluate the position
-            return new EvaluationResult(position.Evaluate(), GameState.Ongoing);
+            // Reached depth limit, enter quiescence search
+            return new EvaluationResult(Quiescence(game, context, isMaximizing), GameState.Ongoing);
         }
 
         // Move ordering - try the TT move first if we have one
@@ -383,5 +383,170 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
             nodeType);
 
         return new EvaluationResult(bestScore, GameState.Ongoing);
+    }
+
+    /// <summary>
+    /// Quiescence search to handle the horizon effect by searching only tactical moves
+    /// </summary>
+    private int Quiescence(Game game, SearchContext context, bool isMaximizing)
+    {
+        const int maxQuiescenceDepth = 16;
+
+        _nodesSearched++;
+        context.Stats = context.Stats with { QuiescenceNodes = context.Stats.QuiescenceNodes + 1 };
+
+        // Check time limit periodically
+        if ((_nodesSearched & 4095) == 0 && ShouldStopSearch())
+        {
+            _shouldStop = true;
+            return 0;
+        }
+
+        if (_shouldStop) return 0;
+
+        // Limit quiescence depth to prevent stack overflow
+        if (context.Ply >= maxQuiescenceDepth)
+        {
+            return game.Position.Evaluate();
+        }
+
+        // Check for draws
+        if (game.IsDrawByFiftyMoves() || game.IsDrawByInsufficientMaterial() || game.IsDrawByRepetition())
+        {
+            return 0;
+        }
+
+        var position = game.Position;
+        var standPat = position.Evaluate();
+
+        // Stand pat - can we improve by not making any move?
+        if (isMaximizing)
+        {
+            if (standPat >= context.Beta)
+                return context.Beta; // Beta cutoff
+            if (standPat > context.Alpha)
+                context.Alpha = standPat;
+        }
+        else
+        {
+            if (standPat <= context.Alpha)
+                return context.Alpha; // Alpha cutoff
+            if (standPat < context.Beta)
+                context.Beta = standPat;
+        }
+
+        // Generate all legal moves
+        Span<Move> allMoves = stackalloc Move[218];
+        var allMoveCount = MoveGeneration.GenerateLegalMoves(position, allMoves);
+
+        if (allMoveCount == 0)
+        {
+            // Terminal position
+            return game.IsInCheck()
+                ? isMaximizing ? -10000 + context.Ply : 10000 - context.Ply
+                : standPat;
+        }
+
+        // Filter to only tactical moves (captures, promotions, checks)
+        Span<Move> tacticalMoves = stackalloc Move[218];
+        var tacticalMoveCount = 0;
+
+        for (int i = 0; i < allMoveCount; i++)
+        {
+            var move = allMoves[i];
+            if (move.IsCapture || move.PromotedPieceType != PromotedPieceType.None)
+            {
+                tacticalMoves[tacticalMoveCount++] = move;
+            }
+            else
+            {
+                // Check if move gives check
+                game.MakeMove(move);
+                if (game.IsInCheck())
+                {
+                    tacticalMoves[tacticalMoveCount++] = move;
+                }
+                game.UndoMove();
+            }
+        }
+
+        // If no tactical moves, return stand pat evaluation
+        if (tacticalMoveCount == 0)
+        {
+            return standPat;
+        }
+
+        // Order tactical moves
+        MoveOrdering.OrderMoves(tacticalMoves, tacticalMoveCount, Move.NullMove);
+
+        var bestScore = standPat;
+
+        // Search tactical moves
+        for (int i = 0; i < tacticalMoveCount && !_shouldStop; i++)
+        {
+            var move = tacticalMoves[i];
+
+            // Delta pruning - skip obviously losing captures
+            if (move.IsCapture && isMaximizing)
+            {
+                var capturedValue = GetPieceValue(move.CapturedPieceType);
+                if (standPat + capturedValue + 200 < context.Alpha) // 200 margin for safety
+                    continue;
+            }
+            else if (move.IsCapture && !isMaximizing)
+            {
+                var capturedValue = GetPieceValue(move.CapturedPieceType);
+                if (standPat - capturedValue - 200 > context.Beta) // 200 margin for safety
+                    continue;
+            }
+
+            game.MakeMove(move);
+
+            var childContext = context.CreateChild(0, context.Alpha, context.Beta); // Depth 0 for quiescence
+            var score = Quiescence(game, childContext, !isMaximizing);
+
+            game.UndoMove();
+
+            if (isMaximizing)
+            {
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                }
+                context.Alpha = Math.Max(context.Alpha, score);
+            }
+            else
+            {
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                }
+                context.Beta = Math.Min(context.Beta, score);
+            }
+
+            if (context.Beta <= context.Alpha)
+            {
+                context.Stats = context.Stats with { AlphaBetaCutoffs = context.Stats.AlphaBetaCutoffs + 1 };
+                break; // Alpha-beta cutoff
+            }
+        }
+
+        return bestScore;
+    }
+
+    /// <summary>
+    /// Gets the material value of a piece type for delta pruning
+    /// </summary>
+    private static int GetPieceValue(PieceType pieceType)
+    {
+        return pieceType switch
+        {
+            PieceType.WhitePawn or PieceType.BlackPawn => 100,
+            PieceType.WhiteKnight or PieceType.BlackKnight => 320,
+            PieceType.WhiteBishop or PieceType.BlackBishop => 330,
+            PieceType.WhiteRook or PieceType.BlackRook => 500,
+            PieceType.WhiteQueen or PieceType.BlackQueen => 900,
+            _ => 0
+        };
     }
 }

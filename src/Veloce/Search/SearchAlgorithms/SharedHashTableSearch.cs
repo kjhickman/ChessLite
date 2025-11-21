@@ -518,13 +518,13 @@ public class SharedHashTableSearch : ISearchAlgorithm
             var move = tacticalMoves[i];
 
             // Delta pruning - skip obviously losing captures
-            if (move.IsCapture && !isMaximizing)
+            if (move.IsCapture && isMaximizing)
             {
                 var capturedValue = GetPieceValue(move.CapturedPieceType);
                 if (standPat + capturedValue + 200 < context.Alpha) // 200 margin for safety
                     continue;
             }
-            else if (move.IsCapture && isMaximizing)
+            else if (move.IsCapture && !isMaximizing)
             {
                 var capturedValue = GetPieceValue(move.CapturedPieceType);
                 if (standPat - capturedValue - 200 > context.Beta) // 200 margin for safety
