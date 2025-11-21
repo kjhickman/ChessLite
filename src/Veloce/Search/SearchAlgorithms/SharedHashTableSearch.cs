@@ -207,6 +207,7 @@ public class SharedHashTableSearch : ISearchAlgorithm
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;
         var alpha = int.MinValue;
         var beta = int.MaxValue;
+        var evaluatedAnyMove = false;
 
         // Search all moves
         for (int i = 0; i < moveCount && !_shouldStop; i++)
@@ -218,6 +219,8 @@ public class SharedHashTableSearch : ISearchAlgorithm
             var score = AlphaBeta(game, context, !isMaximizing, threadId);
 
             game.UndoMove();
+
+            evaluatedAnyMove = true;
 
             if (isMaximizing)
             {
@@ -237,6 +240,12 @@ public class SharedHashTableSearch : ISearchAlgorithm
                 }
                 beta = Math.Min(beta, score);
             }
+        }
+
+        // If we didn't evaluate any moves due to timeout, use static evaluation
+        if (!evaluatedAnyMove)
+        {
+            bestScore = game.Position.Evaluate();
         }
 
         // Store in transposition table
@@ -335,6 +344,7 @@ public class SharedHashTableSearch : ISearchAlgorithm
         var originalAlpha = context.Alpha;
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;
         bestMove = Move.NullMove;
+        var evaluatedAnyMove = false;
 
         // Search moves
         for (int i = 0; i < moveCount && !_shouldStop; i++)
@@ -346,6 +356,8 @@ public class SharedHashTableSearch : ISearchAlgorithm
             var score = AlphaBeta(game, childContext, !isMaximizing, threadId);
 
             game.UndoMove();
+
+            evaluatedAnyMove = true;
 
             if (isMaximizing)
             {
@@ -379,6 +391,12 @@ public class SharedHashTableSearch : ISearchAlgorithm
                 context.Stats = context.Stats with { AlphaBetaCutoffs = context.Stats.AlphaBetaCutoffs + 1 };
                 break; // Alpha-beta cutoff
             }
+        }
+
+        // If we didn't evaluate any moves due to timeout, use static evaluation
+        if (!evaluatedAnyMove)
+        {
+            bestScore = position.Evaluate();
         }
 
         // Store in transposition table

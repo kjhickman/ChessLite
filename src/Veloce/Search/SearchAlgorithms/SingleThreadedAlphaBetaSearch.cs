@@ -151,6 +151,7 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
         var bestScore = position.WhiteToMove ? int.MinValue : int.MaxValue;
         var alpha = int.MinValue;
         var beta = int.MaxValue;
+        var evaluatedAnyMove = false;
 
         for (var i = 0; i < moveCount; i++)
         {
@@ -167,6 +168,8 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
             var score = AlphaBeta(game, context, !isMaximizing).Score;
 
             game.UndoMove();
+
+            evaluatedAnyMove = true;
 
             if (isMaximizing)
             {
@@ -188,6 +191,12 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
 
                 beta = Math.Min(beta, score);
             }
+        }
+
+        // If we didn't evaluate any moves due to timeout, use static evaluation
+        if (!evaluatedAnyMove)
+        {
+            bestScore = position.Evaluate();
         }
 
         if (!_shouldStop)
@@ -294,6 +303,7 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
         var originalBeta = context.Beta;
         var bestScore = isMaximizing ? int.MinValue : int.MaxValue;
         var bestMove = Move.NullMove;
+        var evaluatedAnyMove = false;
 
         // Main search loop
         for (var i = 0; i < moveCount; i++)
@@ -305,6 +315,8 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
             var childContext = context.CreateChild(context.Depth - 1, context.Alpha, context.Beta);
             var score = AlphaBeta(game, childContext, !isMaximizing).Score;
             game.UndoMove();
+
+            evaluatedAnyMove = true;
 
             if (isMaximizing)
             {
@@ -343,6 +355,11 @@ public class SingleThreadedAlphaBetaSearch : ISearchAlgorithm
         // Don't store anything if we had to abort
         if (_shouldStop)
         {
+            // If we didn't evaluate any moves due to timeout, use static evaluation
+            if (!evaluatedAnyMove)
+            {
+                bestScore = position.Evaluate();
+            }
             return new EvaluationResult(bestScore, GameState.Ongoing);
         }
 
