@@ -1,8 +1,7 @@
 using System.Numerics;
 using Veloce.Core;
-using Veloce.State;
 
-namespace Veloce.Search;
+namespace Veloce.State;
 
 public static class Zobrist
 {
