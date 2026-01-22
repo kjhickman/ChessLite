@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/ChessLite.Tests/ChessLite.Tests.csproj" />
+  <Project Path="src/ChessLite/ChessLite.csproj" />
+</Solution>
