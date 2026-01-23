@@ -1,5 +1,4 @@
 using ChessLite.Movement;
-using ChessLite.Parsing;
 using ChessLite.State;
 
 namespace ChessLite;
@@ -88,29 +87,48 @@ public class Game
         return MoveGeneration.IsSquareAttacked(Position, kingSquare, byWhite: !Position.WhiteToMove);
     }
 
-    public bool IsDrawByRepetition()
+    public GameState GetState()
     {
-        var count = 0;
+        // Check for draw by fifty-move rule
+        if (Position.HalfmoveClock >= 100)
+        {
+            return GameState.DrawByFiftyMoveRule;
+        }
+
+        // Check for draw by repetition
+        var repetitionCount = 0;
         for (var i = 0; i < _currentPly; i++)
         {
-            if (_repetitionTable[i] != Position.ZobristHash) continue;
-
-            count++;
-            if (count >= 3)
+            if (_repetitionTable[i] == Position.ZobristHash)
             {
-                return true;
+                repetitionCount++;
+                if (repetitionCount >= 3)
+                {
+                    return GameState.DrawByRepetition;
+                }
             }
         }
 
-        return false;
+        // Check for draw by insufficient material
+        if (IsInsufficientMaterial())
+        {
+            return GameState.DrawByInsufficientMaterial;
+        }
+
+        // Check if there are any legal moves
+        Span<Move> moves = stackalloc Move[218];
+        var legalMoveCount = MoveGeneration.GenerateLegalMoves(Position, moves);
+
+        if (legalMoveCount == 0)
+        {
+            // No legal moves - either checkmate or stalemate
+            return IsInCheck() ? GameState.Checkmate : GameState.Stalemate;
+        }
+
+        return GameState.Ongoing;
     }
 
-    public bool IsDrawByFiftyMoves()
-    {
-        return Position.HalfmoveClock >= 100;
-    }
-
-    public bool IsDrawByInsufficientMaterial()
+    private bool IsInsufficientMaterial()
     {
         var whiteMaterial = Position.WhitePieces & ~Position.WhiteKing;
         var blackMaterial = Position.BlackPieces & ~Position.BlackKing;
