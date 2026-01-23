@@ -1,3 +1,6 @@
+using System.Buffers;
+using System.Collections.ObjectModel;
+using System.Runtime.InteropServices;
 using ChessLite.Parsing;
 using ChessLite.Primitives;
 using ChessLite.State;
@@ -45,6 +48,16 @@ internal class MoveExecutor
     {
         var move = Helpers.MoveFromUci(position, uciMove);
         MakeMove(position, move);
+    }
+
+    internal int WriteMoveHistory(Span<Move> destination)
+    {
+        int count = _moveHistory.Count;
+        for (var i = 0; i < count; i++)
+        {
+            destination[i] = _moveHistory.ElementAt(i).Move;
+        }
+        return count;
     }
 
     private void SaveMoveHistory(Position position, Move move)

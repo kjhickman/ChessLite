@@ -24,7 +24,6 @@ public enum Square
     None = -1,
 }
 
-#pragma warning disable MA0048
 public static class SquareExtensions
 {
     extension(Square square)

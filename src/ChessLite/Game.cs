@@ -48,16 +48,25 @@ public class Game
         }
     }
 
+    public int WriteMoveHistory(Span<Move> destination)
+    {
+        return _moveExecutor.WriteMoveHistory(destination);
+    }
+
+    public IEnumerable<Move> GetMoveHistory()
+    {
+        var moves = new Move[256];
+        var count = _moveExecutor.WriteMoveHistory(moves);
+        for (var i = 0; i < count; i++)
+        {
+            yield return moves[i];
+        }
+    }
+
     public void MakeMove(Move move)
     {
         _moveExecutor.MakeMove(Position, move);
         _repetitionTable[_currentPly++] = Position.ZobristHash;
-    }
-
-    public void MakeUciMove(string uciMove)
-    {
-        var move = Helpers.MoveFromUci(Position, uciMove);
-        MakeMove(move);
     }
 
     public void UndoMove()
@@ -66,7 +75,7 @@ public class Game
         _currentPly--;
     }
 
-    public void SetPosition(Position position)
+    public void ResetPosition(Position position)
     {
         Position = position;
         _currentPly = 0;

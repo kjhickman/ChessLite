@@ -62,7 +62,7 @@ public readonly struct Move : IEquatable<Move>
         return $"{From}{To}{promotion}";
     }
 
-    public static Move NullMove => new(Square.None, Square.None, PromotedPieceType.None, PieceType.None, PieceType.None, false, SpecialMoveType.None);
+    internal static Move NullMove => new(Square.None, Square.None, PromotedPieceType.None, PieceType.None, PieceType.None, false, SpecialMoveType.None);
 
     public static Move CreateQuiet(Square from, Square to, PieceType pieceType)
     {

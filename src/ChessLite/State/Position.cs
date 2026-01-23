@@ -33,25 +33,25 @@ public class Position
 
     #region Derived Bitboards
 
-    public Bitboard WhitePieces { get; set; }
-    public Bitboard BlackPieces { get; set; }
-    public Bitboard AllPieces { get; set; }
+    internal Bitboard WhitePieces { get; set; }
+    internal Bitboard BlackPieces { get; set; }
+    internal Bitboard AllPieces { get; set; }
 
     #endregion
 
     #region Attacks & Pins
 
-    public Bitboard PinnedPieces;
-    public Bitboard WhiteAttacks;
-    public Bitboard WhiteAttacksWithoutBlackKing;
-    public Bitboard WhitePawnAttacks;
-    public Bitboard WhiteKnightAttacks;
-    public Bitboard WhiteKingAttacks;
-    public Bitboard BlackAttacks;
-    public Bitboard BlackAttacksWithoutWhiteKing;
-    public Bitboard BlackPawnAttacks;
-    public Bitboard BlackKnightAttacks;
-    public Bitboard BlackKingAttacks;
+    internal Bitboard PinnedPieces;
+    internal Bitboard WhiteAttacks;
+    internal Bitboard WhiteAttacksWithoutBlackKing;
+    internal Bitboard WhitePawnAttacks;
+    internal Bitboard WhiteKnightAttacks;
+    internal Bitboard WhiteKingAttacks;
+    internal Bitboard BlackAttacks;
+    internal Bitboard BlackAttacksWithoutWhiteKing;
+    internal Bitboard BlackPawnAttacks;
+    internal Bitboard BlackKnightAttacks;
+    internal Bitboard BlackKingAttacks;
 
     #endregion
 

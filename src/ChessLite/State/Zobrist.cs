@@ -3,7 +3,7 @@ using ChessLite.Primitives;
 
 namespace ChessLite.State;
 
-public static class Zobrist
+internal static class Zobrist
 {
     // We map the 12 piece types in this order:
     // 0: White Pawn, 1: White Knight, 2: White Bishop,
@@ -42,7 +42,7 @@ public static class Zobrist
         return BitConverter.ToUInt64(buffer, 0);
     }
 
-    public static ulong ComputeHash(Position pos)
+    internal static ulong ComputeHash(Position pos)
     {
         ulong hash = 0;
         // For each piece type, iterate over its bitboard
