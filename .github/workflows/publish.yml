@@ -1,0 +1,32 @@
+name: Publish NuGet Package
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+
+      - name: NuGet Login
+        uses: NuGet/login@v1
+        with:
+          user: kjhickman
+
+      - name: Pack
+        run: |
+          # Extract version from tag (e.g., v0.1.0-alpha -> 0.1.0-alpha)
+          VERSION_FROM_TAG=${GITHUB_REF_NAME#v}
+          dotnet pack src/ChessLite/ChessLite.csproj -c Release -p:PackageVersion=$VERSION_FROM_TAG -o ./dist
+
+      - name: Publish
+        run: dotnet nuget push ./dist/*.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate
