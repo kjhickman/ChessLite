@@ -1,4 +1,4 @@
 using BenchmarkDotNet.Running;
 using ChessLite.Benchmarks;
 
-BenchmarkRunner.Run<PerftBenchmarks>();
+BenchmarkSwitcher.FromAssembly(typeof(PerftBenchmarks).Assembly).Run(args);

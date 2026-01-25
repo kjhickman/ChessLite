@@ -50,14 +50,9 @@ internal class MoveExecutor
         MakeMove(position, move);
     }
 
-    internal int WriteMoveHistory(Span<Move> destination)
+    internal IEnumerable<Move> GetMoveHistory()
     {
-        int count = _moveHistory.Count;
-        for (var i = 0; i < count; i++)
-        {
-            destination[i] = _moveHistory.ElementAt(i).Move;
-        }
-        return count;
+        return _moveHistory.Select(x => x.Move).Reverse();
     }
 
     private void SaveMoveHistory(Position position, Move move)

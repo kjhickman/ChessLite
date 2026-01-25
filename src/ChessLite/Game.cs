@@ -71,27 +71,12 @@ public class Game
     }
 
     /// <summary>
-    /// Writes the move history to the specified span.
-    /// </summary>
-    /// <param name="destination">The span to write the move history to. Should have a minimum size of 256.</param>
-    /// <returns>The number of moves written to the span.</returns>
-    public int WriteMoveHistory(Span<Move> destination)
-    {
-        return _moveExecutor.WriteMoveHistory(destination);
-    }
-
-    /// <summary>
-    /// Gets an enumerable collection of all moves made in the game.
+    /// Gets an enumerable collection of all moves made in the game. Ordered from first to last.
     /// </summary>
     /// <returns>An enumerable collection of moves from the game history.</returns>
     public IEnumerable<Move> GetMoveHistory()
     {
-        var moves = new Move[256];
-        var count = _moveExecutor.WriteMoveHistory(moves);
-        for (var i = 0; i < count; i++)
-        {
-            yield return moves[i];
-        }
+        return _moveExecutor.GetMoveHistory();
     }
 
     /// <summary>

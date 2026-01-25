@@ -53,18 +53,11 @@ public class PerftBenchmarks
         return nodes;
     }
 
-    public class PositionParam
+    public class PositionParam(string label, string fen, int depth)
     {
-        public string Label { get; set; }
-        public string Fen { get; set; }
-        public int Depth { get; set; }
-
-        public PositionParam(string label, string fen, int depth)
-        {
-            Label = label;
-            Fen = fen;
-            Depth = depth;
-        }
+        public string Label { get; set; } = label;
+        public string Fen { get; set; } = fen;
+        public int Depth { get; set; } = depth;
 
         public override string ToString() => Label;
     }
