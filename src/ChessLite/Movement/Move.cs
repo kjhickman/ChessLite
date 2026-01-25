@@ -132,7 +132,7 @@ public readonly struct Move : IEquatable<Move>
     /// <summary>
     /// Gets a null move, used for null move pruning in search algorithms.
     /// </summary>
-    internal static Move NullMove => new(Square.None, Square.None, PromotedPieceType.None, PieceType.None, PieceType.None, false, SpecialMoveType.None);
+    public static Move NullMove => new(Square.None, Square.None, PromotedPieceType.None, PieceType.None, PieceType.None, false, SpecialMoveType.None);
 
     /// <summary>
     /// Creates a quiet (non-capturing) move.
