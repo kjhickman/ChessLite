@@ -5,28 +5,62 @@ using ChessLite.Primitives;
 
 namespace ChessLite.State;
 
+/// <summary>
+/// Represents a chess position, including piece placement, side to move, castling rights, and other state.
+/// </summary>
 public class Position
 {
     #region Fields and Properties
 
+    /// <summary>Bitboard representing the positions of all white pawns.</summary>
     public Bitboard WhitePawns;
+
+    /// <summary>Bitboard representing the positions of all white knights.</summary>
     public Bitboard WhiteKnights;
+
+    /// <summary>Bitboard representing the positions of all white bishops.</summary>
     public Bitboard WhiteBishops;
+
+    /// <summary>Bitboard representing the positions of all white rooks.</summary>
     public Bitboard WhiteRooks;
+
+    /// <summary>Bitboard representing the positions of all white queens.</summary>
     public Bitboard WhiteQueens;
+
+    /// <summary>Bitboard representing the position of the white king.</summary>
     public Bitboard WhiteKing;
 
+    /// <summary>Bitboard representing the positions of all black pawns.</summary>
     public Bitboard BlackPawns;
+
+    /// <summary>Bitboard representing the positions of all black knights.</summary>
     public Bitboard BlackKnights;
+
+    /// <summary>Bitboard representing the positions of all black bishops.</summary>
     public Bitboard BlackBishops;
+
+    /// <summary>Bitboard representing the positions of all black rooks.</summary>
     public Bitboard BlackRooks;
+
+    /// <summary>Bitboard representing the positions of all black queens.</summary>
     public Bitboard BlackQueens;
+
+    /// <summary>Bitboard representing the position of the black king.</summary>
     public Bitboard BlackKing;
 
+    /// <summary>Gets or sets a value indicating whether it is white's turn to move.</summary>
     public bool WhiteToMove { get; set; }
+
+    /// <summary>Gets or sets the current castling rights for both sides.</summary>
     public CastlingRights CastlingRights { get; set; }
+
+    /// <summary>Gets or sets the en passant target square, or <see cref="Square.None"/> if no en passant is possible.</summary>
     public Square EnPassantTarget { get; set; }
+
+    /// <summary>Gets or sets the halfmove clock, used for the fifty-move rule.</summary>
     public int HalfmoveClock { get; set; }
+
+    /// <summary>Gets or sets the Zobrist hash of the current position, used for transposition tables and repetition detection.</summary>
     public ulong ZobristHash { get; set; }
 
     #endregion
@@ -57,6 +91,9 @@ public class Position
 
     #region Mailbox
 
+    /// <summary>
+    /// Array-based board representation mapping each square index (0-63) to the piece type occupying it.
+    /// </summary>
     public PieceType[] Mailbox = new PieceType[64];
 
     #endregion
@@ -104,6 +141,10 @@ public class Position
         ZobristHash = Zobrist.ComputeHash(this);
     }
 
+    /// <summary>
+    /// Returns a human-readable string representation of the board.
+    /// </summary>
+    /// <returns>A string displaying the board with file and rank labels.</returns>
     public override string ToString()
     {
         Span<char> boardArray = stackalloc char[64];
@@ -158,6 +199,12 @@ public class Position
         }
     }
 
+    /// <summary>
+    /// Gets a reference to the bitboard for the specified piece type.
+    /// </summary>
+    /// <param name="pieceType">The piece type to get the bitboard for.</param>
+    /// <returns>A reference to the bitboard containing pieces of the specified type.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when <paramref name="pieceType"/> is <see cref="PieceType.None"/>.</exception>
     public ref Bitboard GetPieceBitboard(PieceType pieceType)
     {
         switch (pieceType)
@@ -186,6 +233,9 @@ public class Position
         AllPieces = WhitePieces | BlackPieces;
     }
 
+    /// <summary>
+    /// Recalculates all attack bitboards for both sides based on the current piece positions.
+    /// </summary>
     public void UpdateAttacks()
     {
         WhiteAttacks = AttackGeneration.CalculateAttacks(this, forWhite: true);
@@ -201,11 +251,17 @@ public class Position
         BlackKingAttacks = AttackGeneration.CalculateKingAttacks(BlackKing);
     }
 
+    /// <summary>
+    /// Recalculates the bitboard of pinned pieces for the side to move.
+    /// </summary>
     public void UpdatePinnedPieces()
     {
         PinnedPieces = ComputePinnedPieces();
     }
 
+    /// <summary>
+    /// Rebuilds the mailbox array from the current bitboard state.
+    /// </summary>
     public void UpdateMailbox()
     {
         Array.Fill(Mailbox, PieceType.None);
@@ -289,6 +345,10 @@ public class Position
         return pinnedPieces;
     }
 
+    /// <summary>
+    /// Creates a deep copy of the current position.
+    /// </summary>
+    /// <returns>A new <see cref="Position"/> instance with identical state.</returns>
     public Position Clone()
     {
         var clone = new Position
