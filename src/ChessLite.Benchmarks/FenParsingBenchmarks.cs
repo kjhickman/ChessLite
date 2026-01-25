@@ -1,5 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using ChessLite.Parsing;
+using ChessLite.Primitives;
 using ChessLite.State;
 
 namespace ChessLite.Benchmarks;
@@ -29,11 +30,18 @@ public class FenParsingBenchmarks
     [ParamsSource(nameof(FenScenarios))]
     public FenScenario Scenario { get; set; } = null!;
 
-    [Benchmark]
-    public int ParseFen()
+    public Position Position { get; set; } = null!;
+
+    [IterationSetup]
+    public void Setup()
     {
-        // Can't return FenData directly because of incompatible accessibility levels
-        return FenParser.ParseFen(Scenario.Fen).HalfmoveClock;
+        Position = new Position { Mailbox = new PieceType[64] };;
+    }
+
+    [Benchmark]
+    public bool ParseFen()
+    {
+        return FenParser.Parse(Scenario.Fen, Position);
     }
 
     public class FenScenario(string label, string fen)

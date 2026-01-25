@@ -44,7 +44,7 @@ public class GameStateBenchmarks
     [IterationSetup]
     public void Setup()
     {
-        _game = Game.FromFen(StateScenario.Fen);
+        _game = Game.ParseFen(StateScenario.Fen);
 
         // Simulate moves to build up ply count
         Span<Move> moves = stackalloc Move[218];

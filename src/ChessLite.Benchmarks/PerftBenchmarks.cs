@@ -24,7 +24,7 @@ public class PerftBenchmarks
     [IterationSetup]
     public void Setup()
     {
-        _game = Game.FromFen(Position.Fen);
+        _game = Game.ParseFen(Position.Fen);
     }
 
     [Benchmark]
