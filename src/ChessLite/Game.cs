@@ -28,7 +28,7 @@ public class Game
         _currentPly = 0;
     }
 
-    private Game(Position position)
+    public Game(Position position)
     {
         Position = position;
         _moveExecutor = new MoveExecutor();
@@ -41,9 +41,20 @@ public class Game
     /// </summary>
     /// <param name="fen">The FEN string representing the chess position.</param>
     /// <returns>A new <see cref="Game"/> instance with the specified position.</returns>
-    public static Game FromFen(string fen)
+    public static Game ParseFen(ReadOnlySpan<char> fen)
     {
-        return new Game(new Position(fen));
+        return new Game(Position.ParseFen(fen));
+    }
+
+    public static bool TryParseFen(ReadOnlySpan<char> fen, out Game? game)
+    {
+        if (Position.TryParseFen(fen, out var position))
+        {
+            game = new Game(position!);
+            return true;
+        }
+        game = null;
+        return false;
     }
 
     /// <summary>

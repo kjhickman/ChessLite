@@ -29,7 +29,7 @@ public class MoveGenerationBenchmarks
     [IterationSetup]
     public void Setup()
     {
-        _game = Game.FromFen(MoveGenScenario.Fen);
+        _game = Game.ParseFen(MoveGenScenario.Fen);
     }
 
     [Benchmark]

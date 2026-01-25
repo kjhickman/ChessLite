@@ -101,44 +101,72 @@ public class Position
     /// <summary>
     /// Default constructor: sets up the standard starting position.
     /// </summary>
-    public Position() : this(Constants.StartingPosition)
+    public Position()
     {
-        UpdateCombinedBitboards();
-        UpdateMailbox();
-        UpdateAttacks();
-        UpdatePinnedPieces();
-        ZobristHash = Zobrist.ComputeHash(this);
+        // todo: don't use ParseFen here. Directly set up the starting position
+        var position = ParseFen(Constants.StartingPosition);
+        WhitePawns = position.WhitePawns;
+        WhiteKnights = position.WhiteKnights;
+        WhiteBishops = position.WhiteBishops;
+        WhiteRooks = position.WhiteRooks;
+        WhiteQueens = position.WhiteQueens;
+        WhiteKing = position.WhiteKing;
+        BlackPawns = position.BlackPawns;
+        BlackKnights = position.BlackKnights;
+        BlackBishops = position.BlackBishops;
+        BlackRooks = position.BlackRooks;
+        BlackQueens = position.BlackQueens;
+        BlackKing = position.BlackKing;
+        WhiteToMove = position.WhiteToMove;
+        CastlingRights = position.CastlingRights;
+        EnPassantTarget = position.EnPassantTarget;
+        HalfmoveClock = position.HalfmoveClock;
+        WhitePieces = position.WhitePieces;
+        BlackPieces = position.BlackPieces;
+        AllPieces = position.AllPieces;
+        PinnedPieces = position.PinnedPieces;
+        WhiteAttacks = position.WhiteAttacks;
+        WhiteAttacksWithoutBlackKing = position.WhiteAttacksWithoutBlackKing;
+        WhitePawnAttacks = position.WhitePawnAttacks;
+        WhiteKnightAttacks = position.WhiteKnightAttacks;
+        WhiteKingAttacks = position.WhiteKingAttacks;
+        BlackAttacks = position.BlackAttacks;
+        BlackAttacksWithoutWhiteKing = position.BlackAttacksWithoutWhiteKing;
+        BlackPawnAttacks = position.BlackPawnAttacks;
+        BlackKnightAttacks = position.BlackKnightAttacks;
+        BlackKingAttacks = position.BlackKingAttacks;
+        ZobristHash = position.ZobristHash;
+        Array.Copy(position.Mailbox, Mailbox, 64);
     }
 
-    /// <summary>
-    /// Constructor that sets up a position from a FEN string.
-    /// </summary>
-    public Position(ReadOnlySpan<char> fen)
+    public static bool TryParseFen(ReadOnlySpan<char> fen, out Position? position)
     {
-        var fenData = FenParser.ParseFen(fen);
-        WhitePawns = fenData.WhitePawns;
-        WhiteKnights = fenData.WhiteKnights;
-        WhiteBishops = fenData.WhiteBishops;
-        WhiteRooks = fenData.WhiteRooks;
-        WhiteQueens = fenData.WhiteQueens;
-        WhiteKing = fenData.WhiteKing;
-        BlackPawns = fenData.BlackPawns;
-        BlackKnights = fenData.BlackKnights;
-        BlackBishops = fenData.BlackBishops;
-        BlackRooks = fenData.BlackRooks;
-        BlackQueens = fenData.BlackQueens;
-        BlackKing = fenData.BlackKing;
-        WhiteToMove = fenData.WhiteToMove;
-        CastlingRights = fenData.CastlingRights;
-        EnPassantTarget = fenData.EnPassantTarget;
-        HalfmoveClock = fenData.HalfmoveClock;
+        position = new Position { Mailbox = new PieceType[64] };
 
-        // Update combined bitboards
-        UpdateCombinedBitboards();
-        UpdateMailbox();
-        UpdateAttacks();
-        UpdatePinnedPieces();
-        ZobristHash = Zobrist.ComputeHash(this);
+        try
+        {
+            if (!FenParser.Parse(fen, position))
+            {
+                position = null;
+                return false;
+            }
+            return true;
+        }
+        catch
+        {
+            position = null;
+            return false;
+        }
+    }
+
+    public static Position ParseFen(ReadOnlySpan<char> fen)
+    {
+        var position = new Position { Mailbox = new PieceType[64] };
+        if (!FenParser.Parse(fen, position))
+        {
+            throw new ArgumentException("Invalid FEN string", nameof(fen));
+        }
+        return position;
     }
 
     /// <summary>
@@ -226,7 +254,7 @@ public class Position
         }
     }
 
-    private void UpdateCombinedBitboards()
+    internal void UpdateCombinedBitboards()
     {
         WhitePieces = WhitePawns | WhiteKnights | WhiteBishops | WhiteRooks | WhiteQueens | WhiteKing;
         BlackPieces = BlackPawns | BlackKnights | BlackBishops | BlackRooks | BlackQueens | BlackKing;

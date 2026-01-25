@@ -1,106 +1,123 @@
+using ChessLite.Movement;
 using ChessLite.Primitives;
+using ChessLite.State;
 
 namespace ChessLite.Parsing;
 
 internal static class FenParser
 {
-    internal static FenData ParseFen(ReadOnlySpan<char> fen)
+    internal static bool Parse(ReadOnlySpan<char> fen, Position position)
     {
-        var result = new FenData();
+        // Split FEN into fields
+        Span<Range> ranges = stackalloc Range[6];
+        var fieldCount = fen.Split(ranges, ' ');
+        if (fieldCount < 4) return false; // Need at least 4 fields
 
-        Span<Range> ranges = stackalloc Range[6]; // FEN has 6 fields
-        fen.Split(ranges, ' ');
-
+        // Parse piece placement (field 0)
         var piecePlacement = fen[ranges[0]];
         var square = Square.a8;
+
         for (var i = 0; i < piecePlacement.Length; i++)
         {
             var c = piecePlacement[i];
             if (char.IsDigit(c))
+            {
                 square += c - '0'; // Empty squares
+            }
             else if (c == '/')
+            {
                 square -= 16; // Move to next rank
+            }
             else
             {
+                if ((int)square < 0 || (int)square > 63) return false;
+
                 var pieceMask = Bitboard.Mask(square++);
                 switch (c)
                 {
-                    case 'P':
-                        result.WhitePawns = result.WhitePawns.SetSquares(pieceMask);
-                        break;
-                    case 'N':
-                        result.WhiteKnights = result.WhiteKnights.SetSquares(pieceMask);
-                        break;
-                    case 'B':
-                        result.WhiteBishops = result.WhiteBishops.SetSquares(pieceMask);
-                        break;
-                    case 'R':
-                        result.WhiteRooks = result.WhiteRooks.SetSquares(pieceMask);
-                        break;
-                    case 'Q':
-                        result.WhiteQueens = result.WhiteQueens.SetSquares(pieceMask);
-                        break;
-                    case 'K':
-                        result.WhiteKing = result.WhiteKing.SetSquares(pieceMask);
-                        break;
-                    case 'p':
-                        result.BlackPawns = result.BlackPawns.SetSquares(pieceMask);
-                        break;
-                    case 'n':
-                        result.BlackKnights = result.BlackKnights.SetSquares(pieceMask);
-                        break;
-                    case 'b':
-                        result.BlackBishops = result.BlackBishops.SetSquares(pieceMask);
-                        break;
-                    case 'r':
-                        result.BlackRooks = result.BlackRooks.SetSquares(pieceMask);
-                        break;
-                    case 'q':
-                        result.BlackQueens = result.BlackQueens.SetSquares(pieceMask);
-                        break;
-                    case 'k':
-                        result.BlackKing = result.BlackKing.SetSquares(pieceMask);
-                        break;
-                    default:
-                        throw new ArgumentException($"Invalid FEN piece: {c}");
+                    case 'P': position.WhitePawns |= pieceMask; break;
+                    case 'N': position.WhiteKnights |= pieceMask; break;
+                    case 'B': position.WhiteBishops |= pieceMask; break;
+                    case 'R': position.WhiteRooks |= pieceMask; break;
+                    case 'Q': position.WhiteQueens |= pieceMask; break;
+                    case 'K': position.WhiteKing |= pieceMask; break;
+                    case 'p': position.BlackPawns |= pieceMask; break;
+                    case 'n': position.BlackKnights |= pieceMask; break;
+                    case 'b': position.BlackBishops |= pieceMask; break;
+                    case 'r': position.BlackRooks |= pieceMask; break;
+                    case 'q': position.BlackQueens |= pieceMask; break;
+                    case 'k': position.BlackKing |= pieceMask; break;
+                    default: return false; // Invalid piece character
                 }
             }
         }
 
-        // Active color (index 1)
+        // Parse active color (field 1)
         var activeColor = fen[ranges[1]];
-        result.WhiteToMove = activeColor[0] switch
+        if (activeColor.Length != 1) return false;
+        position.WhiteToMove = activeColor[0] switch
         {
             'w' => true,
             'b' => false,
-            _ => throw new ArgumentException("Invalid active color."),
+            _ => false
         };
+        if (activeColor[0] != 'w' && activeColor[0] != 'b') return false;
 
-        // Parse castling rights (index 2)
+        // Parse castling rights (field 2)
         var castlingRights = fen[ranges[2]];
-
-        if (castlingRights.IndexOf('K') != -1) result.CastlingRights |= CastlingRights.WhiteKingside;
-        if (castlingRights.IndexOf('Q') != -1) result.CastlingRights |= CastlingRights.WhiteQueenside;
-        if (castlingRights.IndexOf('k') != -1) result.CastlingRights |= CastlingRights.BlackKingside;
-        if (castlingRights.IndexOf('q') != -1) result.CastlingRights |= CastlingRights.BlackQueenside;
-
-        // Parse en passant square (index 3)
-        var enPassantSquare = fen[ranges[3]];
-        if (enPassantSquare is not "-")
+        position.CastlingRights = CastlingRights.None;
+        for (var i = 0; i < castlingRights.Length; i++)
         {
-            result.EnPassantTarget = Enum.Parse<Square>(enPassantSquare);
+            switch (castlingRights[i])
+            {
+                case 'K': position.CastlingRights |= CastlingRights.WhiteKingside; break;
+                case 'Q': position.CastlingRights |= CastlingRights.WhiteQueenside; break;
+                case 'k': position.CastlingRights |= CastlingRights.BlackKingside; break;
+                case 'q': position.CastlingRights |= CastlingRights.BlackQueenside; break;
+                case '-': break; // No castling rights
+                default: return false; // Invalid character
+            }
+        }
+
+        // Parse en passant square (field 3)
+        var enPassantSquare = fen[ranges[3]];
+        if (enPassantSquare.Length == 1 && enPassantSquare[0] == '-')
+        {
+            position.EnPassantTarget = Square.None;
+        }
+        else if (enPassantSquare.Length == 2)
+        {
+            var file = enPassantSquare[0] - 'a';
+            var rank = enPassantSquare[1] - '1';
+            if (file < 0 || file > 7 || rank < 0 || rank > 7) return false;
+            position.EnPassantTarget = (Square)(rank * 8 + file);
         }
         else
         {
-            result.EnPassantTarget = Square.None;
+            return false;
         }
 
-        // Halfmove clock (index 4)
-        var halfmoveClock = fen[ranges[4]];
-        result.HalfmoveClock = int.Parse(halfmoveClock);
+        // Parse halfmove clock (field 4) - optional
+        if (fieldCount >= 5)
+        {
+            var halfmoveClock = fen[ranges[4]];
+            if (!int.TryParse(halfmoveClock, out var halfmove)) return false;
+            position.HalfmoveClock = halfmove;
+        }
+        else
+        {
+            position.HalfmoveClock = 0;
+        }
 
-        // Index 5 is the fullmove number, which we do no use
+        // Field 5 (fullmove number) is not used - we can ignore it
 
-        return result;
+        // Update derived state
+        position.UpdateCombinedBitboards();
+        position.UpdateMailbox();
+        position.UpdateAttacks();
+        position.UpdatePinnedPieces();
+        position.ZobristHash = Zobrist.ComputeHash(position);
+
+        return true;
     }
 }
