@@ -14,3 +14,6 @@ artifacts/
 # IDEs
 .idea
 .vscode
+
+# AI
+.claude/settings.local.json
