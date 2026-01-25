@@ -3,14 +3,23 @@ using ChessLite.State;
 
 namespace ChessLite;
 
+/// <summary>
+/// Represents a chess game with move history, position state, and game state tracking.
+/// </summary>
 public class Game
 {
     private readonly MoveExecutor _moveExecutor;
     private readonly ulong[] _repetitionTable;
     private int _currentPly;
 
-    public Position Position { get; set; }
+    /// <summary>
+    /// Gets the current position of the chess game.
+    /// </summary>
+    public Position Position { get; private set; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Game"/> class with the starting position.
+    /// </summary>
     public Game()
     {
         Position = new Position();
@@ -27,16 +36,30 @@ public class Game
         _currentPly = 0;
     }
 
+    /// <summary>
+    /// Creates a new game from a FEN (Forsyth-Edwards Notation) string.
+    /// </summary>
+    /// <param name="fen">The FEN string representing the chess position.</param>
+    /// <returns>A new <see cref="Game"/> instance with the specified position.</returns>
     public static Game FromFen(string fen)
     {
         return new Game(new Position(fen));
     }
 
+    /// <summary>
+    /// Writes all legal moves for the current position to the specified span.
+    /// </summary>
+    /// <param name="moves">The span to write the legal moves to. Should have a minimum size of 218.</param>
+    /// <returns>The number of legal moves written to the span.</returns>
     public int WriteLegalMoves(Span<Move> moves)
     {
         return MoveGeneration.GenerateLegalMoves(Position, moves);
     }
 
+    /// <summary>
+    /// Gets an enumerable collection of all legal moves for the current position.
+    /// </summary>
+    /// <returns>An enumerable collection of legal moves.</returns>
     public IEnumerable<Move> GetLegalMoves()
     {
         var moves = new Move[218];
@@ -47,11 +70,20 @@ public class Game
         }
     }
 
+    /// <summary>
+    /// Writes the move history to the specified span.
+    /// </summary>
+    /// <param name="destination">The span to write the move history to. Should have a minimum size of 256.</param>
+    /// <returns>The number of moves written to the span.</returns>
     public int WriteMoveHistory(Span<Move> destination)
     {
         return _moveExecutor.WriteMoveHistory(destination);
     }
 
+    /// <summary>
+    /// Gets an enumerable collection of all moves made in the game.
+    /// </summary>
+    /// <returns>An enumerable collection of moves from the game history.</returns>
     public IEnumerable<Move> GetMoveHistory()
     {
         var moves = new Move[256];
@@ -62,18 +94,29 @@ public class Game
         }
     }
 
+    /// <summary>
+    /// Makes a move on the board and updates the position.
+    /// </summary>
+    /// <param name="move">The move to make.</param>
     public void MakeMove(Move move)
     {
         _moveExecutor.MakeMove(Position, move);
         _repetitionTable[_currentPly++] = Position.ZobristHash;
     }
 
+    /// <summary>
+    /// Undoes the last move made on the board and restores the previous position.
+    /// </summary>
     public void UndoMove()
     {
         _moveExecutor.UndoMove(Position);
         _currentPly--;
     }
 
+    /// <summary>
+    /// Resets the game to a new position, clearing the move history and repetition table.
+    /// </summary>
+    /// <param name="position">The new position to set.</param>
     public void ResetPosition(Position position)
     {
         Position = position;
@@ -81,12 +124,20 @@ public class Game
         Array.Clear(_repetitionTable, 0, _repetitionTable.Length);
     }
 
+    /// <summary>
+    /// Determines whether the current side to move is in check.
+    /// </summary>
+    /// <returns><c>true</c> if the current side to move is in check; otherwise, <c>false</c>.</returns>
     public bool IsInCheck()
     {
         var kingSquare = Position.WhiteToMove ? Position.WhiteKing.GetFirstSquare() : Position.BlackKing.GetFirstSquare();
         return MoveGeneration.IsSquareAttacked(Position, kingSquare, byWhite: !Position.WhiteToMove);
     }
 
+    /// <summary>
+    /// Gets the current state of the game (ongoing, checkmate, stalemate, or various draw conditions).
+    /// </summary>
+    /// <returns>The current <see cref="GameState"/> of the game.</returns>
     public GameState GetState()
     {
         // Check for draw by fifty-move rule
