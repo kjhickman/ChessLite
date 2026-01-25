@@ -19,16 +19,17 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: NuGet Login
-        uses: NuGet/login@v1
-        with:
-          user: kjhickman
-
       - name: Pack
         run: |
           # Extract version from tag (e.g., v0.1.0-alpha -> 0.1.0-alpha)
           VERSION_FROM_TAG=${GITHUB_REF_NAME#v}
           dotnet pack src/ChessLite/ChessLite.csproj -c Release -p:PackageVersion=$VERSION_FROM_TAG -o ./dist
+      
+      - name: NuGet login
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: kjhickman
 
       - name: Publish
-        run: dotnet nuget push ./dist/*.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push ./dist/*.nupkg --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
