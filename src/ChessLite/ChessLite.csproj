@@ -6,6 +6,21 @@
       <Nullable>enable</Nullable>
       <LangVersion>latest</LangVersion>
       <IsAotCompatible>true</IsAotCompatible>
+
+      <Authors>Kyle Hickman</Authors>
+      <Description>Lightweight and high-performance core chess logic and types.</Description>
+      <PackageTags>chess</PackageTags>
+      <Copyright>Copyright © Kyle Hickman</Copyright>
+      <PackageLicenseExpression>MIT</PackageLicenseExpression>
+      <PackageProjectUrl>https://github.com/kjhickman/ChessLite</PackageProjectUrl>
+      <RepositoryUrl>https://github.com/kjhickman/ChessLite.git</RepositoryUrl>
+      <RepositoryType>git</RepositoryType>
+      <PackageReadmeFile>README.md</PackageReadmeFile>
+      <OutputType>Library</OutputType>
+      <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+      <IncludeSymbols>true</IncludeSymbols>
+      <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+      <PublishRepositoryUrl>true</PublishRepositoryUrl>
     </PropertyGroup>
 
     <ItemGroup>
@@ -13,6 +28,10 @@
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Include="../../README.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 
     <ItemGroup>
