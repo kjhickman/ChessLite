@@ -188,30 +188,116 @@ internal static class MoveGeneration
 
     private static void GenerateBishopMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
-        Span<(int fileDirection, int rankDirection)> bishopDirections = [(1, 1), (-1, 1), (1, -1), (-1, -1)];
         var bishops = position.WhiteToMove ? position.WhiteBishops : position.BlackBishops;
+        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
         var pieceType = position.WhiteToMove ? PieceType.WhiteBishop : PieceType.BlackBishop;
-        GenerateSlidingMoves(bishops, pieceType, position, ref bufferIndex, movesBuffer, bishopDirections);
+
+        while (bishops != 0)
+        {
+            var from = bishops.GetFirstSquare();
+            var attacks = MagicBitboards.GetBishopAttacks(from, position.AllPieces) & ~friendlyPieces;
+
+            // Generate captures
+            var captures = attacks & enemyPieces;
+            while (captures != 0)
+            {
+                var to = captures.GetFirstSquare();
+                var capturedPieceType = position.Mailbox[(int)to];
+                if (capturedPieceType != PieceType.None)
+                {
+                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
+                }
+                captures &= captures - 1;
+            }
+
+            // Generate quiet moves
+            var quiets = attacks & ~enemyPieces;
+            while (quiets != 0)
+            {
+                var to = quiets.GetFirstSquare();
+                movesBuffer[bufferIndex++] = Move.CreateQuiet(from, to, pieceType);
+                quiets &= quiets - 1;
+            }
+
+            bishops &= bishops - 1;
+        }
     }
 
     private static void GenerateRookMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
-        Span<(int fileDirection, int rankDirection)> rookDirections = [(1, 0), (-1, 0), (0, 1), (0, -1)];
         var rooks = position.WhiteToMove ? position.WhiteRooks : position.BlackRooks;
+        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
         var pieceType = position.WhiteToMove ? PieceType.WhiteRook : PieceType.BlackRook;
-        GenerateSlidingMoves(rooks, pieceType, position, ref bufferIndex, movesBuffer, rookDirections);
+
+        while (rooks != 0)
+        {
+            var from = rooks.GetFirstSquare();
+            var attacks = MagicBitboards.GetRookAttacks(from, position.AllPieces) & ~friendlyPieces;
+
+            // Generate captures
+            var captures = attacks & enemyPieces;
+            while (captures != 0)
+            {
+                var to = captures.GetFirstSquare();
+                var capturedPieceType = position.Mailbox[(int)to];
+                if (capturedPieceType != PieceType.None)
+                {
+                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
+                }
+                captures &= captures - 1;
+            }
+
+            // Generate quiet moves
+            var quiets = attacks & ~enemyPieces;
+            while (quiets != 0)
+            {
+                var to = quiets.GetFirstSquare();
+                movesBuffer[bufferIndex++] = Move.CreateQuiet(from, to, pieceType);
+                quiets &= quiets - 1;
+            }
+
+            rooks &= rooks - 1;
+        }
     }
 
     private static void GenerateQueenMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
-        Span<(int fileDirection, int rankDirection)> queenDirections =
-        [
-            (1, 1), (-1, 1), (1, -1), (-1, -1),
-            (1, 0), (-1, 0), (0, 1), (0, -1),
-        ];
         var queens = position.WhiteToMove ? position.WhiteQueens : position.BlackQueens;
+        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
         var pieceType = position.WhiteToMove ? PieceType.WhiteQueen : PieceType.BlackQueen;
-        GenerateSlidingMoves(queens, pieceType, position, ref bufferIndex, movesBuffer, queenDirections);
+
+        while (queens != 0)
+        {
+            var from = queens.GetFirstSquare();
+            var attacks = MagicBitboards.GetQueenAttacks(from, position.AllPieces) & ~friendlyPieces;
+
+            // Generate captures
+            var captures = attacks & enemyPieces;
+            while (captures != 0)
+            {
+                var to = captures.GetFirstSquare();
+                var capturedPieceType = position.Mailbox[(int)to];
+                if (capturedPieceType != PieceType.None)
+                {
+                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
+                }
+                captures &= captures - 1;
+            }
+
+            // Generate quiet moves
+            var quiets = attacks & ~enemyPieces;
+            while (quiets != 0)
+            {
+                var to = quiets.GetFirstSquare();
+                movesBuffer[bufferIndex++] = Move.CreateQuiet(from, to, pieceType);
+                quiets &= quiets - 1;
+            }
+
+            queens &= queens - 1;
+        }
     }
 
     private static void GenerateKingMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
@@ -320,58 +406,7 @@ internal static class MoveGeneration
         }
     }
 
-    private static void GenerateSlidingMoves(
-        Bitboard pieces,
-        PieceType pieceType,
-        Position position,
-        ref int bufferIndex,
-        Span<Move> movesBuffer,
-        ReadOnlySpan<(int fileDirection, int rankDirection)> directions)
-    {
-        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
-        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
 
-        while (pieces.IsNotEmpty())
-        {
-            var from = pieces.GetFirstSquare();
-            var fromFile = from.GetFile();
-            var fromRank = from.GetRank();
-
-            for (var i = 0; i < directions.Length; i++)
-            {
-                var (fileDirection, rankDirection) = directions[i];
-                var currentFile = fromFile;
-                var currentRank = fromRank;
-                while (true)
-                {
-                    currentFile += fileDirection;
-                    currentRank += rankDirection;
-                    if (currentFile is < 0 or >= 8 || currentRank is < 0 or >= 8)
-                        break;
-                    var to = (Square)(currentRank * 8 + currentFile);
-                    var toMask = Bitboard.Mask(to);
-                    if (toMask.Intersects(friendlyPieces))
-                    {
-                        break;
-                    }
-
-                    if (toMask.Intersects(enemyPieces))
-                    {
-                        var capturedPieceType = DetermineCapturedPieceType(position, toMask, position.WhiteToMove);
-                        if (capturedPieceType != PieceType.None)
-                        {
-                            movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
-                        }
-                        break;
-                    }
-
-                    movesBuffer[bufferIndex++] = Move.CreateQuiet(from, to, pieceType);
-                }
-            }
-
-            pieces &= pieces - 1;
-        }
-    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool IsSquareAttacked(Position position, Square square, bool byWhite)
