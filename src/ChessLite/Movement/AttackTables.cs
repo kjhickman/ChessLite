@@ -9,11 +9,19 @@ internal static class AttackTables
     internal static readonly Bitboard[] WhitePawnAttacks = new Bitboard[64];
     internal static readonly Bitboard[] BlackPawnAttacks = new Bitboard[64];
 
+    /// <summary>
+    /// Precomputed rays between any two squares. RayBetween[from][to] contains
+    /// all squares strictly between 'from' and 'to' (exclusive of both endpoints).
+    /// Returns 0 if squares are not aligned on a rank, file, or diagonal.
+    /// </summary>
+    internal static readonly Bitboard[][] RayBetween = new Bitboard[64][];
+
     static AttackTables()
     {
         InitializeKnightAttacks();
         InitializeKingAttacks();
         InitializePawnAttacks();
+        InitializeRayBetween();
     }
 
     private static void InitializeKnightAttacks()
@@ -109,6 +117,56 @@ internal static class AttackTables
                     blackAttacks |= Bitboard.Mask(square - 7); // Down-right
             }
             BlackPawnAttacks[i] = blackAttacks;
+        }
+    }
+
+    private static void InitializeRayBetween()
+    {
+        for (var from = 0; from < 64; from++)
+        {
+            RayBetween[from] = new Bitboard[64];
+            var fromFile = from % 8;
+            var fromRank = from / 8;
+
+            for (var to = 0; to < 64; to++)
+            {
+                if (from == to)
+                {
+                    RayBetween[from][to] = 0;
+                    continue;
+                }
+
+                var toFile = to % 8;
+                var toRank = to / 8;
+                var fileDelta = toFile - fromFile;
+                var rankDelta = toRank - fromRank;
+
+                // Check if squares are aligned (same rank, file, or diagonal)
+                var isOrthogonal = fileDelta == 0 || rankDelta == 0;
+                var isDiagonal = Math.Abs(fileDelta) == Math.Abs(rankDelta);
+
+                if (!isOrthogonal && !isDiagonal)
+                {
+                    RayBetween[from][to] = 0;
+                    continue;
+                }
+
+                // Calculate direction
+                var fileStep = fileDelta == 0 ? 0 : fileDelta > 0 ? 1 : -1;
+                var rankStep = rankDelta == 0 ? 0 : rankDelta > 0 ? 1 : -1;
+                var squareStep = rankStep * 8 + fileStep;
+
+                // Build the ray between (exclusive of endpoints)
+                Bitboard ray = 0;
+                var current = from + squareStep;
+                while (current != to)
+                {
+                    ray |= 1UL << current;
+                    current += squareStep;
+                }
+
+                RayBetween[from][to] = ray;
+            }
         }
     }
 }

@@ -157,30 +157,10 @@ internal static class LegalityChecker
             or PieceType.BlackQueen;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static Bitboard GetRayBetween(Square from, Square to)
     {
-        // Early exit for non-aligned squares
-        var fromFile = from.GetFile();
-        var fromRank = from.GetRank();
-        var toFile = to.GetFile();
-        var toRank = to.GetRank();
-        var fileDelta = toFile - fromFile;
-        var rankDelta = toRank - fromRank;
-
-        if (fileDelta != 0 && rankDelta != 0 && Math.Abs(fileDelta) != Math.Abs(rankDelta))
-            return 0;
-
-        // Use magic bitboards to get sliding piece attacks
-        if (fileDelta == 0 || rankDelta == 0)
-        {
-            // Orthogonal ray
-            var rookAttacks = MagicBitboards.GetRookAttacks(from, Bitboard.Mask(to));
-            return rookAttacks & MagicBitboards.GetRookAttacks(to, Bitboard.Mask(from));
-        }
-
-        // Diagonal ray
-        var bishopAttacks = MagicBitboards.GetBishopAttacks(from, Bitboard.Mask(to));
-        return bishopAttacks & MagicBitboards.GetBishopAttacks(to, Bitboard.Mask(from));
+        return AttackTables.RayBetween[(int)from][(int)to];
     }
 
     private static bool IsMovingAlongPinRay(Move move, Square kingSquare)
