@@ -37,6 +37,7 @@ internal class MoveExecutor
         if (move.SpecialMoveType != SpecialMoveType.DoublePawnPush) position.EnPassantTarget = Square.None;
         UpdateCastlingRights(position, move);
         UpdateHalfmoveClock(position, move);
+        UpdateFullmoveNumber(position);
         UpdateCombinedBitboards(position);
         position.UpdateAttacks();
         position.WhiteToMove = !position.WhiteToMove;
@@ -63,6 +64,7 @@ internal class MoveExecutor
             PreviousCastlingRights = position.CastlingRights,
             PreviousEnPassantTarget = position.EnPassantTarget,
             PreviousHalfmoveClock = position.HalfmoveClock,
+            PreviousFullmoveNumber = position.FullmoveNumber,
             PreviousZobristHash = position.ZobristHash,
             PreviousWhiteAttacks = position.WhiteAttacks,
             PreviousWhitePawnAttacks = position.WhitePawnAttacks,
@@ -351,6 +353,14 @@ internal class MoveExecutor
         }
     }
 
+    private static void UpdateFullmoveNumber(Position position)
+    {
+        if (!position.WhiteToMove)
+        {
+            position.FullmoveNumber++;
+        }
+    }
+
     private static void UpdateCombinedBitboards(Position position)
     {
         position.WhitePieces = position.WhitePawns | position.WhiteKnights | position.WhiteBishops |
@@ -381,8 +391,10 @@ internal class MoveExecutor
         position.EnPassantTarget = moveHistory.PreviousEnPassantTarget;
         position.CastlingRights = moveHistory.PreviousCastlingRights;
         position.HalfmoveClock = moveHistory.PreviousHalfmoveClock;
+        position.FullmoveNumber = moveHistory.PreviousFullmoveNumber;
 
         UpdateCombinedBitboards(position);
+
         position.WhiteToMove = !position.WhiteToMove;
         position.ZobristHash = moveHistory.PreviousZobristHash;
         position.WhiteAttacks = moveHistory.PreviousWhiteAttacks;

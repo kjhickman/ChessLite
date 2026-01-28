@@ -60,6 +60,9 @@ public class Position
     /// <summary>Gets or sets the halfmove clock, used for the fifty-move rule.</summary>
     public int HalfmoveClock { get; set; }
 
+    /// <summary>Gets or sets the fullmove number, starting at 1 and incrementing after Black's move.</summary>
+    public int FullmoveNumber { get; set; }
+
     /// <summary>Gets or sets the Zobrist hash of the current position, used for transposition tables and repetition detection.</summary>
     public ulong ZobristHash { get; set; }
 
@@ -102,46 +105,27 @@ public class Position
     /// Default constructor: sets up the standard starting position.
     /// </summary>
     public Position()
+        : this(initializeFromFen: true)
     {
-        // todo: don't use ParseFen here. Directly set up the starting position
-        var position = ParseFen(Constants.StartingPosition);
-        WhitePawns = position.WhitePawns;
-        WhiteKnights = position.WhiteKnights;
-        WhiteBishops = position.WhiteBishops;
-        WhiteRooks = position.WhiteRooks;
-        WhiteQueens = position.WhiteQueens;
-        WhiteKing = position.WhiteKing;
-        BlackPawns = position.BlackPawns;
-        BlackKnights = position.BlackKnights;
-        BlackBishops = position.BlackBishops;
-        BlackRooks = position.BlackRooks;
-        BlackQueens = position.BlackQueens;
-        BlackKing = position.BlackKing;
-        WhiteToMove = position.WhiteToMove;
-        CastlingRights = position.CastlingRights;
-        EnPassantTarget = position.EnPassantTarget;
-        HalfmoveClock = position.HalfmoveClock;
-        WhitePieces = position.WhitePieces;
-        BlackPieces = position.BlackPieces;
-        AllPieces = position.AllPieces;
-        PinnedPieces = position.PinnedPieces;
-        WhiteAttacks = position.WhiteAttacks;
-        WhiteAttacksWithoutBlackKing = position.WhiteAttacksWithoutBlackKing;
-        WhitePawnAttacks = position.WhitePawnAttacks;
-        WhiteKnightAttacks = position.WhiteKnightAttacks;
-        WhiteKingAttacks = position.WhiteKingAttacks;
-        BlackAttacks = position.BlackAttacks;
-        BlackAttacksWithoutWhiteKing = position.BlackAttacksWithoutWhiteKing;
-        BlackPawnAttacks = position.BlackPawnAttacks;
-        BlackKnightAttacks = position.BlackKnightAttacks;
-        BlackKingAttacks = position.BlackKingAttacks;
-        ZobristHash = position.ZobristHash;
-        Array.Copy(position.Mailbox, Mailbox, 64);
+    }
+
+    internal Position(bool initializeFromFen)
+    {
+        Mailbox = new PieceType[64];
+        if (!initializeFromFen)
+        {
+            return;
+        }
+
+        if (!FenParser.Parse(Constants.StartingPosition, this))
+        {
+            throw new InvalidOperationException("Failed to initialize starting position.");
+        }
     }
 
     public static bool TryParseFen(ReadOnlySpan<char> fen, out Position? position)
     {
-        position = new Position { Mailbox = new PieceType[64] };
+        position = new Position(initializeFromFen: false);
 
         try
         {
@@ -161,7 +145,7 @@ public class Position
 
     public static Position ParseFen(ReadOnlySpan<char> fen)
     {
-        var position = new Position { Mailbox = new PieceType[64] };
+        var position = new Position(initializeFromFen: false);
         if (!FenParser.Parse(fen, position))
         {
             throw new ArgumentException("Invalid FEN string", nameof(fen));
@@ -400,6 +384,7 @@ public class Position
             CastlingRights = CastlingRights,
             EnPassantTarget = EnPassantTarget,
             HalfmoveClock = HalfmoveClock,
+            FullmoveNumber = FullmoveNumber,
             ZobristHash = ZobristHash,
 
             // Copy derived bitboards
