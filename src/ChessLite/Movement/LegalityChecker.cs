@@ -51,7 +51,7 @@ internal static class LegalityChecker
         return true;
     }
 
-    private static Bitboard FindAttackingPieces(Position position, Square square, bool forWhite)
+    internal static Bitboard FindAttackingPieces(Position position, Square square, bool forWhite)
     {
         // Pawn attackers
         var possiblePawnAttacks = forWhite
@@ -86,7 +86,7 @@ internal static class LegalityChecker
             : position.PinnedPieces.Intersects(move.From);
     }
 
-    private static bool IsEnPassantPinned(Position position, Move move, Square kingSquare)
+    internal static bool IsEnPassantPinned(Position position, Move move, Square kingSquare)
     {
         // If king is not on the same rank, no horizontal pin possible
         if (kingSquare.GetRank() != move.From.GetRank()) return false;
@@ -127,7 +127,7 @@ internal static class LegalityChecker
         return blockingSquares;
     }
 
-    private static PieceType GetPieceTypeAtSquare(Position pos, Square square)
+    internal static PieceType GetPieceTypeAtSquare(Position pos, Square square)
     {
         var mask = Bitboard.Mask(square);
         if ((pos.WhitePawns & mask) != 0) return PieceType.WhitePawn;
@@ -146,7 +146,7 @@ internal static class LegalityChecker
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsSlidingPiece(PieceType pieceType)
+    internal static bool IsSlidingPiece(PieceType pieceType)
     {
         return pieceType
             is PieceType.WhiteBishop
