@@ -143,8 +143,24 @@ internal static class MoveGeneration
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static PieceType DetermineCapturedPieceType(Position position, Bitboard toMask, bool isWhite)
     {
-        var square = toMask.GetFirstSquare();
-        return position.Mailbox[(int)square];
+        if (isWhite)
+        {
+            if ((position.BlackPawns & toMask) != 0) return PieceType.BlackPawn;
+            if ((position.BlackKnights & toMask) != 0) return PieceType.BlackKnight;
+            if ((position.BlackBishops & toMask) != 0) return PieceType.BlackBishop;
+            if ((position.BlackRooks & toMask) != 0) return PieceType.BlackRook;
+            if ((position.BlackQueens & toMask) != 0) return PieceType.BlackQueen;
+            return PieceType.None;
+        }
+        else
+        {
+            if ((position.WhitePawns & toMask) != 0) return PieceType.WhitePawn;
+            if ((position.WhiteKnights & toMask) != 0) return PieceType.WhiteKnight;
+            if ((position.WhiteBishops & toMask) != 0) return PieceType.WhiteBishop;
+            if ((position.WhiteRooks & toMask) != 0) return PieceType.WhiteRook;
+            if ((position.WhiteQueens & toMask) != 0) return PieceType.WhiteQueen;
+            return PieceType.None;
+        }
     }
 
     private static void GenerateKnightMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
@@ -166,10 +182,7 @@ internal static class MoveGeneration
             {
                 var to = captures.GetFirstSquare();
                 var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), position.WhiteToMove);
-                if (capturedPieceType != PieceType.None)
-                {
-                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
-                }
+                movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
                 captures &= captures - 1;
             }
 
@@ -241,11 +254,8 @@ internal static class MoveGeneration
             while (captures != 0)
             {
                 var to = captures.GetFirstSquare();
-                var capturedPieceType = position.Mailbox[(int)to];
-                if (capturedPieceType != PieceType.None)
-                {
-                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
-                }
+                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), position.WhiteToMove);
+                movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
                 captures &= captures - 1;
             }
 
@@ -279,11 +289,8 @@ internal static class MoveGeneration
             while (captures != 0)
             {
                 var to = captures.GetFirstSquare();
-                var capturedPieceType = position.Mailbox[(int)to];
-                if (capturedPieceType != PieceType.None)
-                {
-                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
-                }
+                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), position.WhiteToMove);
+                movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
                 captures &= captures - 1;
             }
 
@@ -312,18 +319,15 @@ internal static class MoveGeneration
         // Use precomputed attack table directly rather than computing offsets
         var attacks = AttackTables.KingAttacks[(int)from] & ~friendlyPieces;
 
-        // Generate captures
-        var captures = attacks & enemyPieces;
-        while (captures != 0)
-        {
-            var to = captures.GetFirstSquare();
-            var capturedPieceType = position.Mailbox[(int)to];
-            if (capturedPieceType != PieceType.None)
+            // Generate captures
+            var captures = attacks & enemyPieces;
+            while (captures != 0)
             {
+                var to = captures.GetFirstSquare();
+                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), position.WhiteToMove);
                 movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
+                captures &= captures - 1;
             }
-            captures &= captures - 1;
-        }
 
         // Generate quiet moves
         var quiets = attacks & ~enemyPieces;
