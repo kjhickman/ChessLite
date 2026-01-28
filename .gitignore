@@ -11,6 +11,9 @@ artifacts/
 *DS_Store
 *.sln.ide
 
+# BenchmarkDotNet
+BenchmarkDotNet.Artifacts/
+
 # IDEs
 .idea
 .vscode
