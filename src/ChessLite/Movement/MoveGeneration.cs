@@ -163,12 +163,14 @@ internal static class MoveGeneration
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void GenerateKnightMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
-        var knights = position.WhiteToMove ? position.WhiteKnights : position.BlackKnights;
-        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
-        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
-        var pieceType = position.WhiteToMove ? PieceType.WhiteKnight : PieceType.BlackKnight;
+        var isWhite = position.WhiteToMove;
+        var knights = isWhite ? position.WhiteKnights : position.BlackKnights;
+        var friendlyPieces = isWhite ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = isWhite ? position.BlackPieces : position.WhitePieces;
+        var pieceType = isWhite ? PieceType.WhiteKnight : PieceType.BlackKnight;
 
         while (knights != 0)
         {
@@ -199,12 +201,14 @@ internal static class MoveGeneration
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void GenerateBishopMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
-        var bishops = position.WhiteToMove ? position.WhiteBishops : position.BlackBishops;
-        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
-        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
-        var pieceType = position.WhiteToMove ? PieceType.WhiteBishop : PieceType.BlackBishop;
+        var isWhite = position.WhiteToMove;
+        var bishops = isWhite ? position.WhiteBishops : position.BlackBishops;
+        var friendlyPieces = isWhite ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = isWhite ? position.BlackPieces : position.WhitePieces;
+        var pieceType = isWhite ? PieceType.WhiteBishop : PieceType.BlackBishop;
 
         while (bishops != 0)
         {
@@ -216,11 +220,8 @@ internal static class MoveGeneration
             while (captures != 0)
             {
                 var to = captures.GetFirstSquare();
-                var capturedPieceType = position.Mailbox[(int)to];
-                if (capturedPieceType != PieceType.None)
-                {
-                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
-                }
+                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), isWhite);
+                movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
                 captures &= captures - 1;
             }
 
@@ -237,12 +238,14 @@ internal static class MoveGeneration
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void GenerateRookMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
-        var rooks = position.WhiteToMove ? position.WhiteRooks : position.BlackRooks;
-        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
-        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
-        var pieceType = position.WhiteToMove ? PieceType.WhiteRook : PieceType.BlackRook;
+        var isWhite = position.WhiteToMove;
+        var rooks = isWhite ? position.WhiteRooks : position.BlackRooks;
+        var friendlyPieces = isWhite ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = isWhite ? position.BlackPieces : position.WhitePieces;
+        var pieceType = isWhite ? PieceType.WhiteRook : PieceType.BlackRook;
 
         while (rooks != 0)
         {
@@ -254,7 +257,7 @@ internal static class MoveGeneration
             while (captures != 0)
             {
                 var to = captures.GetFirstSquare();
-                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), position.WhiteToMove);
+                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), isWhite);
                 movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
                 captures &= captures - 1;
             }
@@ -272,12 +275,14 @@ internal static class MoveGeneration
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void GenerateQueenMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
-        var queens = position.WhiteToMove ? position.WhiteQueens : position.BlackQueens;
-        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
-        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
-        var pieceType = position.WhiteToMove ? PieceType.WhiteQueen : PieceType.BlackQueen;
+        var isWhite = position.WhiteToMove;
+        var queens = isWhite ? position.WhiteQueens : position.BlackQueens;
+        var friendlyPieces = isWhite ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = isWhite ? position.BlackPieces : position.WhitePieces;
+        var pieceType = isWhite ? PieceType.WhiteQueen : PieceType.BlackQueen;
 
         while (queens != 0)
         {
@@ -289,7 +294,7 @@ internal static class MoveGeneration
             while (captures != 0)
             {
                 var to = captures.GetFirstSquare();
-                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), position.WhiteToMove);
+                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), isWhite);
                 movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
                 captures &= captures - 1;
             }
@@ -307,12 +312,14 @@ internal static class MoveGeneration
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void GenerateKingMoves(Position position, ref int bufferIndex, Span<Move> movesBuffer)
     {
-        var king = position.WhiteToMove ? position.WhiteKing : position.BlackKing;
-        var friendlyPieces = position.WhiteToMove ? position.WhitePieces : position.BlackPieces;
-        var enemyPieces = position.WhiteToMove ? position.BlackPieces : position.WhitePieces;
-        var pieceType = position.WhiteToMove ? PieceType.WhiteKing : PieceType.BlackKing;
+        var isWhite = position.WhiteToMove;
+        var king = isWhite ? position.WhiteKing : position.BlackKing;
+        var friendlyPieces = isWhite ? position.WhitePieces : position.BlackPieces;
+        var enemyPieces = isWhite ? position.BlackPieces : position.WhitePieces;
+        var pieceType = isWhite ? PieceType.WhiteKing : PieceType.BlackKing;
 
         var from = king.GetFirstSquare();
 
@@ -324,7 +331,7 @@ internal static class MoveGeneration
             while (captures != 0)
             {
                 var to = captures.GetFirstSquare();
-                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), position.WhiteToMove);
+                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), isWhite);
                 movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
                 captures &= captures - 1;
             }
@@ -339,7 +346,7 @@ internal static class MoveGeneration
         }
 
         // Castling moves
-        if (position.WhiteToMove)
+        if (isWhite)
         {
             if (from != Square.e1) return;
 
