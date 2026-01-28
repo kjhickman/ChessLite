@@ -308,47 +308,30 @@ internal static class MoveGeneration
         var pieceType = position.WhiteToMove ? PieceType.WhiteKing : PieceType.BlackKing;
 
         var from = king.GetFirstSquare();
-        var fromFile = from.GetFile();
-        var fromRank = from.GetRank();
 
-        Span<(int fileDirection, int rankDirection)> kingDirections =
-        [
-            (1, 1), (-1, 1), (1, -1), (-1, -1),
-            (1, 0), (-1, 0), (0, 1), (0, -1)
-        ];
+        // Use precomputed attack table directly rather than computing offsets
+        var attacks = AttackTables.KingAttacks[(int)from] & ~friendlyPieces;
 
-        for (var i = 0; i < kingDirections.Length; i++)
+        // Generate captures
+        var captures = attacks & enemyPieces;
+        while (captures != 0)
         {
-            var (fileDirection, rankDirection) = kingDirections[i];
-            var newFile = fromFile + fileDirection;
-            var newRank = fromRank + rankDirection;
-
-            if (newFile < 0 || newFile >= 8 || newRank < 0 || newRank >= 8)
+            var to = captures.GetFirstSquare();
+            var capturedPieceType = position.Mailbox[(int)to];
+            if (capturedPieceType != PieceType.None)
             {
-                // Out of bounds
-                continue;
+                movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
             }
+            captures &= captures - 1;
+        }
 
-            var to = (Square)(newRank * 8 + newFile);
-            var toMask = Bitboard.Mask(to);
-
-            if (toMask.Intersects(friendlyPieces))
-            {
-                continue;
-            }
-
-            if (toMask.Intersects(enemyPieces))
-            {
-                var capturedPieceType = DetermineCapturedPieceType(position, toMask, position.WhiteToMove);
-                if (capturedPieceType != PieceType.None)
-                {
-                    movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
-                }
-            }
-            else
-            {
-                movesBuffer[bufferIndex++] = Move.CreateQuiet(from, to, pieceType);
-            }
+        // Generate quiet moves
+        var quiets = attacks & ~enemyPieces;
+        while (quiets != 0)
+        {
+            var to = quiets.GetFirstSquare();
+            movesBuffer[bufferIndex++] = Move.CreateQuiet(from, to, pieceType);
+            quiets &= quiets - 1;
         }
 
         // Castling moves
