@@ -10,6 +10,7 @@ internal struct MoveHistory
     internal CastlingRights PreviousCastlingRights;
     internal Square PreviousEnPassantTarget;
     internal int PreviousHalfmoveClock;
+    internal int PreviousFullmoveNumber;
     internal ulong PreviousZobristHash;
     internal Bitboard PreviousWhiteAttacks;
     internal Bitboard PreviousWhitePawnAttacks;

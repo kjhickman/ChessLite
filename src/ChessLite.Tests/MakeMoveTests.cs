@@ -1,4 +1,4 @@
-﻿using ChessLite.Movement;
+using ChessLite.Movement;
 using ChessLite.Primitives;
 using ChessLite.State;
 
@@ -204,5 +204,20 @@ public class MakeMoveTests
         // and the white pawn on e4 should be captured.
         await Assert.That(position.BlackPawns & Bitboard.Mask(Square.e3)).IsNotEqualTo(0UL);
         await Assert.That(position.WhitePawns & Bitboard.Mask(Square.e4)).IsEqualTo(0UL);
+    }
+
+    [Test]
+    public async Task MakeMove_UpdatesFullmoveNumber()
+    {
+        var position = new Position();
+        var executor = new MoveExecutor();
+
+        executor.MakeMove(position, "a2a3");
+
+        await Assert.That(position.FullmoveNumber).IsEqualTo(1);
+
+        executor.MakeMove(position, "a7a6");
+
+        await Assert.That(position.FullmoveNumber).IsEqualTo(2);
     }
 }

@@ -109,7 +109,18 @@ internal static class FenParser
             position.HalfmoveClock = 0;
         }
 
-        // Field 5 (fullmove number) is not used - we can ignore it
+        // Parse fullmove number (field 5) - optional
+        if (fieldCount >= 6)
+        {
+            var fullmoveNumber = fen[ranges[5]];
+            if (!int.TryParse(fullmoveNumber, out var fullmove)) return false;
+            if (fullmove < 1) return false;
+            position.FullmoveNumber = fullmove;
+        }
+        else
+        {
+            position.FullmoveNumber = 1;
+        }
 
         // Update derived state
         position.UpdateCombinedBitboards();
