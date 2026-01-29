@@ -1,6 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using ChessLite;
 using ChessLite.Movement;
+using ChessLite.Parsing;
 
 namespace ChessLite.Benchmarks;
 
@@ -44,7 +45,7 @@ public class GameStateBenchmarks
     [IterationSetup]
     public void Setup()
     {
-        _game = Game.ParseFen(StateScenario.Fen);
+        _game = new Game(Fen.Parse(StateScenario.Fen));
 
         // Simulate moves to build up ply count
         Span<Move> moves = stackalloc Move[218];

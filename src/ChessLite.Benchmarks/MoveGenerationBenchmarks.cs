@@ -1,6 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using ChessLite;
 using ChessLite.Movement;
+using ChessLite.Parsing;
 
 namespace ChessLite.Benchmarks;
 
@@ -29,7 +30,7 @@ public class MoveGenerationBenchmarks
     [IterationSetup]
     public void Setup()
     {
-        _game = Game.ParseFen(MoveGenScenario.Fen);
+        _game = new Game(Fen.Parse(MoveGenScenario.Fen));
     }
 
     [Benchmark]

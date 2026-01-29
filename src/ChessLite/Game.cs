@@ -38,27 +38,6 @@ public class Game
     }
 
     /// <summary>
-    /// Creates a new game from a FEN (Forsyth-Edwards Notation) string.
-    /// </summary>
-    /// <param name="fen">The FEN string representing the chess position.</param>
-    /// <returns>A new <see cref="Game"/> instance with the specified position.</returns>
-    public static Game ParseFen(ReadOnlySpan<char> fen)
-    {
-        return new Game(Position.ParseFen(fen));
-    }
-
-    public static bool TryParseFen(ReadOnlySpan<char> fen, out Game? game)
-    {
-        if (Position.TryParseFen(fen, out var position))
-        {
-            game = new Game(position!);
-            return true;
-        }
-        game = null;
-        return false;
-    }
-
-    /// <summary>
     /// Writes all legal moves for the current position to the specified span.
     /// </summary>
     /// <param name="moves">The span to write the legal moves to. Should have a minimum size of 218.</param>

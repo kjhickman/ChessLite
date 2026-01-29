@@ -1,4 +1,5 @@
 using ChessLite;
+using ChessLite.Parsing;
 using ChessLite.Primitives;
 
 namespace ChessLite.Tests;
@@ -46,7 +47,7 @@ public class GameMoveTests
     [Test]
     public async Task MakeSanMove_AmbiguousMove_ThrowsArgumentException()
     {
-        var game = Game.ParseFen("4k3/8/8/8/8/8/3N3N/4K3 w - - 0 1");
+        var game = new Game(Fen.Parse("4k3/8/8/8/8/8/3N3N/4K3 w - - 0 1"));
 
         var exception = Assert.Throws<ArgumentException>(() => game.MakeSanMove("Nf3"));
 

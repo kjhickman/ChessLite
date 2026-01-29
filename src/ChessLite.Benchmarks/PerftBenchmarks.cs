@@ -24,7 +24,7 @@ public class PerftBenchmarks
     [IterationSetup]
     public void Setup()
     {
-        _game = Game.ParseFen(Position.Fen);
+        _game = new Game(Fen.Parse(Position.Fen));
     }
 
     [Benchmark]
@@ -62,5 +62,4 @@ public class PerftBenchmarks
         public override string ToString() => Label;
     }
 }
-
 

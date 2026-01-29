@@ -1,5 +1,5 @@
-﻿using ChessLite.Movement;
-using ChessLite.State;
+using ChessLite.Movement;
+using ChessLite.Parsing;
 
 namespace ChessLite.Tests;
 
@@ -13,7 +13,7 @@ public class AttackGenerationTests
     public async Task CalculateRookAttacks_ForWhite_ReturnsCorrectAttacks(string fen, int expected)
     {
         // Arrange
-        var position = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
         var allPieces = position.AllPieces;
 
         // Act
@@ -31,7 +31,7 @@ public class AttackGenerationTests
     public async Task CalculateRookAttacks_ForBlack_ReturnsCorrectAttacks(string fen, int expected)
     {
         // Arrange
-        var position = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
         var allPieces = position.AllPieces;
 
         // Act
@@ -48,7 +48,7 @@ public class AttackGenerationTests
     public async Task CalculateBishopAttacks_ForWhite_ReturnsCorrectAttacks(string fen, int expected)
     {
         // Arrange
-        var position = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
         var allPieces = position.AllPieces;
 
         // Act
@@ -65,7 +65,7 @@ public class AttackGenerationTests
     public async Task CalculateBishopAttacks_ForBlack_ReturnsCorrectAttacks(string fen, int expected)
     {
         // Arrange
-        var position = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
         var allPieces = position.AllPieces;
 
         // Act
@@ -81,7 +81,7 @@ public class AttackGenerationTests
     public async Task CalculateQueenAttacks_ForWhite_ReturnsCorrectAttacks(string fen, int expected)
     {
         // Arrange
-        var position = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
         var allPieces = position.AllPieces;
 
         // Act
@@ -97,7 +97,7 @@ public class AttackGenerationTests
     public async Task CalculateQueenAttacks_ForBlack_ReturnsCorrectAttacks(string fen, int expected)
     {
         // Arrange
-        var position = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
         var allPieces = position.AllPieces;
 
         // Act
