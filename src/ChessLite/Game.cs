@@ -1,4 +1,5 @@
 using ChessLite.Movement;
+using ChessLite.Parsing;
 using ChessLite.State;
 
 namespace ChessLite;
@@ -98,6 +99,30 @@ public class Game
     {
         _moveExecutor.MakeMove(Position, move);
         _repetitionTable[_currentPly++] = Position.ZobristHash;
+    }
+
+    /// <summary>
+    /// Parses a move in UCI notation and applies it if it is legal.
+    /// </summary>
+    /// <param name="uciMove">The UCI move string.</param>
+    /// <exception cref="ArgumentException">Thrown when the move is not legal for the current position.</exception>
+    public void MakeUciMove(ReadOnlySpan<char> uciMove)
+    {
+        var parsedMove = Helpers.MoveFromUci(Position, uciMove);
+
+        Span<Move> legalMoves = stackalloc Move[218];
+        var count = MoveGeneration.GenerateLegalMoves(Position, legalMoves);
+
+        for (var i = 0; i < count; i++)
+        {
+            if (legalMoves[i] == parsedMove)
+            {
+                MakeMove(legalMoves[i]);
+                return;
+            }
+        }
+
+        throw new ArgumentException("Move is not legal in the current position.", nameof(uciMove));
     }
 
     /// <summary>
