@@ -4,7 +4,7 @@ using ChessLite.State;
 
 namespace ChessLite.Parsing;
 
-public static class Helpers
+internal static class Helpers
 {
     public static Move MoveFromUci(Position position, ReadOnlySpan<char> uciMove)
     {
