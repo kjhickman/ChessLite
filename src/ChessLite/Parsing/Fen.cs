@@ -52,11 +52,11 @@ public static class Fen
     }
 
     /// <summary>
-    /// Writes the current position as a full FEN string.
+    /// Formats the current position as a full FEN string.
     /// </summary>
     /// <param name="position">The position to serialize.</param>
     /// <returns>The FEN string describing the position.</returns>
-    public static string Write(Position position)
+    public static string Format(Position position)
     {
         var builder = new StringBuilder();
         AppendPiecePlacement(builder, position);
@@ -72,13 +72,33 @@ public static class Fen
     }
 
     /// <summary>
+    /// Formats the current game position as a full FEN string.
+    /// </summary>
+    /// <param name="game">The game containing the position to serialize.</param>
+    /// <returns>The FEN string describing the position.</returns>
+    public static string Format(Game game)
+    {
+        return Format(game.Position);
+    }
+
+    /// <summary>
+    /// Writes the current position as a full FEN string.
+    /// </summary>
+    /// <param name="position">The position to serialize.</param>
+    /// <returns>The FEN string describing the position.</returns>
+    public static string Write(Position position)
+    {
+        return Format(position);
+    }
+
+    /// <summary>
     /// Writes the current game position as a full FEN string.
     /// </summary>
     /// <param name="game">The game containing the position to serialize.</param>
     /// <returns>The FEN string describing the position.</returns>
     public static string Write(Game game)
     {
-        return Write(game.Position);
+        return Format(game);
     }
 
     private static void AppendPiecePlacement(StringBuilder builder, Position position)
