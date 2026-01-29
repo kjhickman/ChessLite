@@ -7,12 +7,12 @@ namespace ChessLite.Tests;
 public class FenTests
 {
     [Test]
-    public async Task Write_Position_ReturnsFullFen()
+    public async Task Format_Position_ReturnsFullFen()
     {
         const string fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         var position = Position.ParseFen(fen);
 
-        var writtenFen = Fen.Write(position);
+        var writtenFen = Fen.Format(position);
 
         await Assert.That(writtenFen).IsEqualTo(fen);
     }
