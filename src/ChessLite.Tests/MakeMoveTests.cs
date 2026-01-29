@@ -1,3 +1,4 @@
+using ChessLite;
 using ChessLite.Movement;
 using ChessLite.Parsing;
 using ChessLite.Primitives;
@@ -13,10 +14,10 @@ public class MakeMoveTests
         // Set up a position with only the white king on e1 and a white rook on h1
         const string fen = "3k4/8/8/8/8/8/8/4K2R w K - 0 1";
         var position = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
         // White castling kingside (e1→g1)
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "e1g1"));
+        game.MakeUciMove("e1g1");
 
         // After castling, the king should be on g1 and the rook on f1
         await Assert.That(position.WhiteKing.GetFirstSquare()).IsEqualTo(Square.g1);
@@ -30,10 +31,10 @@ public class MakeMoveTests
         // Set up a position with the white king on e1 and a white rook on a1
         const string fen = "3k4/8/8/8/8/8/8/R3K3 w Q - 0 1";
         var position = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
         // White queenside castling (e1→c1)
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "e1c1"));
+        game.MakeUciMove("e1c1");
 
         // After castling, the king should be on c1 and the rook should move from a1 to d1
         await Assert.That(position.WhiteKing.GetFirstSquare()).IsEqualTo(Square.c1);
@@ -47,10 +48,10 @@ public class MakeMoveTests
         // Set up a position with the black king on e8 and a black rook on h8.
         const string fen = "4k2r/8/8/8/8/8/8/4K3 b k - 0 1";
         var position = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
         // Black kingside castling: e8 -> g8.
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "e8g8"));
+        game.MakeUciMove("e8g8");
 
         // After castling, the king should be on g8 and the rook on f8.
         await Assert.That(position.BlackKing.GetFirstSquare()).IsEqualTo(Square.g8);
@@ -64,10 +65,10 @@ public class MakeMoveTests
         // Set up a position with the black king on e8 and a black rook on a8.
         const string fen = "r3k3/8/8/8/8/8/8/4K3 b q - 0 1";
         var position = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
         // Black queenside castling: e8 -> c8.
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "e8c8"));
+        game.MakeUciMove("e8c8");
 
         // After castling, the king should be on c8 and the rook on d8.
         await Assert.That(position.BlackKing).IsEqualTo(Bitboard.Mask(Square.c8));
@@ -81,8 +82,8 @@ public class MakeMoveTests
         // Using the standard starting position:
         // A double pawn push from e2 to e4 should set the en passant target to e3.
         var position = new Position();
-        var executor = new MoveExecutor();
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "e2e4"));
+        var game = new Game(position);
+        game.MakeUciMove("e2e4");
 
         await Assert.That(position.WhitePawns.Intersects(Square.e2)).IsFalse();
         await Assert.That(position.WhitePawns.Intersects(Square.e4)).IsTrue();
@@ -96,9 +97,9 @@ public class MakeMoveTests
         // After a dummy white move, black pawn from e7 can move to e5.
         // The double pawn push should set the en passant target to e6.
         var position = new Position();
-        var executor = new MoveExecutor();
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "a2a3")); // White makes a non-interfering move.
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "e7e5"));
+        var game = new Game(position);
+        game.MakeUciMove("a2a3"); // White makes a non-interfering move.
+        game.MakeUciMove("e7e5");
 
         await Assert.That(position.BlackPawns.Intersects(Square.e7)).IsFalse();
         await Assert.That(position.BlackPawns.Intersects(Square.e5)).IsTrue();
@@ -115,9 +116,9 @@ public class MakeMoveTests
         // Create a position with a white pawn on g7 (ready to promote) and a black king.
         const string fen = "3k4/6P1/8/8/8/8/8/3K4 w - - 0 1";
         var position = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
         var move = $"g7g8{promo}";
-        executor.MakeMove(position, Helpers.MoveFromUci(position, move));
+        game.MakeUciMove(move);
 
         // The pawn should be removed from g7 and the promoted piece placed on g8.
         await Assert.That(position.WhitePawns.Intersects(Square.g7)).IsFalse();
@@ -149,9 +150,9 @@ public class MakeMoveTests
         // Create a position with a black pawn on a2 (ready to promote) and a white king.
         const string fen = "3k4/8/8/8/8/8/p7/3K4 b - - 0 1";
         var position = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
         var move = $"a2a1{promo}";
-        executor.MakeMove(position, Helpers.MoveFromUci(position, move));
+        game.MakeUciMove(move);
 
         // The pawn should be removed from a2 and the promoted piece placed on a1.
         await Assert.That(position.BlackPawns.Intersects(Square.a2)).IsFalse();
@@ -179,10 +180,10 @@ public class MakeMoveTests
         // Set up a position where a white pawn on d5 can capture en passant a black pawn on e5
         const string fen = "4k3/8/8/3Pp3/8/8/8/4K3 w - e6 0 1";
         var position = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
         // White en passant move: d5 -> e6
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "d5e6"));
+        game.MakeUciMove("d5e6");
 
         // After en passant, the white pawn should now be on e6
         // and the black pawn on e5 should be captured.
@@ -194,12 +195,12 @@ public class MakeMoveTests
     public async Task MakeMove_EnPassantBlack_CapturesOpponentPawn()
     {
         // Set up a position where a black pawn on d4 can capture en passant a white pawn on e4.
-        const string fen = "8/8/8/8/3pP3/8/8/8 b - e3 0 1";
+        const string fen = "4k3/8/8/8/3pP3/8/8/4K3 b - e3 0 1";
         var position = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
         // Black en passant move: d4 -> e3.
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "d4e3"));
+        game.MakeUciMove("d4e3");
 
         // After en passant, the black pawn should now be on e3
         // and the white pawn on e4 should be captured.
@@ -211,13 +212,13 @@ public class MakeMoveTests
     public async Task MakeMove_UpdatesFullmoveNumber()
     {
         var position = new Position();
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "a2a3"));
+        game.MakeUciMove("a2a3");
 
         await Assert.That(position.FullmoveNumber).IsEqualTo(1);
 
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "a7a6"));
+        game.MakeUciMove("a7a6");
 
         await Assert.That(position.FullmoveNumber).IsEqualTo(2);
     }
