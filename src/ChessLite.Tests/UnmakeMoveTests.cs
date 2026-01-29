@@ -11,8 +11,8 @@ public class UnmakeMoveTests
     {
         // Set up a position with only the white king on e1 and a white rook on h1.
         const string fen = "3k4/8/8/8/8/8/8/4K2R w K - 0 1";
-        var position = Position.ParseFen(fen);
-        var expected = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
+        var expected = Fen.Parse(fen);
         var game = new Game(position);
 
         // White castling kingside (e1→g1)
@@ -28,8 +28,8 @@ public class UnmakeMoveTests
     {
         // Set up a position with the white king on e1 and a white rook on a1.
         const string fen = "3k4/8/8/8/8/8/8/R3K3 w Q - 0 1";
-        var position = Position.ParseFen(fen);
-        var expected = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
+        var expected = Fen.Parse(fen);
         var game = new Game(position);
 
         // White queenside castling (e1→c1)
@@ -44,8 +44,8 @@ public class UnmakeMoveTests
     {
         // Set up a position with the black king on e8 and a black rook on h8.
         const string fen = "4k2r/8/8/8/8/8/8/4K3 b k - 0 1";
-        var position = Position.ParseFen(fen);
-        var expected = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
+        var expected = Fen.Parse(fen);
         var game = new Game(position);
 
         // Black kingside castling: e8 → g8.
@@ -60,8 +60,8 @@ public class UnmakeMoveTests
     {
         // Set up a position with the black king on e8 and a black rook on a8.
         const string fen = "r3k3/8/8/8/8/8/8/4K3 b q - 0 1";
-        var position = Position.ParseFen(fen);
-        var expected = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
+        var expected = Fen.Parse(fen);
         var game = new Game(position);
 
         // Black queenside castling: e8 → c8.
@@ -117,8 +117,8 @@ public class UnmakeMoveTests
     {
         // Create a position with a white pawn on g7 (ready to promote) and a black king.
         const string fen = "3k4/6P1/8/8/8/8/8/3K4 w - - 0 1";
-        var position = Position.ParseFen(fen);
-        var expected = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
+        var expected = Fen.Parse(fen);
         var game = new Game(position);
 
         var move = $"g7g8{promo}";
@@ -137,8 +137,8 @@ public class UnmakeMoveTests
     {
         // Create a position with a black pawn on a2 (ready to promote) and a white king.
         const string fen = "3k4/8/8/8/8/8/p7/3K4 b - - 0 1";
-        var position = Position.ParseFen(fen);
-        var expected = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
+        var expected = Fen.Parse(fen);
         var game = new Game(position);
 
         var move = $"a2a1{promo}";
@@ -153,8 +153,8 @@ public class UnmakeMoveTests
     {
         // Set up a position where a white pawn on d5 can capture en passant a black pawn on e5.
         const string fen = "4k3/8/8/3Pp3/8/8/8/4K3 w - e6 0 1";
-        var position = Position.ParseFen(fen);
-        var expected = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
+        var expected = Fen.Parse(fen);
         var game = new Game(position);
 
         game.MakeUciMove("d5e6");
@@ -168,8 +168,8 @@ public class UnmakeMoveTests
     {
         // Set up a position where a black pawn on d4 can capture en passant a white pawn on e4.
         const string fen = "4k3/8/8/8/3pP3/8/8/4K3 b - e3 0 1";
-        var position = Position.ParseFen(fen);
-        var expected = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
+        var expected = Fen.Parse(fen);
         var game = new Game(position);
 
         game.MakeUciMove("d4e3");
@@ -183,12 +183,12 @@ public class UnmakeMoveTests
     {
         // Set up a position where a white knight on f3 captures a black pawn on e5.
         const string fen = "rnbqkbnr/ppp2ppp/8/3pp3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3";
-        var position = Position.ParseFen(fen);
-        var expected = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
+        var expected = Fen.Parse(fen);
         var game = new Game(position);
 
         game.MakeUciMove("f3e5");
-        var intermediatePosition = Position.ParseFen("rnbqkbnr/ppp2ppp/8/3pN3/4P3/8/PPPP1PPP/RNBQKB1R b KQkq - 0 3");
+        var intermediatePosition = Fen.Parse("rnbqkbnr/ppp2ppp/8/3pN3/4P3/8/PPPP1PPP/RNBQKB1R b KQkq - 0 3");
         await Assert.That(position).IsEquivalentTo(intermediatePosition);
 
         game.UndoMove();

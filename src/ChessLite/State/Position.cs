@@ -123,36 +123,6 @@ public class Position
         }
     }
 
-    public static bool TryParseFen(ReadOnlySpan<char> fen, out Position? position)
-    {
-        position = new Position(initializeFromFen: false);
-
-        try
-        {
-            if (!FenParser.Parse(fen, position))
-            {
-                position = null;
-                return false;
-            }
-            return true;
-        }
-        catch
-        {
-            position = null;
-            return false;
-        }
-    }
-
-    public static Position ParseFen(ReadOnlySpan<char> fen)
-    {
-        var position = new Position(initializeFromFen: false);
-        if (!FenParser.Parse(fen, position))
-        {
-            throw new ArgumentException("Invalid FEN string", nameof(fen));
-        }
-        return position;
-    }
-
     /// <summary>
     /// Returns a human-readable string representation of the board.
     /// </summary>

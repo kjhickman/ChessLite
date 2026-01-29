@@ -375,7 +375,7 @@ internal static class PgnParser
 
             if (tagName.Equals("FEN", StringComparison.Ordinal))
             {
-                _game = new Game(Position.ParseFen(value));
+                _game = new Game(Fen.Parse(value));
                 _gameInitialized = true;
             }
         }

@@ -10,7 +10,7 @@ public class FenTests
     public async Task Format_Position_ReturnsFullFen()
     {
         const string fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        var position = Position.ParseFen(fen);
+        var position = Fen.Parse(fen);
 
         var writtenFen = Fen.Format(position);
 
@@ -20,7 +20,7 @@ public class FenTests
     [Test]
     public async Task ParseFen_DoesNotOverflow()
     {
-        var position = Position.ParseFen(Constants.StartingPosition);
+        var position = Fen.Parse(Constants.StartingPosition);
 
         await Assert.That(position.WhitePawns.IsEmpty()).IsFalse();
     }
