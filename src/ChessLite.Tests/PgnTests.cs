@@ -12,7 +12,7 @@ public class PgnTests
 
         var game = Pgn.Parse(pgn);
 
-        await Assert.That(Fen.Write(game)).IsEqualTo("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3");
+        await Assert.That(Fen.Format(game)).IsEqualTo("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3");
         await Assert.That(game.GetMoveHistory().Count()).IsEqualTo(4);
     }
 
@@ -23,7 +23,7 @@ public class PgnTests
 
         var game = Pgn.Parse(pgn);
 
-        await Assert.That(Fen.Write(game)).IsEqualTo("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3");
+        await Assert.That(Fen.Format(game)).IsEqualTo("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3");
     }
 
     [Test]
@@ -33,7 +33,7 @@ public class PgnTests
 
         var game = Pgn.Parse(pgn);
 
-        await Assert.That(Fen.Write(game)).IsEqualTo("8/8/8/8/8/8/5K2/7k b - - 1 1");
+        await Assert.That(Fen.Format(game)).IsEqualTo("8/8/8/8/8/8/5K2/7k b - - 1 1");
         await Assert.That(game.GetMoveHistory().Count()).IsEqualTo(1);
     }
 

@@ -81,26 +81,6 @@ public static class Fen
         return Format(game.Position);
     }
 
-    /// <summary>
-    /// Writes the current position as a full FEN string.
-    /// </summary>
-    /// <param name="position">The position to serialize.</param>
-    /// <returns>The FEN string describing the position.</returns>
-    public static string Write(Position position)
-    {
-        return Format(position);
-    }
-
-    /// <summary>
-    /// Writes the current game position as a full FEN string.
-    /// </summary>
-    /// <param name="game">The game containing the position to serialize.</param>
-    /// <returns>The FEN string describing the position.</returns>
-    public static string Write(Game game)
-    {
-        return Format(game);
-    }
-
     private static void AppendPiecePlacement(StringBuilder builder, Position position)
     {
         for (var rank = 7; rank >= 0; rank--)
