@@ -87,7 +87,7 @@ public class Game
     /// <exception cref="ArgumentException">Thrown when the move is not legal for the current position.</exception>
     public void MakeUciMove(ReadOnlySpan<char> uciMove)
     {
-        var parsedMove = Helpers.MoveFromUci(Position, uciMove);
+        var parsedMove = UciParser.MoveFromUci(Position, uciMove);
 
         Span<Move> legalMoves = stackalloc Move[218];
         var count = MoveGeneration.GenerateLegalMoves(Position, legalMoves);

@@ -4,9 +4,9 @@ using ChessLite.State;
 
 namespace ChessLite.Parsing;
 
-internal static class Helpers
+internal static class UciParser
 {
-    public static Move MoveFromUci(Position position, ReadOnlySpan<char> uciMove)
+    internal static Move MoveFromUci(Position position, ReadOnlySpan<char> uciMove)
     {
         if (uciMove.Length is < 4 or > 5)
             throw new ArgumentException("Invalid UCI move format.", nameof(uciMove));
@@ -14,18 +14,20 @@ internal static class Helpers
         var from = SquareFromUci(uciMove[..2]);
         var to = SquareFromUci(uciMove[2..4]);
 
-        if (!from.IsValid() || !to.IsValid()) // Ensure indices are valid
+        if (from == Square.None || to == Square.None)
+        {
             throw new ArgumentOutOfRangeException(nameof(uciMove), "Square index out of range.");
+        }
 
-        var fromMask = from.ToMask();
-        var toMask = to.ToMask();
+        var fromMask = Bitboard.Mask(from);
+        var toMask = Bitboard.Mask(to);
 
         var specialMoveType = SpecialMoveType.None;
 
         var isPawnMove = (position.WhitePawns | position.BlackPawns).Intersects(fromMask);
         var isKingMove = (position.WhiteKing | position.BlackKing).Intersects(fromMask);
-        var fromRank = from.GetRank();
-        var toRank = to.GetRank();
+        var fromRank = (int)from / 8;
+        var toRank = (int)to / 8;
 
         // Detect castling (if king moves two squares)
         if (isKingMove && fromRank == toRank)
