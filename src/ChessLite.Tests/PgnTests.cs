@@ -1,4 +1,5 @@
 using System.Linq;
+using ChessLite;
 using ChessLite.Parsing;
 
 namespace ChessLite.Tests;
