@@ -44,6 +44,6 @@ public static class Pgn
     /// <returns>The PGN movetext describing the game.</returns>
     public static string Format(Game game)
     {
-        return PgnWriter.Write(game);
+        return PgnWriter.Format(game);
     }
 }

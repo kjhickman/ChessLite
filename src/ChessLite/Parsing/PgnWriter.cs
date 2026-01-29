@@ -7,7 +7,7 @@ namespace ChessLite.Parsing;
 
 internal static class PgnWriter
 {
-    internal static string Write(Game game)
+    internal static string Format(Game game)
     {
         ArgumentNullException.ThrowIfNull(game);
 
