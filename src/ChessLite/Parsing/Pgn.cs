@@ -36,4 +36,14 @@ public static class Pgn
             return false;
         }
     }
+
+    /// <summary>
+    /// Writes the game movetext in PGN format, including the final result token.
+    /// </summary>
+    /// <param name="game">The game to serialize.</param>
+    /// <returns>The PGN movetext describing the game.</returns>
+    public static string Write(Game game)
+    {
+        return PgnWriter.Write(game);
+    }
 }
