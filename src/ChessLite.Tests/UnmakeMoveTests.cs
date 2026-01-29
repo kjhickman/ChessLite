@@ -1,4 +1,5 @@
-﻿using ChessLite.Movement;
+using ChessLite.Movement;
+using ChessLite.Parsing;
 using ChessLite.State;
 
 namespace ChessLite.Tests;
@@ -15,7 +16,7 @@ public class UnmakeMoveTests
         var executor = new MoveExecutor();
 
         // White castling kingside (e1→g1)
-        executor.MakeMove(position, "e1g1");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "e1g1"));
         executor.UndoMove(position);
 
         // After unmaking, the position should match the starting state.
@@ -32,7 +33,7 @@ public class UnmakeMoveTests
         var executor = new MoveExecutor();
 
         // White queenside castling (e1→c1)
-        executor.MakeMove(position, "e1c1");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "e1c1"));
         executor.UndoMove(position);
 
         await Assert.That(position).IsEquivalentTo(expected);
@@ -48,7 +49,7 @@ public class UnmakeMoveTests
         var executor = new MoveExecutor();
 
         // Black kingside castling: e8 → g8.
-        executor.MakeMove(position, "e8g8");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "e8g8"));
         executor.UndoMove(position);
 
         await Assert.That(position).IsEquivalentTo(expected);
@@ -64,7 +65,7 @@ public class UnmakeMoveTests
         var executor = new MoveExecutor();
 
         // Black queenside castling: e8 → c8.
-        executor.MakeMove(position, "e8c8");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "e8c8"));
         executor.UndoMove(position);
 
         await Assert.That(position).IsEquivalentTo(expected);
@@ -79,7 +80,7 @@ public class UnmakeMoveTests
         var expected = new Position();
         var executor = new MoveExecutor();
 
-        executor.MakeMove(position, "e2e4");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "e2e4"));
         executor.UndoMove(position);
 
         await Assert.That(position).IsEquivalentTo(expected);
@@ -93,15 +94,15 @@ public class UnmakeMoveTests
         // which should set the en passant target to e6.
         var position = new Position();
         var executor = new MoveExecutor();
-        executor.MakeMove(position, "a2a3"); // White non-interfering move.
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "a2a3")); // White non-interfering move.
 
         // Capture the state after white's move as the expected state for black's move.
         var expected = new Position();
         var executor2 = new MoveExecutor();
 
-        executor2.MakeMove(expected, "a2a3");
+        executor2.MakeMove(expected, Helpers.MoveFromUci(expected, "a2a3"));
 
-        executor.MakeMove(position, "e7e5");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "e7e5"));
         executor.UndoMove(position);
 
         await Assert.That(position).IsEquivalentTo(expected);
@@ -121,7 +122,7 @@ public class UnmakeMoveTests
         var executor = new MoveExecutor();
 
         var move = $"g7g8{promo}";
-        executor.MakeMove(position, move);
+        executor.MakeMove(position, Helpers.MoveFromUci(position, move));
         executor.UndoMove(position);
 
         await Assert.That(position).IsEquivalentTo(expected);
@@ -141,7 +142,7 @@ public class UnmakeMoveTests
         var executor = new MoveExecutor();
 
         var move = $"a2a1{promo}";
-        executor.MakeMove(position, move);
+        executor.MakeMove(position, Helpers.MoveFromUci(position, move));
         executor.UndoMove(position);
 
         await Assert.That(position).IsEquivalentTo(expected);
@@ -156,7 +157,7 @@ public class UnmakeMoveTests
         var expected = Position.ParseFen(fen);
         var executor = new MoveExecutor();
 
-        executor.MakeMove(position, "d5e6");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "d5e6"));
         executor.UndoMove(position);
 
         await Assert.That(position).IsEquivalentTo(expected);
@@ -171,7 +172,7 @@ public class UnmakeMoveTests
         var expected = Position.ParseFen(fen);
         var executor = new MoveExecutor();
 
-        executor.MakeMove(position, "d4e3");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "d4e3"));
         executor.UndoMove(position);
 
         await Assert.That(position).IsEquivalentTo(expected);
@@ -186,7 +187,7 @@ public class UnmakeMoveTests
         var expected = Position.ParseFen(fen);
         var executor = new MoveExecutor();
 
-        executor.MakeMove(position, "f3e5");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "f3e5"));
         var intermediatePosition = Position.ParseFen("rnbqkbnr/ppp2ppp/8/3pN3/4P3/8/PPPP1PPP/RNBQKB1R b KQkq - 0 3");
         await Assert.That(position).IsEquivalentTo(intermediatePosition);
 

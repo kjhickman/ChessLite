@@ -45,12 +45,6 @@ internal class MoveExecutor
         position.ZobristHash = Zobrist.ComputeHash(position);
     }
 
-    internal void MakeMove(Position position, string uciMove)
-    {
-        var move = Helpers.MoveFromUci(position, uciMove);
-        MakeMove(position, move);
-    }
-
     internal IEnumerable<Move> GetMoveHistory()
     {
         return _moveHistory.Select(x => x.Move).Reverse();

@@ -1,4 +1,5 @@
 using ChessLite.Movement;
+using ChessLite.Parsing;
 using ChessLite.Primitives;
 using ChessLite.State;
 
@@ -15,11 +16,11 @@ public class MakeMoveTests
         var executor = new MoveExecutor();
 
         // White castling kingside (e1→g1)
-        executor.MakeMove(position, "e1g1");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "e1g1"));
 
         // After castling, the king should be on g1 and the rook on f1
         await Assert.That(position.WhiteKing.GetFirstSquare()).IsEqualTo(Square.g1);
-        await Assert.That(position.WhiteRooks).IsEqualTo(Square.f1.ToMask());
+        await Assert.That(position.WhiteRooks).IsEqualTo(Bitboard.Mask(Square.f1));
         await Assert.That(position.CastlingRights).IsEqualTo(CastlingRights.None);
     }
 
@@ -32,11 +33,11 @@ public class MakeMoveTests
         var executor = new MoveExecutor();
 
         // White queenside castling (e1→c1)
-        executor.MakeMove(position, "e1c1");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "e1c1"));
 
         // After castling, the king should be on c1 and the rook should move from a1 to d1
         await Assert.That(position.WhiteKing.GetFirstSquare()).IsEqualTo(Square.c1);
-        await Assert.That(position.WhiteRooks).IsEqualTo(Square.d1.ToMask());
+        await Assert.That(position.WhiteRooks).IsEqualTo(Bitboard.Mask(Square.d1));
         await Assert.That(position.CastlingRights).IsEqualTo(CastlingRights.None);
     }
 
@@ -49,11 +50,11 @@ public class MakeMoveTests
         var executor = new MoveExecutor();
 
         // Black kingside castling: e8 -> g8.
-        executor.MakeMove(position, "e8g8");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "e8g8"));
 
         // After castling, the king should be on g8 and the rook on f8.
         await Assert.That(position.BlackKing.GetFirstSquare()).IsEqualTo(Square.g8);
-        await Assert.That(position.BlackRooks).IsEqualTo(Square.f8.ToMask());
+        await Assert.That(position.BlackRooks).IsEqualTo(Bitboard.Mask(Square.f8));
         await Assert.That(position.CastlingRights).IsEqualTo(CastlingRights.None);
     }
 
@@ -66,11 +67,11 @@ public class MakeMoveTests
         var executor = new MoveExecutor();
 
         // Black queenside castling: e8 -> c8.
-        executor.MakeMove(position, "e8c8");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "e8c8"));
 
         // After castling, the king should be on c8 and the rook on d8.
-        await Assert.That(position.BlackKing).IsEqualTo(Square.c8.ToMask());
-        await Assert.That(position.BlackRooks).IsEqualTo(Square.d8.ToMask());
+        await Assert.That(position.BlackKing).IsEqualTo(Bitboard.Mask(Square.c8));
+        await Assert.That(position.BlackRooks).IsEqualTo(Bitboard.Mask(Square.d8));
         await Assert.That(position.CastlingRights).IsEqualTo(CastlingRights.None);
     }
 
@@ -81,7 +82,7 @@ public class MakeMoveTests
         // A double pawn push from e2 to e4 should set the en passant target to e3.
         var position = new Position();
         var executor = new MoveExecutor();
-        executor.MakeMove(position, "e2e4");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "e2e4"));
 
         await Assert.That(position.WhitePawns.Intersects(Square.e2)).IsFalse();
         await Assert.That(position.WhitePawns.Intersects(Square.e4)).IsTrue();
@@ -96,8 +97,8 @@ public class MakeMoveTests
         // The double pawn push should set the en passant target to e6.
         var position = new Position();
         var executor = new MoveExecutor();
-        executor.MakeMove(position, "a2a3"); // White makes a non-interfering move.
-        executor.MakeMove(position, "e7e5");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "a2a3")); // White makes a non-interfering move.
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "e7e5"));
 
         await Assert.That(position.BlackPawns.Intersects(Square.e7)).IsFalse();
         await Assert.That(position.BlackPawns.Intersects(Square.e5)).IsTrue();
@@ -116,7 +117,7 @@ public class MakeMoveTests
         var position = Position.ParseFen(fen);
         var executor = new MoveExecutor();
         var move = $"g7g8{promo}";
-        executor.MakeMove(position, move);
+        executor.MakeMove(position, Helpers.MoveFromUci(position, move));
 
         // The pawn should be removed from g7 and the promoted piece placed on g8.
         await Assert.That(position.WhitePawns.Intersects(Square.g7)).IsFalse();
@@ -150,7 +151,7 @@ public class MakeMoveTests
         var position = Position.ParseFen(fen);
         var executor = new MoveExecutor();
         var move = $"a2a1{promo}";
-        executor.MakeMove(position, move);
+        executor.MakeMove(position, Helpers.MoveFromUci(position, move));
 
         // The pawn should be removed from a2 and the promoted piece placed on a1.
         await Assert.That(position.BlackPawns.Intersects(Square.a2)).IsFalse();
@@ -181,7 +182,7 @@ public class MakeMoveTests
         var executor = new MoveExecutor();
 
         // White en passant move: d5 -> e6
-        executor.MakeMove(position, "d5e6");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "d5e6"));
 
         // After en passant, the white pawn should now be on e6
         // and the black pawn on e5 should be captured.
@@ -198,7 +199,7 @@ public class MakeMoveTests
         var executor = new MoveExecutor();
 
         // Black en passant move: d4 -> e3.
-        executor.MakeMove(position, "d4e3");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "d4e3"));
 
         // After en passant, the black pawn should now be on e3
         // and the white pawn on e4 should be captured.
@@ -212,11 +213,11 @@ public class MakeMoveTests
         var position = new Position();
         var executor = new MoveExecutor();
 
-        executor.MakeMove(position, "a2a3");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "a2a3"));
 
         await Assert.That(position.FullmoveNumber).IsEqualTo(1);
 
-        executor.MakeMove(position, "a7a6");
+        executor.MakeMove(position, Helpers.MoveFromUci(position, "a7a6"));
 
         await Assert.That(position.FullmoveNumber).IsEqualTo(2);
     }
