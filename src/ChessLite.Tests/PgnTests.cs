@@ -71,10 +71,10 @@ public class PgnTests
     public async Task Format_Mainline_FormatsMovetextWithResult()
     {
         var game = new Game();
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "e2e4"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "e7e5"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "g1f3"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "b8c6"));
+        game.MakeUciMove("e2e4");
+        game.MakeUciMove("e7e5");
+        game.MakeUciMove("g1f3");
+        game.MakeUciMove("b8c6");
 
         var pgn = Pgn.Format(game);
 
@@ -85,10 +85,10 @@ public class PgnTests
     public async Task Format_Checkmate_AppendsHashAndResult()
     {
         var game = new Game();
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "f2f3"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "e7e5"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "g2g4"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "d8h4"));
+        game.MakeUciMove("f2f3");
+        game.MakeUciMove("e7e5");
+        game.MakeUciMove("g2g4");
+        game.MakeUciMove("d8h4");
 
         var pgn = Pgn.Format(game);
 
@@ -99,13 +99,13 @@ public class PgnTests
     public async Task Format_Castling_UsesCastleNotation()
     {
         var game = new Game();
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "g1f3"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "g8f6"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "g2g3"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "g7g6"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "f1g2"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "f8g7"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "e1g1"));
+        game.MakeUciMove("g1f3");
+        game.MakeUciMove("g8f6");
+        game.MakeUciMove("g2g3");
+        game.MakeUciMove("g7g6");
+        game.MakeUciMove("f1g2");
+        game.MakeUciMove("f8g7");
+        game.MakeUciMove("e1g1");
 
         var pgn = Pgn.Format(game);
 
@@ -116,11 +116,11 @@ public class PgnTests
     public async Task Format_EnPassant_UsesCaptureNotation()
     {
         var game = new Game();
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "e2e4"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "a7a6"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "e4e5"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "d7d5"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "e5d6"));
+        game.MakeUciMove("e2e4");
+        game.MakeUciMove("a7a6");
+        game.MakeUciMove("e4e5");
+        game.MakeUciMove("d7d5");
+        game.MakeUciMove("e5d6");
 
         var pgn = Pgn.Format(game);
 
@@ -131,15 +131,15 @@ public class PgnTests
     public async Task Format_Promotion_UsesPromotionSuffix()
     {
         var game = new Game();
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "a2a4"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "h7h5"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "a4a5"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "h5h4"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "a5a6"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "h4h3"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "a6b7"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "h3g2"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "b7a8q"));
+        game.MakeUciMove("a2a4");
+        game.MakeUciMove("h7h5");
+        game.MakeUciMove("a4a5");
+        game.MakeUciMove("h5h4");
+        game.MakeUciMove("a5a6");
+        game.MakeUciMove("h4h3");
+        game.MakeUciMove("a6b7");
+        game.MakeUciMove("h3g2");
+        game.MakeUciMove("b7a8q");
 
         var pgn = Pgn.Format(game);
 
@@ -150,11 +150,11 @@ public class PgnTests
     public async Task Format_Check_UsesPlusSuffix()
     {
         var game = new Game();
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "e2e4"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "e7e5"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "d1h5"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "b8c6"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "h5f7"));
+        game.MakeUciMove("e2e4");
+        game.MakeUciMove("e7e5");
+        game.MakeUciMove("d1h5");
+        game.MakeUciMove("b8c6");
+        game.MakeUciMove("h5f7");
 
         var pgn = Pgn.Format(game);
 
@@ -165,23 +165,23 @@ public class PgnTests
     public async Task Format_DisambiguatesSameTargetRookMove()
     {
         var game = new Game();
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "e2e4"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "e7e5"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "g1f3"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "g8f6"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "f1c4"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "f8c5"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "e1g1"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "e8g8"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "b1c3"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "a7a6"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "d2d3"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "a6a5"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "c1d2"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "a5a4"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "d1e2"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "a4a3"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "a1e1"));
+        game.MakeUciMove("e2e4");
+        game.MakeUciMove("e7e5");
+        game.MakeUciMove("g1f3");
+        game.MakeUciMove("g8f6");
+        game.MakeUciMove("f1c4");
+        game.MakeUciMove("f8c5");
+        game.MakeUciMove("e1g1");
+        game.MakeUciMove("e8g8");
+        game.MakeUciMove("b1c3");
+        game.MakeUciMove("a7a6");
+        game.MakeUciMove("d2d3");
+        game.MakeUciMove("a6a5");
+        game.MakeUciMove("c1d2");
+        game.MakeUciMove("a5a4");
+        game.MakeUciMove("d1e2");
+        game.MakeUciMove("a4a3");
+        game.MakeUciMove("a1e1");
 
         var pgn = Pgn.Format(game);
 
@@ -192,13 +192,13 @@ public class PgnTests
     public async Task Format_DisambiguatesSameTargetKnightMoveByRank()
     {
         var game = new Game();
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "g1f3"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "a7a6"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "f3d4"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "a6a5"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "d4b5"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "h7h6"));
-        game.MakeMove(Helpers.MoveFromUci(game.Position, "b1c3"));
+        game.MakeUciMove("g1f3");
+        game.MakeUciMove("a7a6");
+        game.MakeUciMove("f3d4");
+        game.MakeUciMove("a6a5");
+        game.MakeUciMove("d4b5");
+        game.MakeUciMove("h7h6");
+        game.MakeUciMove("b1c3");
 
         var pgn = Pgn.Format(game);
 
