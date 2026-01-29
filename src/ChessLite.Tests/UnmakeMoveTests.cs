@@ -1,4 +1,4 @@
-using ChessLite.Movement;
+using ChessLite;
 using ChessLite.Parsing;
 using ChessLite.State;
 
@@ -13,11 +13,11 @@ public class UnmakeMoveTests
         const string fen = "3k4/8/8/8/8/8/8/4K2R w K - 0 1";
         var position = Position.ParseFen(fen);
         var expected = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
         // White castling kingside (e1→g1)
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "e1g1"));
-        executor.UndoMove(position);
+        game.MakeUciMove("e1g1");
+        game.UndoMove();
 
         // After unmaking, the position should match the starting state.
         await Assert.That(position).IsEquivalentTo(expected);
@@ -30,11 +30,11 @@ public class UnmakeMoveTests
         const string fen = "3k4/8/8/8/8/8/8/R3K3 w Q - 0 1";
         var position = Position.ParseFen(fen);
         var expected = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
         // White queenside castling (e1→c1)
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "e1c1"));
-        executor.UndoMove(position);
+        game.MakeUciMove("e1c1");
+        game.UndoMove();
 
         await Assert.That(position).IsEquivalentTo(expected);
     }
@@ -46,11 +46,11 @@ public class UnmakeMoveTests
         const string fen = "4k2r/8/8/8/8/8/8/4K3 b k - 0 1";
         var position = Position.ParseFen(fen);
         var expected = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
         // Black kingside castling: e8 → g8.
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "e8g8"));
-        executor.UndoMove(position);
+        game.MakeUciMove("e8g8");
+        game.UndoMove();
 
         await Assert.That(position).IsEquivalentTo(expected);
     }
@@ -59,14 +59,14 @@ public class UnmakeMoveTests
     public async Task UnmakeMove_QueensideCastlingBlack_RestoresOriginalPosition()
     {
         // Set up a position with the black king on e8 and a black rook on a8.
-        const string fen = "r3k3/8/8/8/8/8/8/4K3 w q - 0 1";
+        const string fen = "r3k3/8/8/8/8/8/8/4K3 b q - 0 1";
         var position = Position.ParseFen(fen);
         var expected = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
         // Black queenside castling: e8 → c8.
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "e8c8"));
-        executor.UndoMove(position);
+        game.MakeUciMove("e8c8");
+        game.UndoMove();
 
         await Assert.That(position).IsEquivalentTo(expected);
     }
@@ -78,10 +78,10 @@ public class UnmakeMoveTests
         // A double pawn push from e2 to e4 should set en passant to e3.
         var position = new Position();
         var expected = new Position();
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "e2e4"));
-        executor.UndoMove(position);
+        game.MakeUciMove("e2e4");
+        game.UndoMove();
 
         await Assert.That(position).IsEquivalentTo(expected);
     }
@@ -93,17 +93,17 @@ public class UnmakeMoveTests
         // After a dummy white move, a black pawn from e7 moves to e5,
         // which should set the en passant target to e6.
         var position = new Position();
-        var executor = new MoveExecutor();
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "a2a3")); // White non-interfering move.
+        var game = new Game(position);
+        game.MakeUciMove("a2a3"); // White non-interfering move.
 
         // Capture the state after white's move as the expected state for black's move.
         var expected = new Position();
-        var executor2 = new MoveExecutor();
+        var expectedGame = new Game(expected);
 
-        executor2.MakeMove(expected, Helpers.MoveFromUci(expected, "a2a3"));
+        expectedGame.MakeUciMove("a2a3");
 
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "e7e5"));
-        executor.UndoMove(position);
+        game.MakeUciMove("e7e5");
+        game.UndoMove();
 
         await Assert.That(position).IsEquivalentTo(expected);
     }
@@ -119,11 +119,11 @@ public class UnmakeMoveTests
         const string fen = "3k4/6P1/8/8/8/8/8/3K4 w - - 0 1";
         var position = Position.ParseFen(fen);
         var expected = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
         var move = $"g7g8{promo}";
-        executor.MakeMove(position, Helpers.MoveFromUci(position, move));
-        executor.UndoMove(position);
+        game.MakeUciMove(move);
+        game.UndoMove();
 
         await Assert.That(position).IsEquivalentTo(expected);
     }
@@ -139,11 +139,11 @@ public class UnmakeMoveTests
         const string fen = "3k4/8/8/8/8/8/p7/3K4 b - - 0 1";
         var position = Position.ParseFen(fen);
         var expected = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
         var move = $"a2a1{promo}";
-        executor.MakeMove(position, Helpers.MoveFromUci(position, move));
-        executor.UndoMove(position);
+        game.MakeUciMove(move);
+        game.UndoMove();
 
         await Assert.That(position).IsEquivalentTo(expected);
     }
@@ -155,10 +155,10 @@ public class UnmakeMoveTests
         const string fen = "4k3/8/8/3Pp3/8/8/8/4K3 w - e6 0 1";
         var position = Position.ParseFen(fen);
         var expected = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "d5e6"));
-        executor.UndoMove(position);
+        game.MakeUciMove("d5e6");
+        game.UndoMove();
 
         await Assert.That(position).IsEquivalentTo(expected);
     }
@@ -167,13 +167,13 @@ public class UnmakeMoveTests
     public async Task UnmakeMove_EnPassantBlack_RestoresOriginalPosition()
     {
         // Set up a position where a black pawn on d4 can capture en passant a white pawn on e4.
-        const string fen = "8/8/8/8/3pP3/8/8/8 b - e3 0 1";
+        const string fen = "4k3/8/8/8/3pP3/8/8/4K3 b - e3 0 1";
         var position = Position.ParseFen(fen);
         var expected = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "d4e3"));
-        executor.UndoMove(position);
+        game.MakeUciMove("d4e3");
+        game.UndoMove();
 
         await Assert.That(position).IsEquivalentTo(expected);
     }
@@ -185,13 +185,13 @@ public class UnmakeMoveTests
         const string fen = "rnbqkbnr/ppp2ppp/8/3pp3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3";
         var position = Position.ParseFen(fen);
         var expected = Position.ParseFen(fen);
-        var executor = new MoveExecutor();
+        var game = new Game(position);
 
-        executor.MakeMove(position, Helpers.MoveFromUci(position, "f3e5"));
+        game.MakeUciMove("f3e5");
         var intermediatePosition = Position.ParseFen("rnbqkbnr/ppp2ppp/8/3pN3/4P3/8/PPPP1PPP/RNBQKB1R b KQkq - 0 3");
         await Assert.That(position).IsEquivalentTo(intermediatePosition);
 
-        executor.UndoMove(position);
+        game.UndoMove();
 
         await Assert.That(position).IsEquivalentTo(expected);
     }
