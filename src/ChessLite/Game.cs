@@ -126,6 +126,17 @@ public class Game
     }
 
     /// <summary>
+    /// Parses a move in SAN notation and applies it if it is legal.
+    /// </summary>
+    /// <param name="sanMove">The SAN move string.</param>
+    /// <exception cref="ArgumentException">Thrown when the move is not legal for the current position.</exception>
+    public void MakeSanMove(ReadOnlySpan<char> sanMove)
+    {
+        var move = PgnParser.MatchSanMove(Position, sanMove);
+        MakeMove(move);
+    }
+
+    /// <summary>
     /// Undoes the last move made on the board and restores the previous position.
     /// </summary>
     public void UndoMove()
