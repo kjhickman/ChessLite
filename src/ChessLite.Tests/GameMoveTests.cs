@@ -1,3 +1,4 @@
+using ChessLite;
 using ChessLite.Primitives;
 
 namespace ChessLite.Tests;
@@ -71,6 +72,16 @@ public class GameMoveTests
         var game = new Game();
 
         var exception = Assert.Throws<ArgumentException>(() => game.MakeUciMove("e2e5"));
+
+        await Assert.That(exception).IsNotNull();
+    }
+
+    [Test]
+    public async Task MakeUciMove_InvalidPromotionSuffix_ThrowsArgumentException()
+    {
+        var game = new Game();
+
+        var exception = Assert.Throws<ArgumentException>(() => game.MakeUciMove("g1f3x"));
 
         await Assert.That(exception).IsNotNull();
     }

@@ -58,13 +58,18 @@ internal static class Helpers
         var promotedPieceType = PromotedPieceType.None;
         if (uciMove.Length == 5) // If the move has a 5th character (promotion), determine its type
         {
+            if (!isPawnMove)
+            {
+                throw new ArgumentException("Invalid UCI promotion.", nameof(uciMove));
+            }
+
             promotedPieceType = uciMove[4] switch
             {
                 'q' => PromotedPieceType.Queen,
                 'r' => PromotedPieceType.Rook,
                 'b' => PromotedPieceType.Bishop,
                 'n' => PromotedPieceType.Knight,
-                _ => PromotedPieceType.None
+                _ => throw new ArgumentException("Invalid UCI promotion.", nameof(uciMove))
             };
         }
 
