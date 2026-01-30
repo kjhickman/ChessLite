@@ -135,6 +135,13 @@ public class Game
         Array.Clear(_repetitionTable, 0, _repetitionTable.Length);
     }
 
+    internal void ResetForParsing()
+    {
+        _moveExecutor.ClearMoveHistory();
+        _currentPly = 0;
+        Array.Clear(_repetitionTable, 0, _repetitionTable.Length);
+    }
+
     /// <summary>
     /// Determines whether the current side to move is in check.
     /// </summary>

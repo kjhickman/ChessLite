@@ -1,3 +1,4 @@
+using ChessLite;
 using ChessLite.Movement;
 using ChessLite.Primitives;
 using ChessLite.State;
@@ -8,7 +9,13 @@ internal static class PgnParser
 {
     internal static Game Parse(ReadOnlySpan<char> pgn)
     {
-        var parser = new Parser(pgn);
+        var game = new Game();
+        return Parse(pgn, game);
+    }
+
+    internal static Game Parse(ReadOnlySpan<char> pgn, Game game)
+    {
+        var parser = new Parser(pgn, game);
         return parser.Parse();
     }
 
@@ -24,20 +31,21 @@ internal static class PgnParser
         private Game _game;
         private bool _gameInitialized;
 
-        internal Parser(ReadOnlySpan<char> pgn)
+        internal Parser(ReadOnlySpan<char> pgn, Game game)
         {
             _pgn = pgn;
             _index = 0;
-            _game = null!;
+            _game = game;
             _gameInitialized = false;
         }
 
         internal Game Parse()
         {
+            _game.ResetForParsing();
             ParseTags();
             if (!_gameInitialized)
             {
-                _game = new Game();
+                InitializeFromFen(Constants.StartingPosition);
             }
 
             ParseMoveText();
@@ -104,9 +112,19 @@ internal static class PgnParser
 
             if (tagName.Equals("FEN", StringComparison.Ordinal))
             {
-                _game = new Game(Fen.Parse(value));
-                _gameInitialized = true;
+                InitializeFromFen(value);
             }
+        }
+
+        private void InitializeFromFen(ReadOnlySpan<char> fen)
+        {
+            _game.Position.Reset();
+            if (!FenParser.Parse(fen, _game.Position))
+            {
+                throw new ArgumentException("Invalid FEN string", nameof(_pgn));
+            }
+
+            _gameInitialized = true;
         }
 
         private void ParseMoveText()

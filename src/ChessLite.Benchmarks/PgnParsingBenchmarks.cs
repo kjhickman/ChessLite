@@ -25,10 +25,18 @@ public class PgnParsingBenchmarks
     [ParamsSource(nameof(PgnScenarios))]
     public PgnScenario Scenario { get; set; } = null!;
 
+    public Game Game { get; set; } = null!;
+
+    [GlobalSetup]
+    public void Setup()
+    {
+        Game = new Game();
+    }
+
     [Benchmark]
     public Game ParsePgn()
     {
-        return Pgn.Parse(Scenario.Pgn);
+        return PgnParser.Parse(Scenario.Pgn, Game);
     }
 
     public class PgnScenario(string label, string pgn)
