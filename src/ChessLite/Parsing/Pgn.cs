@@ -14,7 +14,8 @@ public static class Pgn
     /// <returns>A new <see cref="Game"/> instance with the specified move history.</returns>
     public static Game Parse(ReadOnlySpan<char> pgn)
     {
-        return PgnParser.Parse(pgn);
+        var game = new Game();
+        return PgnParser.Parse(pgn, game);
     }
 
     /// <summary>
@@ -27,7 +28,8 @@ public static class Pgn
     {
         try
         {
-            game = PgnParser.Parse(pgn);
+            game = new Game();
+            PgnParser.Parse(pgn, game);
             return true;
         }
         catch

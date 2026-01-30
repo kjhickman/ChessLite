@@ -215,6 +215,43 @@ public class Position
         AllPieces = WhitePieces | BlackPieces;
     }
 
+    internal void Reset()
+    {
+        WhitePawns = 0;
+        WhiteKnights = 0;
+        WhiteBishops = 0;
+        WhiteRooks = 0;
+        WhiteQueens = 0;
+        WhiteKing = 0;
+        BlackPawns = 0;
+        BlackKnights = 0;
+        BlackBishops = 0;
+        BlackRooks = 0;
+        BlackQueens = 0;
+        BlackKing = 0;
+        WhiteToMove = true;
+        CastlingRights = CastlingRights.None;
+        EnPassantTarget = Square.None;
+        HalfmoveClock = 0;
+        FullmoveNumber = 1;
+        ZobristHash = 0;
+        WhitePieces = 0;
+        BlackPieces = 0;
+        AllPieces = 0;
+        PinnedPieces = 0;
+        WhiteAttacks = 0;
+        WhiteAttacksWithoutBlackKing = 0;
+        WhitePawnAttacks = 0;
+        WhiteKnightAttacks = 0;
+        WhiteKingAttacks = 0;
+        BlackAttacks = 0;
+        BlackAttacksWithoutWhiteKing = 0;
+        BlackPawnAttacks = 0;
+        BlackKnightAttacks = 0;
+        BlackKingAttacks = 0;
+        Array.Fill(Mailbox, PieceType.None);
+    }
+
     /// <summary>
     /// Recalculates all attack bitboards for both sides based on the current piece positions.
     /// </summary>

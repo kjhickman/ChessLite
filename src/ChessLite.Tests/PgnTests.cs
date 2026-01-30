@@ -39,6 +39,21 @@ public class PgnTests
     }
 
     [Test]
+    public async Task Parse_IntoExistingGame_ResetsHistoryAndPosition()
+    {
+        var game = new Game();
+        game.MakeUciMove("e2e4");
+
+        const string pgn = "1. d4 d5";
+
+        var parsed = PgnParser.Parse(pgn, game);
+
+        await Assert.That(ReferenceEquals(game, parsed)).IsTrue();
+        await Assert.That(Fen.Format(game)).IsEqualTo("rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq d6 0 2");
+        await Assert.That(game.GetMoveHistory().Count()).IsEqualTo(2);
+    }
+
+    [Test]
     public async Task Parse_WhenVariantTagProvided_Throws()
     {
         const string pgn = "[Variant \"Chess960\"]\n\n1. e4 e5";
