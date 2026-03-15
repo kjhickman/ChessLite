@@ -1,5 +1,4 @@
 using BenchmarkDotNet.Attributes;
-using ChessLite;
 using ChessLite.Movement;
 
 namespace ChessLite.Benchmarks;

@@ -1,4 +1,3 @@
-using ChessLite;
 using ChessLite.Parsing;
 using ChessLite.Primitives;
 

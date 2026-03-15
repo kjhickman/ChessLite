@@ -1,5 +1,4 @@
 using BenchmarkDotNet.Attributes;
-using ChessLite;
 using ChessLite.Movement;
 using ChessLite.Parsing;
 using ChessLite.State;

@@ -1,4 +1,3 @@
-using ChessLite.Movement;
 using ChessLite.Primitives;
 using ChessLite.State;
 

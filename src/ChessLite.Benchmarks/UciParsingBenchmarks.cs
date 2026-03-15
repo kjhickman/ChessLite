@@ -1,7 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using ChessLite.Movement;
 using ChessLite.Parsing;
-using ChessLite.Primitives;
 using ChessLite.State;
 
 namespace ChessLite.Benchmarks;

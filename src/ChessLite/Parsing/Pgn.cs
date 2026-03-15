@@ -1,5 +1,3 @@
-using ChessLite;
-
 namespace ChessLite.Parsing;
 
 /// <summary>

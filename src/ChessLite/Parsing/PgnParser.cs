@@ -1,6 +1,4 @@
-using ChessLite;
 using ChessLite.Movement;
-using ChessLite.Primitives;
 using ChessLite.State;
 
 namespace ChessLite.Parsing;
