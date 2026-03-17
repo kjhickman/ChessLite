@@ -57,10 +57,12 @@ internal class MoveExecutor
             PreviousFullmoveNumber = position.FullmoveNumber,
             PreviousZobristHash = position.ZobristHash,
             PreviousWhiteAttacks = position.WhiteAttacks,
+            PreviousWhiteAttacksWithoutBlackKing = position.WhiteAttacksWithoutBlackKing,
             PreviousWhitePawnAttacks = position.WhitePawnAttacks,
             PreviousWhiteKnightAttacks = position.WhiteKnightAttacks,
             PreviousWhiteKingAttacks = position.WhiteKingAttacks,
             PreviousBlackAttacks = position.BlackAttacks,
+            PreviousBlackAttacksWithoutWhiteKing = position.BlackAttacksWithoutWhiteKing,
             PreviousBlackPawnAttacks = position.BlackPawnAttacks,
             PreviousBlackKnightAttacks = position.BlackKnightAttacks,
             PreviousBlackKingAttacks = position.BlackKingAttacks,
@@ -388,10 +390,12 @@ internal class MoveExecutor
         position.WhiteToMove = !position.WhiteToMove;
         position.ZobristHash = moveHistory.PreviousZobristHash;
         position.WhiteAttacks = moveHistory.PreviousWhiteAttacks;
+        position.WhiteAttacksWithoutBlackKing = moveHistory.PreviousWhiteAttacksWithoutBlackKing;
         position.WhitePawnAttacks = moveHistory.PreviousWhitePawnAttacks;
         position.WhiteKnightAttacks = moveHistory.PreviousWhiteKnightAttacks;
         position.WhiteKingAttacks = moveHistory.PreviousWhiteKingAttacks;
         position.BlackAttacks = moveHistory.PreviousBlackAttacks;
+        position.BlackAttacksWithoutWhiteKing = moveHistory.PreviousBlackAttacksWithoutWhiteKing;
         position.BlackPawnAttacks = moveHistory.PreviousBlackPawnAttacks;
         position.BlackKnightAttacks = moveHistory.PreviousBlackKnightAttacks;
         position.BlackKingAttacks = moveHistory.PreviousBlackKingAttacks;
