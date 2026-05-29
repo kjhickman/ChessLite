@@ -1,11 +1,40 @@
 using ChessLite.Parsing;
 using ChessLite.Primitives;
 using ChessLite.State;
+using ChessLite.Movement;
 
 namespace ChessLite.Tests;
 
 public class MakeMoveTests
 {
+    [Test]
+    public async Task MakeMove_NullMove_UpdatesStateWithoutMovingPieces()
+    {
+        const string fen = "rnbqkbnr/pppp1ppp/8/4p3/3PP3/8/PPP2PPP/RNBQKBNR b KQkq d3 0 2";
+        var position = Fen.Parse(fen);
+        var expected = Fen.Parse(fen);
+        var originalHash = position.ZobristHash;
+        var game = new Game(position);
+
+        game.MakeNullMove();
+
+        await Assert.That(position.WhiteToMove).IsTrue();
+        await Assert.That(position.EnPassantTarget).IsEqualTo(Square.None);
+        await Assert.That(position.HalfmoveClock).IsEqualTo(1);
+        await Assert.That(position.FullmoveNumber).IsEqualTo(3);
+        await Assert.That(position.ZobristHash).IsNotEqualTo(originalHash);
+        await Assert.That(position.WhitePieces).IsEqualTo(expected.WhitePieces);
+        await Assert.That(position.BlackPieces).IsEqualTo(expected.BlackPieces);
+        await Assert.That(position.AllPieces).IsEqualTo(expected.AllPieces);
+        await Assert.That(position.Mailbox).IsEquivalentTo(expected.Mailbox);
+    }
+
+    [Test]
+    public async Task Move_NullMove_EqualsDefaultMove()
+    {
+        await Assert.That(Move.NullMove).IsEqualTo(default(Move));
+    }
+
     [Test]
     public async Task MakeMove_CastlingKingsideWhite_UpdatesKingAndRookPositions()
     {

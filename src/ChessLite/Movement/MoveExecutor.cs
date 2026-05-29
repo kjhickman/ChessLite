@@ -41,6 +41,18 @@ internal class MoveExecutor
         position.ZobristHash = Zobrist.ComputeHash(position);
     }
 
+    internal void MakeNullMove(Position position)
+    {
+        SaveMoveHistory(position, Move.NullMove);
+
+        position.EnPassantTarget = Square.None;
+        position.HalfmoveClock++;
+        UpdateFullmoveNumber(position);
+        position.WhiteToMove = !position.WhiteToMove;
+        position.UpdatePinnedPieces();
+        position.ZobristHash = Zobrist.ComputeHash(position);
+    }
+
     internal IEnumerable<Move> GetMoveHistory()
     {
         return _moveHistory.Select(x => x.Move).Reverse();
@@ -367,7 +379,11 @@ internal class MoveExecutor
         var moveHistory = _moveHistory.Pop();
         var previousMove = moveHistory.Move;
 
-        if (previousMove.SpecialMoveType != SpecialMoveType.None)
+        if (previousMove == Move.NullMove)
+        {
+            // No board pieces moved; restore only saved state below.
+        }
+        else if (previousMove.SpecialMoveType != SpecialMoveType.None)
         {
             UndoSpecialMove(position, previousMove);
         }

@@ -70,9 +70,14 @@ public class Position
 
     #region Derived Bitboards
 
-    internal Bitboard WhitePieces { get; set; }
-    internal Bitboard BlackPieces { get; set; }
-    internal Bitboard AllPieces { get; set; }
+    /// <summary>Gets a bitboard representing all white pieces.</summary>
+    public Bitboard WhitePieces { get; internal set; }
+
+    /// <summary>Gets a bitboard representing all black pieces.</summary>
+    public Bitboard BlackPieces { get; internal set; }
+
+    /// <summary>Gets a bitboard representing all occupied squares.</summary>
+    public Bitboard AllPieces { get; internal set; }
 
     #endregion
 

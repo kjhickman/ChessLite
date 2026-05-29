@@ -81,6 +81,16 @@ public class Game
     }
 
     /// <summary>
+    /// Makes a null move, passing the turn without moving a piece.
+    /// Intended for search algorithms and not for legal game play.
+    /// </summary>
+    public void MakeNullMove()
+    {
+        _moveExecutor.MakeNullMove(Position);
+        _repetitionTable[_currentPly++] = Position.ZobristHash;
+    }
+
+    /// <summary>
     /// Parses a move in UCI notation and applies it if it is legal.
     /// </summary>
     /// <param name="uciMove">The UCI move string.</param>

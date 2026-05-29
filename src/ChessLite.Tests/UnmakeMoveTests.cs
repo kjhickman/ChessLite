@@ -6,6 +6,20 @@ namespace ChessLite.Tests;
 public class UnmakeMoveTests
 {
     [Test]
+    public async Task UnmakeMove_NullMove_RestoresOriginalPosition()
+    {
+        const string fen = "rnbqkbnr/pppp1ppp/8/4p3/3PP3/8/PPP2PPP/RNBQKBNR b KQkq d3 0 2";
+        var position = Fen.Parse(fen);
+        var expected = Fen.Parse(fen);
+        var game = new Game(position);
+
+        game.MakeNullMove();
+        game.UndoMove();
+
+        await Assert.That(position).IsEquivalentTo(expected);
+    }
+
+    [Test]
     public async Task UnmakeMove_KingsideCastlingWhite_RestoresOriginalPosition()
     {
         // Set up a position with only the white king on e1 and a white rook on h1.
