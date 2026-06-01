@@ -26,7 +26,7 @@ public class Game
         Position = new Position();
         _moveExecutor = new MoveExecutor();
         _repetitionTable = new ulong[512];
-        _currentPly = 0;
+        ResetRepetitionTable();
     }
 
     public Game(Position position)
@@ -34,7 +34,7 @@ public class Game
         Position = position;
         _moveExecutor = new MoveExecutor();
         _repetitionTable = new ulong[512];
-        _currentPly = 0;
+        ResetRepetitionTable();
     }
 
     /// <summary>
@@ -141,15 +141,20 @@ public class Game
     public void ResetPosition(Position position)
     {
         Position = position;
-        _currentPly = 0;
-        Array.Clear(_repetitionTable, 0, _repetitionTable.Length);
+        ResetRepetitionTable();
     }
 
     internal void ResetForParsing()
     {
         _moveExecutor.ClearMoveHistory();
-        _currentPly = 0;
+        ResetRepetitionTable();
+    }
+
+    internal void ResetRepetitionTable()
+    {
         Array.Clear(_repetitionTable, 0, _repetitionTable.Length);
+        _currentPly = 1;
+        _repetitionTable[0] = Position.ZobristHash;
     }
 
     /// <summary>
@@ -168,13 +173,36 @@ public class Game
     /// <returns>The current <see cref="GameState"/> of the game.</returns>
     public GameState GetState()
     {
-        // Check for draw by fifty-move rule
+        var drawState = GetDrawState();
+        if (drawState != GameState.Ongoing)
+        {
+            return drawState;
+        }
+
+        // Check if there are any legal moves
+        Span<Move> moves = stackalloc Move[218];
+        var legalMoveCount = MoveGeneration.GenerateLegalMoves(Position, moves);
+
+        if (legalMoveCount == 0)
+        {
+            // No legal moves - either checkmate or stalemate
+            return IsInCheck() ? GameState.Checkmate : GameState.Stalemate;
+        }
+
+        return GameState.Ongoing;
+    }
+
+    /// <summary>
+    /// Gets the current draw state of the game without generating legal moves.
+    /// </summary>
+    /// <returns>The draw-specific <see cref="GameState"/>, or <see cref="GameState.Ongoing"/> if no draw condition is present.</returns>
+    public GameState GetDrawState()
+    {
         if (Position.HalfmoveClock >= 100)
         {
             return GameState.DrawByFiftyMoveRule;
         }
 
-        // Check for draw by repetition
         var repetitionCount = 0;
         for (var i = 0; i < _currentPly; i++)
         {
@@ -188,20 +216,9 @@ public class Game
             }
         }
 
-        // Check for draw by insufficient material
         if (IsInsufficientMaterial())
         {
             return GameState.DrawByInsufficientMaterial;
-        }
-
-        // Check if there are any legal moves
-        Span<Move> moves = stackalloc Move[218];
-        var legalMoveCount = MoveGeneration.GenerateLegalMoves(Position, moves);
-
-        if (legalMoveCount == 0)
-        {
-            // No legal moves - either checkmate or stalemate
-            return IsInCheck() ? GameState.Checkmate : GameState.Stalemate;
         }
 
         return GameState.Ongoing;

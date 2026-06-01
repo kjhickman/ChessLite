@@ -122,6 +122,7 @@ internal static class PgnParser
                 throw new ArgumentException("Invalid FEN string", nameof(_pgn));
             }
 
+            _game.ResetRepetitionTable();
             _gameInitialized = true;
         }
 
