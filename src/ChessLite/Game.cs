@@ -37,6 +37,25 @@ public class Game
         ResetRepetitionTable();
     }
 
+    private Game(Position position, MoveExecutor moveExecutor, ulong[] repetitionTable, int currentPly)
+    {
+        Position = position;
+        _moveExecutor = moveExecutor;
+        _repetitionTable = repetitionTable;
+        _currentPly = currentPly;
+    }
+
+    /// <summary>
+    /// Creates a deep copy of the current game, including position, move history, and repetition state.
+    /// </summary>
+    /// <returns>A new <see cref="Game"/> instance with identical state.</returns>
+    public Game Clone()
+    {
+        var repetitionTable = new ulong[_repetitionTable.Length];
+        Array.Copy(_repetitionTable, repetitionTable, _repetitionTable.Length);
+        return new Game(Position.Clone(), _moveExecutor.Clone(), repetitionTable, _currentPly);
+    }
+
     /// <summary>
     /// Writes all legal moves for the current position to the specified span.
     /// </summary>

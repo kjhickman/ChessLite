@@ -12,6 +12,17 @@ internal class MoveExecutor
         _moveHistory.Clear();
     }
 
+    internal MoveExecutor Clone()
+    {
+        var clone = new MoveExecutor();
+        foreach (var moveHistory in _moveHistory.Reverse())
+        {
+            clone._moveHistory.Push(moveHistory);
+        }
+
+        return clone;
+    }
+
     // TODO: pass properties in to avoid recalculating masks
     internal void MakeMove(Position position, Move move)
     {
