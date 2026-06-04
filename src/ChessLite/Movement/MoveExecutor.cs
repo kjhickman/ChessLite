@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using ChessLite.Primitives;
 using ChessLite.State;
 
@@ -26,6 +27,10 @@ internal class MoveExecutor
     // TODO: pass properties in to avoid recalculating masks
     internal void MakeMove(Position position, Move move)
     {
+        var previousHash = position.ZobristHash;
+        var previousCastlingRights = position.CastlingRights;
+        var previousEnPassantTarget = position.EnPassantTarget;
+
         SaveMoveHistory(position, move);
 
         if (move.SpecialMoveType != SpecialMoveType.None)
@@ -49,11 +54,14 @@ internal class MoveExecutor
         position.UpdateAttacks();
         position.WhiteToMove = !position.WhiteToMove;
         position.UpdatePinnedPieces(); // Must be called after toggling the turn
-        position.ZobristHash = Zobrist.ComputeHash(position);
+        position.ZobristHash = UpdateZobristHash(previousHash, move, previousCastlingRights, previousEnPassantTarget, position);
     }
 
     internal void MakeNullMove(Position position)
     {
+        var previousHash = position.ZobristHash;
+        var previousEnPassantTarget = position.EnPassantTarget;
+
         SaveMoveHistory(position, Move.NullMove);
 
         position.EnPassantTarget = Square.None;
@@ -61,7 +69,7 @@ internal class MoveExecutor
         UpdateFullmoveNumber(position);
         position.WhiteToMove = !position.WhiteToMove;
         position.UpdatePinnedPieces();
-        position.ZobristHash = Zobrist.ComputeHash(position);
+        position.ZobristHash = UpdateNullMoveZobristHash(previousHash, previousEnPassantTarget);
     }
 
     internal IEnumerable<Move> GetMoveHistory()
@@ -383,6 +391,167 @@ internal class MoveExecutor
         position.BlackPieces = position.BlackPawns | position.BlackKnights | position.BlackBishops |
                                position.BlackRooks | position.BlackQueens | position.BlackKing;
         position.AllPieces = position.WhitePieces | position.BlackPieces;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong UpdateZobristHash(
+        ulong previousHash,
+        Move move,
+        CastlingRights previousCastlingRights,
+        Square previousEnPassantTarget,
+        Position position)
+    {
+        if (move.SpecialMoveType == SpecialMoveType.None
+            && move.PromotedPieceType == PromotedPieceType.None
+            && previousCastlingRights == position.CastlingRights
+            && previousEnPassantTarget == Square.None
+            && position.EnPassantTarget == Square.None)
+        {
+            return UpdateRegularMoveZobristHash(previousHash ^ Zobrist.SideToMoveKey, move);
+        }
+
+        var hash = previousHash;
+
+        if (previousCastlingRights != position.CastlingRights)
+        {
+            hash ^= Zobrist.GetCastlingKey(previousCastlingRights);
+            hash ^= Zobrist.GetCastlingKey(position.CastlingRights);
+        }
+
+        if (previousEnPassantTarget != Square.None)
+        {
+            hash ^= Zobrist.GetEnPassantKey(previousEnPassantTarget);
+        }
+
+        if (position.EnPassantTarget != Square.None)
+        {
+            hash ^= Zobrist.GetEnPassantKey(position.EnPassantTarget);
+        }
+
+        hash ^= Zobrist.SideToMoveKey;
+
+        if (move.PromotedPieceType != PromotedPieceType.None)
+        {
+            return UpdatePromotionZobristHash(hash, move);
+        }
+
+        if (move.SpecialMoveType != SpecialMoveType.None)
+        {
+            return UpdateSpecialMoveZobristHash(hash, move);
+        }
+
+        return UpdateRegularMoveZobristHash(hash, move);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong UpdateNullMoveZobristHash(ulong previousHash, Square previousEnPassantTarget)
+    {
+        var hash = previousHash;
+
+        if (previousEnPassantTarget != Square.None)
+        {
+            hash ^= Zobrist.GetEnPassantKey(previousEnPassantTarget);
+        }
+
+        hash ^= Zobrist.SideToMoveKey;
+        return hash;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong UpdateRegularMoveZobristHash(ulong hash, Move move)
+    {
+        hash ^= Zobrist.GetPieceKey(move.PieceType, move.From);
+        hash ^= Zobrist.GetPieceKey(move.PieceType, move.To);
+
+        if (move.IsCapture)
+        {
+            hash ^= Zobrist.GetPieceKey(move.CapturedPieceType, move.To);
+        }
+
+        return hash;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong UpdatePromotionZobristHash(ulong hash, Move move)
+    {
+        hash ^= Zobrist.GetPieceKey(move.PieceType, move.From);
+        hash ^= Zobrist.GetPieceKey(GetPromotedPieceType(move), move.To);
+
+        if (move.IsCapture)
+        {
+            hash ^= Zobrist.GetPieceKey(move.CapturedPieceType, move.To);
+        }
+
+        return hash;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong UpdateSpecialMoveZobristHash(ulong hash, Move move)
+    {
+        return move.SpecialMoveType switch
+        {
+            SpecialMoveType.DoublePawnPush => UpdateRegularMoveZobristHash(hash, move),
+            SpecialMoveType.EnPassant => UpdateEnPassantZobristHash(hash, move),
+            SpecialMoveType.ShortCastle => UpdateCastleZobristHash(hash, move, isShortCastle: true),
+            SpecialMoveType.LongCastle => UpdateCastleZobristHash(hash, move, isShortCastle: false),
+            SpecialMoveType.None => hash,
+            _ => throw new ArgumentOutOfRangeException(),
+        };
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong UpdateEnPassantZobristHash(ulong hash, Move move)
+    {
+        var capturedSquare = move.PieceType == PieceType.WhitePawn
+            ? move.To - 8
+            : move.To + 8;
+
+        hash ^= Zobrist.GetPieceKey(move.PieceType, move.From);
+        hash ^= Zobrist.GetPieceKey(move.PieceType, move.To);
+        hash ^= Zobrist.GetPieceKey(move.CapturedPieceType, capturedSquare);
+        return hash;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong UpdateCastleZobristHash(ulong hash, Move move, bool isShortCastle)
+    {
+        hash ^= Zobrist.GetPieceKey(move.PieceType, move.From);
+        hash ^= Zobrist.GetPieceKey(move.PieceType, move.To);
+
+        var isWhite = move.PieceType == PieceType.WhiteKing;
+        var rookPieceType = isWhite ? PieceType.WhiteRook : PieceType.BlackRook;
+        var rookFrom = isWhite
+            ? isShortCastle ? Square.h1 : Square.a1
+            : isShortCastle ? Square.h8 : Square.a8;
+        var rookTo = isWhite
+            ? isShortCastle ? Square.f1 : Square.d1
+            : isShortCastle ? Square.f8 : Square.d8;
+
+        hash ^= Zobrist.GetPieceKey(rookPieceType, rookFrom);
+        hash ^= Zobrist.GetPieceKey(rookPieceType, rookTo);
+        return hash;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static PieceType GetPromotedPieceType(Move move)
+    {
+        return move.PieceType == PieceType.WhitePawn
+            ? move.PromotedPieceType switch
+            {
+                PromotedPieceType.Queen => PieceType.WhiteQueen,
+                PromotedPieceType.Rook => PieceType.WhiteRook,
+                PromotedPieceType.Bishop => PieceType.WhiteBishop,
+                PromotedPieceType.Knight => PieceType.WhiteKnight,
+                _ => throw new ArgumentOutOfRangeException(),
+            }
+            : move.PromotedPieceType switch
+            {
+                PromotedPieceType.Queen => PieceType.BlackQueen,
+                PromotedPieceType.Rook => PieceType.BlackRook,
+                PromotedPieceType.Bishop => PieceType.BlackBishop,
+                PromotedPieceType.Knight => PieceType.BlackKnight,
+                _ => throw new ArgumentOutOfRangeException(),
+            };
     }
 
     internal void UndoMove(Position position)
