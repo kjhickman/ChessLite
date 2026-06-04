@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using ChessLite.Primitives;
 
 namespace ChessLite.State;
@@ -66,6 +67,26 @@ internal static class Zobrist
             hash ^= SideKey;
         return hash;
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static ulong GetPieceKey(PieceType pieceType, Square square)
+    {
+        return PieceKeys[(int)pieceType - 1, (int)square];
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static ulong GetCastlingKey(CastlingRights castlingRights)
+    {
+        return CastlingKeys[(byte)castlingRights];
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static ulong GetEnPassantKey(Square square)
+    {
+        return EnPassantKeys[(int)square];
+    }
+
+    internal static ulong SideToMoveKey => SideKey;
 
     private static void AddPieceHash(ref ulong hash, Bitboard board, int pieceIndex)
     {

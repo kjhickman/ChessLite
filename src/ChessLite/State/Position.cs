@@ -403,7 +403,6 @@ public class Position
             WhitePieces = WhitePieces,
             BlackPieces = BlackPieces,
             AllPieces = AllPieces,
-
             // Copy attack bitboards
             PinnedPieces = PinnedPieces,
             WhiteAttacks = WhiteAttacks,
