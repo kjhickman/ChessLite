@@ -41,7 +41,7 @@ public class MakeMoveTests
     [Arguments("OpenPosition", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")]
     [Arguments("PromotionPosition", "8/P6k/8/8/8/8/6Kp/8 w - - 0 1")]
     [Arguments("EnPassantPosition", "8/8/8/8/3pP3/8/8/4K2k b - e3 0 1")]
-    public async Task MakeMove_AllLegalMoves_AttackCachesMatchFullRecompute(string _, string fen)
+    public async Task MakeMove_AllLegalMoves_MoverAttackCacheMatchesFullRecompute(string _, string fen)
     {
         var position = Fen.Parse(fen);
         var game = new Game(position);
@@ -51,15 +51,22 @@ public class MakeMoveTests
 
         for (var i = 0; i < moveCount; i++)
         {
+            var movedByWhite = position.WhiteToMove;
             game.MakeMove(moves[i]);
 
             var expected = position.Clone();
             expected.UpdateAttacks();
 
-            await Assert.That(position.WhiteAttacks).IsEqualTo(expected.WhiteAttacks);
-            await Assert.That(position.WhiteAttacksWithoutBlackKing).IsEqualTo(expected.WhiteAttacksWithoutBlackKing);
-            await Assert.That(position.BlackAttacks).IsEqualTo(expected.BlackAttacks);
-            await Assert.That(position.BlackAttacksWithoutWhiteKing).IsEqualTo(expected.BlackAttacksWithoutWhiteKing);
+            if (movedByWhite)
+            {
+                await Assert.That(position.WhiteAttacks).IsEqualTo(expected.WhiteAttacks);
+                await Assert.That(position.WhiteAttacksWithoutBlackKing).IsEqualTo(expected.WhiteAttacksWithoutBlackKing);
+            }
+            else
+            {
+                await Assert.That(position.BlackAttacks).IsEqualTo(expected.BlackAttacks);
+                await Assert.That(position.BlackAttacksWithoutWhiteKing).IsEqualTo(expected.BlackAttacksWithoutWhiteKing);
+            }
 
             game.UndoMove();
         }

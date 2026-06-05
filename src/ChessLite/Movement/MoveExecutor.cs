@@ -27,6 +27,7 @@ internal class MoveExecutor
     // TODO: pass properties in to avoid recalculating masks
     internal void MakeMove(Position position, Move move)
     {
+        var movedByWhite = position.WhiteToMove;
         var previousHash = position.ZobristHash;
         var previousCastlingRights = position.CastlingRights;
         var previousEnPassantTarget = position.EnPassantTarget;
@@ -51,7 +52,7 @@ internal class MoveExecutor
         UpdateHalfmoveClock(position, move);
         UpdateFullmoveNumber(position);
         UpdateCombinedBitboards(position);
-        position.UpdateAttacks();
+        position.UpdateAttacks(movedByWhite);
         position.WhiteToMove = !position.WhiteToMove;
         position.UpdatePinnedPieces(); // Must be called after toggling the turn
         position.ZobristHash = UpdateZobristHash(previousHash, move, previousCastlingRights, previousEnPassantTarget, position);

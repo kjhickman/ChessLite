@@ -254,6 +254,18 @@ public class Position
         UpdateBlackAttacks();
     }
 
+    internal void UpdateAttacks(bool forWhite)
+    {
+        if (forWhite)
+        {
+            UpdateWhiteAttacks();
+        }
+        else
+        {
+            UpdateBlackAttacks();
+        }
+    }
+
     private void UpdateWhiteAttacks()
     {
         var whitePawnAttacks = AttackGeneration.CalculatePawnAttacks(WhitePawns, forWhite: true);
