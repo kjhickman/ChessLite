@@ -642,6 +642,42 @@ internal static class MoveGeneration
     /// </summary>
     private static int GenerateNormalMoves(Position position, Span<Move> legalMovesBuffer, PositionState state)
     {
+        return state.PinnedPieces.IsEmpty() && position.EnPassantTarget == Square.None
+            ? GenerateNormalMovesFast(position, legalMovesBuffer)
+            : GenerateNormalMovesFiltered(position, legalMovesBuffer, state);
+    }
+
+    private static int GenerateNormalMovesFast(Position position, Span<Move> legalMovesBuffer)
+    {
+        var moveCount = 0;
+
+        GeneratePawnMoves(position, ref moveCount, legalMovesBuffer);
+        GenerateKnightMoves(position, ref moveCount, legalMovesBuffer);
+        GenerateBishopMoves(position, ref moveCount, legalMovesBuffer);
+        GenerateRookMoves(position, ref moveCount, legalMovesBuffer);
+        GenerateQueenMoves(position, ref moveCount, legalMovesBuffer);
+
+        Span<Move> kingMoves = stackalloc Move[10];
+        var kingMoveCount = 0;
+        GenerateKingMoves(position, ref kingMoveCount, kingMoves);
+
+        var enemyAttacks = position.WhiteToMove
+            ? position.BlackAttacksWithoutWhiteKing
+            : position.WhiteAttacksWithoutBlackKing;
+
+        for (var i = 0; i < kingMoveCount; i++)
+        {
+            if (!enemyAttacks.Intersects(kingMoves[i].To))
+            {
+                legalMovesBuffer[moveCount++] = kingMoves[i];
+            }
+        }
+
+        return moveCount;
+    }
+
+    private static int GenerateNormalMovesFiltered(Position position, Span<Move> legalMovesBuffer, PositionState state)
+    {
         var moveCount = 0;
 
         // Generate all pseudo-legal moves
