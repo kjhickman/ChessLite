@@ -36,6 +36,36 @@ public class MakeMoveTests
     }
 
     [Test]
+    [Arguments("StartingPosition", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")]
+    [Arguments("ComplexMiddlegame", "r1bqkb1r/pppp1ppp/2n2n2/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4")]
+    [Arguments("OpenPosition", "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")]
+    [Arguments("PromotionPosition", "8/P6k/8/8/8/8/6Kp/8 w - - 0 1")]
+    [Arguments("EnPassantPosition", "8/8/8/8/3pP3/8/8/4K2k b - e3 0 1")]
+    public async Task MakeMove_AllLegalMoves_AttackCachesMatchFullRecompute(string _, string fen)
+    {
+        var position = Fen.Parse(fen);
+        var game = new Game(position);
+
+        var moves = new Move[218];
+        var moveCount = game.WriteLegalMoves(moves);
+
+        for (var i = 0; i < moveCount; i++)
+        {
+            game.MakeMove(moves[i]);
+
+            var expected = position.Clone();
+            expected.UpdateAttacks();
+
+            await Assert.That(position.WhiteAttacks).IsEqualTo(expected.WhiteAttacks);
+            await Assert.That(position.WhiteAttacksWithoutBlackKing).IsEqualTo(expected.WhiteAttacksWithoutBlackKing);
+            await Assert.That(position.BlackAttacks).IsEqualTo(expected.BlackAttacks);
+            await Assert.That(position.BlackAttacksWithoutWhiteKing).IsEqualTo(expected.BlackAttacksWithoutWhiteKing);
+
+            game.UndoMove();
+        }
+    }
+
+    [Test]
     public async Task MakeNullMove_IncrementalZobristMatchesFullRecompute()
     {
         const string fen = "rnbqkbnr/pppp1ppp/8/4p3/3PP3/8/PPP2PPP/RNBQKBNR b KQkq d3 0 2";

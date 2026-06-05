@@ -14,13 +14,7 @@ internal struct MoveHistory
     internal ulong PreviousZobristHash;
     internal Bitboard PreviousWhiteAttacks;
     internal Bitboard PreviousWhiteAttacksWithoutBlackKing;
-    internal Bitboard PreviousWhitePawnAttacks;
-    internal Bitboard PreviousWhiteKnightAttacks;
-    internal Bitboard PreviousWhiteKingAttacks;
     internal Bitboard PreviousBlackAttacks;
     internal Bitboard PreviousBlackAttacksWithoutWhiteKing;
-    internal Bitboard PreviousBlackPawnAttacks;
-    internal Bitboard PreviousBlackKnightAttacks;
-    internal Bitboard PreviousBlackKingAttacks;
     internal Bitboard PreviousPinnedPieces;
 }
