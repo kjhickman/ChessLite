@@ -5,6 +5,56 @@ namespace ChessLite.Movement;
 
 internal static class AttackGeneration
 {
+    internal static (Bitboard Attacks, Bitboard AttacksWithoutKing) CalculateSliderAttacks(
+        Bitboard bishops,
+        Bitboard rooks,
+        Bitboard queens,
+        Bitboard allPieces,
+        Bitboard opposingKing)
+    {
+        Bitboard attacks = 0;
+        Bitboard attacksWithoutKing = 0;
+        var allPiecesWithoutKing = allPieces.ClearSquares(opposingKing);
+
+        var currentBishops = bishops;
+        while (currentBishops.IsNotEmpty())
+        {
+            var square = currentBishops.GetFirstSquare();
+            var bishopAttacks = MagicBitboards.GetBishopAttacks(square, allPieces);
+            attacks |= bishopAttacks;
+            attacksWithoutKing |= bishopAttacks.Intersects(opposingKing)
+                ? MagicBitboards.GetBishopAttacks(square, allPiecesWithoutKing)
+                : bishopAttacks;
+            currentBishops &= currentBishops - 1;
+        }
+
+        var currentRooks = rooks;
+        while (currentRooks.IsNotEmpty())
+        {
+            var square = currentRooks.GetFirstSquare();
+            var rookAttacks = MagicBitboards.GetRookAttacks(square, allPieces);
+            attacks |= rookAttacks;
+            attacksWithoutKing |= rookAttacks.Intersects(opposingKing)
+                ? MagicBitboards.GetRookAttacks(square, allPiecesWithoutKing)
+                : rookAttacks;
+            currentRooks &= currentRooks - 1;
+        }
+
+        var currentQueens = queens;
+        while (currentQueens.IsNotEmpty())
+        {
+            var square = currentQueens.GetFirstSquare();
+            var queenAttacks = MagicBitboards.GetQueenAttacks(square, allPieces);
+            attacks |= queenAttacks;
+            attacksWithoutKing |= queenAttacks.Intersects(opposingKing)
+                ? MagicBitboards.GetQueenAttacks(square, allPiecesWithoutKing)
+                : queenAttacks;
+            currentQueens &= currentQueens - 1;
+        }
+
+        return (attacks, attacksWithoutKing);
+    }
+
     internal static Bitboard CalculateAttacks(Position position, bool forWhite)
     {
         Bitboard attacks = 0;

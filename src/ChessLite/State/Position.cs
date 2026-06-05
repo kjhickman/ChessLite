@@ -259,14 +259,9 @@ public class Position
         var whitePawnAttacks = AttackGeneration.CalculatePawnAttacks(WhitePawns, forWhite: true);
         var whiteKnightAttacks = AttackGeneration.CalculateKnightAttacks(WhiteKnights);
         var whiteKingAttacks = AttackGeneration.CalculateKingAttacks(WhiteKing);
-        var whiteSliderAttacks = AttackGeneration.CalculateBishopAttacks(WhiteBishops, AllPieces)
-            | AttackGeneration.CalculateRookAttacks(WhiteRooks, AllPieces)
-            | AttackGeneration.CalculateQueenAttacks(WhiteQueens, AllPieces);
-        var whiteSliderAttacksWithoutBlackKing = AttackGeneration.CalculateBishopAttacks(WhiteBishops, AllPieces.ClearSquares(BlackKing))
-            | AttackGeneration.CalculateRookAttacks(WhiteRooks, AllPieces.ClearSquares(BlackKing))
-            | AttackGeneration.CalculateQueenAttacks(WhiteQueens, AllPieces.ClearSquares(BlackKing));
-        WhiteAttacks = whitePawnAttacks | whiteKnightAttacks | whiteKingAttacks | whiteSliderAttacks;
-        WhiteAttacksWithoutBlackKing = whitePawnAttacks | whiteKnightAttacks | whiteKingAttacks | whiteSliderAttacksWithoutBlackKing;
+        var whiteSliderAttacks = AttackGeneration.CalculateSliderAttacks(WhiteBishops, WhiteRooks, WhiteQueens, AllPieces, BlackKing);
+        WhiteAttacks = whitePawnAttacks | whiteKnightAttacks | whiteKingAttacks | whiteSliderAttacks.Attacks;
+        WhiteAttacksWithoutBlackKing = whitePawnAttacks | whiteKnightAttacks | whiteKingAttacks | whiteSliderAttacks.AttacksWithoutKing;
     }
 
     private void UpdateBlackAttacks()
@@ -274,14 +269,9 @@ public class Position
         var blackPawnAttacks = AttackGeneration.CalculatePawnAttacks(BlackPawns, forWhite: false);
         var blackKnightAttacks = AttackGeneration.CalculateKnightAttacks(BlackKnights);
         var blackKingAttacks = AttackGeneration.CalculateKingAttacks(BlackKing);
-        var blackSliderAttacks = AttackGeneration.CalculateBishopAttacks(BlackBishops, AllPieces)
-            | AttackGeneration.CalculateRookAttacks(BlackRooks, AllPieces)
-            | AttackGeneration.CalculateQueenAttacks(BlackQueens, AllPieces);
-        var blackSliderAttacksWithoutWhiteKing = AttackGeneration.CalculateBishopAttacks(BlackBishops, AllPieces.ClearSquares(WhiteKing))
-            | AttackGeneration.CalculateRookAttacks(BlackRooks, AllPieces.ClearSquares(WhiteKing))
-            | AttackGeneration.CalculateQueenAttacks(BlackQueens, AllPieces.ClearSquares(WhiteKing));
-        BlackAttacks = blackPawnAttacks | blackKnightAttacks | blackKingAttacks | blackSliderAttacks;
-        BlackAttacksWithoutWhiteKing = blackPawnAttacks | blackKnightAttacks | blackKingAttacks | blackSliderAttacksWithoutWhiteKing;
+        var blackSliderAttacks = AttackGeneration.CalculateSliderAttacks(BlackBishops, BlackRooks, BlackQueens, AllPieces, WhiteKing);
+        BlackAttacks = blackPawnAttacks | blackKnightAttacks | blackKingAttacks | blackSliderAttacks.Attacks;
+        BlackAttacksWithoutWhiteKing = blackPawnAttacks | blackKnightAttacks | blackKingAttacks | blackSliderAttacks.AttacksWithoutKing;
     }
 
     /// <summary>
