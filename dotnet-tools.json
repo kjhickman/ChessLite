@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "pvanalyze": {
+      "version": "0.0.1",
+      "commands": [
+        "pvanalyze"
+      ],
+      "rollForward": false
+    },
+    "dotnet-trace": {
+      "version": "9.0.661903",
+      "commands": [
+        "dotnet-trace"
+      ],
+      "rollForward": false
+    }
+  }
+}
