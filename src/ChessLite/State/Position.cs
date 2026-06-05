@@ -86,14 +86,8 @@ public class Position
     internal Bitboard PinnedPieces;
     internal Bitboard WhiteAttacks;
     internal Bitboard WhiteAttacksWithoutBlackKing;
-    internal Bitboard WhitePawnAttacks;
-    internal Bitboard WhiteKnightAttacks;
-    internal Bitboard WhiteKingAttacks;
     internal Bitboard BlackAttacks;
     internal Bitboard BlackAttacksWithoutWhiteKing;
-    internal Bitboard BlackPawnAttacks;
-    internal Bitboard BlackKnightAttacks;
-    internal Bitboard BlackKingAttacks;
 
     #endregion
 
@@ -246,14 +240,8 @@ public class Position
         PinnedPieces = 0;
         WhiteAttacks = 0;
         WhiteAttacksWithoutBlackKing = 0;
-        WhitePawnAttacks = 0;
-        WhiteKnightAttacks = 0;
-        WhiteKingAttacks = 0;
         BlackAttacks = 0;
         BlackAttacksWithoutWhiteKing = 0;
-        BlackPawnAttacks = 0;
-        BlackKnightAttacks = 0;
-        BlackKingAttacks = 0;
         Array.Fill(Mailbox, PieceType.None);
     }
 
@@ -262,29 +250,38 @@ public class Position
     /// </summary>
     public void UpdateAttacks()
     {
-        WhitePawnAttacks = AttackGeneration.CalculatePawnAttacks(WhitePawns, forWhite: true);
-        WhiteKnightAttacks = AttackGeneration.CalculateKnightAttacks(WhiteKnights);
-        WhiteKingAttacks = AttackGeneration.CalculateKingAttacks(WhiteKing);
+        UpdateWhiteAttacks();
+        UpdateBlackAttacks();
+    }
+
+    private void UpdateWhiteAttacks()
+    {
+        var whitePawnAttacks = AttackGeneration.CalculatePawnAttacks(WhitePawns, forWhite: true);
+        var whiteKnightAttacks = AttackGeneration.CalculateKnightAttacks(WhiteKnights);
+        var whiteKingAttacks = AttackGeneration.CalculateKingAttacks(WhiteKing);
         var whiteSliderAttacks = AttackGeneration.CalculateBishopAttacks(WhiteBishops, AllPieces)
             | AttackGeneration.CalculateRookAttacks(WhiteRooks, AllPieces)
             | AttackGeneration.CalculateQueenAttacks(WhiteQueens, AllPieces);
         var whiteSliderAttacksWithoutBlackKing = AttackGeneration.CalculateBishopAttacks(WhiteBishops, AllPieces.ClearSquares(BlackKing))
             | AttackGeneration.CalculateRookAttacks(WhiteRooks, AllPieces.ClearSquares(BlackKing))
             | AttackGeneration.CalculateQueenAttacks(WhiteQueens, AllPieces.ClearSquares(BlackKing));
-        WhiteAttacks = WhitePawnAttacks | WhiteKnightAttacks | WhiteKingAttacks | whiteSliderAttacks;
-        WhiteAttacksWithoutBlackKing = WhitePawnAttacks | WhiteKnightAttacks | WhiteKingAttacks | whiteSliderAttacksWithoutBlackKing;
+        WhiteAttacks = whitePawnAttacks | whiteKnightAttacks | whiteKingAttacks | whiteSliderAttacks;
+        WhiteAttacksWithoutBlackKing = whitePawnAttacks | whiteKnightAttacks | whiteKingAttacks | whiteSliderAttacksWithoutBlackKing;
+    }
 
-        BlackPawnAttacks = AttackGeneration.CalculatePawnAttacks(BlackPawns, forWhite: false);
-        BlackKnightAttacks = AttackGeneration.CalculateKnightAttacks(BlackKnights);
-        BlackKingAttacks = AttackGeneration.CalculateKingAttacks(BlackKing);
+    private void UpdateBlackAttacks()
+    {
+        var blackPawnAttacks = AttackGeneration.CalculatePawnAttacks(BlackPawns, forWhite: false);
+        var blackKnightAttacks = AttackGeneration.CalculateKnightAttacks(BlackKnights);
+        var blackKingAttacks = AttackGeneration.CalculateKingAttacks(BlackKing);
         var blackSliderAttacks = AttackGeneration.CalculateBishopAttacks(BlackBishops, AllPieces)
             | AttackGeneration.CalculateRookAttacks(BlackRooks, AllPieces)
             | AttackGeneration.CalculateQueenAttacks(BlackQueens, AllPieces);
         var blackSliderAttacksWithoutWhiteKing = AttackGeneration.CalculateBishopAttacks(BlackBishops, AllPieces.ClearSquares(WhiteKing))
             | AttackGeneration.CalculateRookAttacks(BlackRooks, AllPieces.ClearSquares(WhiteKing))
             | AttackGeneration.CalculateQueenAttacks(BlackQueens, AllPieces.ClearSquares(WhiteKing));
-        BlackAttacks = BlackPawnAttacks | BlackKnightAttacks | BlackKingAttacks | blackSliderAttacks;
-        BlackAttacksWithoutWhiteKing = BlackPawnAttacks | BlackKnightAttacks | BlackKingAttacks | blackSliderAttacksWithoutWhiteKing;
+        BlackAttacks = blackPawnAttacks | blackKnightAttacks | blackKingAttacks | blackSliderAttacks;
+        BlackAttacksWithoutWhiteKing = blackPawnAttacks | blackKnightAttacks | blackKingAttacks | blackSliderAttacksWithoutWhiteKing;
     }
 
     /// <summary>
@@ -396,14 +393,8 @@ public class Position
             PinnedPieces = PinnedPieces,
             WhiteAttacks = WhiteAttacks,
             WhiteAttacksWithoutBlackKing = WhiteAttacksWithoutBlackKing,
-            WhitePawnAttacks = WhitePawnAttacks,
-            WhiteKnightAttacks = WhiteKnightAttacks,
-            WhiteKingAttacks = WhiteKingAttacks,
             BlackAttacks = BlackAttacks,
             BlackAttacksWithoutWhiteKing = BlackAttacksWithoutWhiteKing,
-            BlackPawnAttacks = BlackPawnAttacks,
-            BlackKnightAttacks = BlackKnightAttacks,
-            BlackKingAttacks = BlackKingAttacks,
         };
 
         // Copy mailbox
