@@ -6,6 +6,23 @@ namespace ChessLite.Tests;
 public class AttackGenerationTests
 {
     [Test]
+    [Arguments("8/8/8/8/3P4/8/8/8 w - - 0 1", true, 2)]
+    [Arguments("8/8/8/8/P7/8/8/8 w - - 0 1", true, 1)]
+    [Arguments("8/8/8/8/7P/8/8/8 w - - 0 1", true, 1)]
+    [Arguments("8/8/8/8/3p4/8/8/8 b - - 0 1", false, 2)]
+    [Arguments("8/8/8/8/p7/8/8/8 b - - 0 1", false, 1)]
+    [Arguments("8/8/8/8/7p/8/8/8 b - - 0 1", false, 1)]
+    public async Task CalculatePawnAttacks_ReturnsCorrectAttacks(string fen, bool forWhite, int expected)
+    {
+        var position = Fen.Parse(fen);
+        var pawns = forWhite ? position.WhitePawns : position.BlackPawns;
+
+        var attackCount = AttackGeneration.CalculatePawnAttacks(pawns, forWhite).Count();
+
+        await Assert.That(attackCount).IsEqualTo(expected);
+    }
+
+    [Test]
     [Arguments("8/8/8/3R4/8/8/8/8 w - - 0 1", 14)]
     [Arguments("8/8/3r4/3R4/8/8/8/8 w - - 0 1", 12)]
     [Arguments("3k4/8/3r4/3R4/8/8/8/3K4 w - - 0 1", 12)]
