@@ -262,17 +262,29 @@ public class Position
     /// </summary>
     public void UpdateAttacks()
     {
-        WhiteAttacks = AttackGeneration.CalculateAttacks(this, forWhite: true);
-        WhiteAttacksWithoutBlackKing = AttackGeneration.CalculateAttacksWithoutOpposingKing(this, forWhite: true);
         WhitePawnAttacks = AttackGeneration.CalculatePawnAttacks(WhitePawns, forWhite: true);
         WhiteKnightAttacks = AttackGeneration.CalculateKnightAttacks(WhiteKnights);
         WhiteKingAttacks = AttackGeneration.CalculateKingAttacks(WhiteKing);
+        var whiteSliderAttacks = AttackGeneration.CalculateBishopAttacks(WhiteBishops, AllPieces)
+            | AttackGeneration.CalculateRookAttacks(WhiteRooks, AllPieces)
+            | AttackGeneration.CalculateQueenAttacks(WhiteQueens, AllPieces);
+        var whiteSliderAttacksWithoutBlackKing = AttackGeneration.CalculateBishopAttacks(WhiteBishops, AllPieces.ClearSquares(BlackKing))
+            | AttackGeneration.CalculateRookAttacks(WhiteRooks, AllPieces.ClearSquares(BlackKing))
+            | AttackGeneration.CalculateQueenAttacks(WhiteQueens, AllPieces.ClearSquares(BlackKing));
+        WhiteAttacks = WhitePawnAttacks | WhiteKnightAttacks | WhiteKingAttacks | whiteSliderAttacks;
+        WhiteAttacksWithoutBlackKing = WhitePawnAttacks | WhiteKnightAttacks | WhiteKingAttacks | whiteSliderAttacksWithoutBlackKing;
 
-        BlackAttacks = AttackGeneration.CalculateAttacks(this, forWhite: false);
-        BlackAttacksWithoutWhiteKing = AttackGeneration.CalculateAttacksWithoutOpposingKing(this, forWhite: false);
         BlackPawnAttacks = AttackGeneration.CalculatePawnAttacks(BlackPawns, forWhite: false);
         BlackKnightAttacks = AttackGeneration.CalculateKnightAttacks(BlackKnights);
         BlackKingAttacks = AttackGeneration.CalculateKingAttacks(BlackKing);
+        var blackSliderAttacks = AttackGeneration.CalculateBishopAttacks(BlackBishops, AllPieces)
+            | AttackGeneration.CalculateRookAttacks(BlackRooks, AllPieces)
+            | AttackGeneration.CalculateQueenAttacks(BlackQueens, AllPieces);
+        var blackSliderAttacksWithoutWhiteKing = AttackGeneration.CalculateBishopAttacks(BlackBishops, AllPieces.ClearSquares(WhiteKing))
+            | AttackGeneration.CalculateRookAttacks(BlackRooks, AllPieces.ClearSquares(WhiteKing))
+            | AttackGeneration.CalculateQueenAttacks(BlackQueens, AllPieces.ClearSquares(WhiteKing));
+        BlackAttacks = BlackPawnAttacks | BlackKnightAttacks | BlackKingAttacks | blackSliderAttacks;
+        BlackAttacksWithoutWhiteKing = BlackPawnAttacks | BlackKnightAttacks | BlackKingAttacks | blackSliderAttacksWithoutWhiteKing;
     }
 
     /// <summary>
@@ -316,54 +328,31 @@ public class Position
     private Bitboard ComputePinnedPieces()
     {
         Bitboard pinnedPieces = 0;
-        var kingSquare = WhiteToMove ? WhiteKing.GetFirstSquare() : BlackKing.GetFirstSquare();
+        var king = WhiteToMove ? WhiteKing : BlackKing;
+        if (king.IsEmpty()) return pinnedPieces;
+
+        var kingSquare = king.GetFirstSquare();
         var friendlyPieces = WhiteToMove ? WhitePieces : BlackPieces;
+        var diagonalPinners = WhiteToMove
+            ? BlackBishops | BlackQueens
+            : WhiteBishops | WhiteQueens;
+        var orthogonalPinners = WhiteToMove
+            ? BlackRooks | BlackQueens
+            : WhiteRooks | WhiteQueens;
 
-        Span<(int fileDir, int rankDir)> directions =
-        [
-            (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)
-        ];
+        var candidatePinners = (MagicBitboards.GetBishopAttacks(kingSquare, 0) & diagonalPinners)
+            | (MagicBitboards.GetRookAttacks(kingSquare, 0) & orthogonalPinners);
 
-        for (var i = 0; i < directions.Length; i++)
+        while (candidatePinners.IsNotEmpty())
         {
-            var (fileDir, rankDir) = directions[i];
-            Bitboard potentiallyPinned = 0;
-            var kingFile = kingSquare.GetFile();
-            var kingRank = kingSquare.GetRank();
-            var currentFile = kingFile + fileDir;
-            var currentRank = kingRank + rankDir;
-
-            while (currentFile is >= 0 and < 8 && currentRank is >= 0 and < 8)
+            var pinnerSquare = candidatePinners.GetFirstSquare();
+            var blockers = AttackTables.RayBetween[(int)kingSquare][(int)pinnerSquare] & AllPieces;
+            if (blockers.Count() == 1 && blockers.Intersects(friendlyPieces))
             {
-                var currentSquare = (Square)(currentRank * 8 + currentFile);
-                var squareMask = Bitboard.Mask(currentSquare);
-
-                if ((friendlyPieces & squareMask).IsNotEmpty())
-                {
-                    if (potentiallyPinned != 0) break; // Second friendly piece, no pin possible
-
-                    potentiallyPinned = squareMask;
-                }
-                else if ((AllPieces & squareMask).IsNotEmpty())
-                {
-                    // Found enemy piece
-                    var isDiagonal = fileDir != 0 && rankDir != 0;
-                    var enemySliders = WhiteToMove
-                        ? (isDiagonal ? BlackBishops | BlackQueens : BlackRooks | BlackQueens)
-                        : (isDiagonal ? WhiteBishops | WhiteQueens : WhiteRooks | WhiteQueens);
-
-                    if (potentiallyPinned != 0 && (squareMask & enemySliders).IsNotEmpty())
-                    {
-                        // Pin confirmed
-                        pinnedPieces |= potentiallyPinned;
-                    }
-
-                    break;
-                }
-
-                currentFile += fileDir;
-                currentRank += rankDir;
+                pinnedPieces |= blockers;
             }
+
+            candidatePinners &= candidatePinners - 1;
         }
 
         return pinnedPieces;

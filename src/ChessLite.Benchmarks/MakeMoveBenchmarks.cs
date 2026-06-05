@@ -5,7 +5,7 @@ using ChessLite.Parsing;
 namespace ChessLite.Benchmarks;
 
 [MemoryDiagnoser]
-[SimpleJob(invocationCount: 200_000)]
+[SimpleJob(invocationCount: 400_000)]
 public class MakeMoveBenchmarks
 {
     private const int MoveBufferSize = 218;
