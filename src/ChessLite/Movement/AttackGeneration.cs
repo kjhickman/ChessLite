@@ -58,18 +58,9 @@ internal static class AttackGeneration
 
     internal static Bitboard CalculatePawnAttacks(Bitboard pawns, bool forWhite)
     {
-        var attackTable = forWhite ? AttackTables.WhitePawnAttacks : AttackTables.BlackPawnAttacks;
-        Bitboard attacks = 0;
-        var currentPawns = pawns;
-
-        while (currentPawns.IsNotEmpty())
-        {
-            var square = currentPawns.GetFirstSquare();
-            attacks |= attackTable[(int)square];
-            currentPawns &= currentPawns - 1; // Clear the least significant bit
-        }
-
-        return attacks;
+        return forWhite
+            ? ((pawns & ~Constants.FileA) << 7) | ((pawns & ~Constants.FileH) << 9)
+            : ((pawns & ~Constants.FileA) >> 9) | ((pawns & ~Constants.FileH) >> 7);
     }
 
     internal static Bitboard CalculateKnightAttacks(Bitboard knights)
