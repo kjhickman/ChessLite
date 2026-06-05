@@ -90,7 +90,7 @@ internal static class MoveGeneration
             var fromFile = from.GetFile();
             if (leftCaptureTo.IsValid() && leftCaptureMask.Intersects(enemyPieces) && fromFile != 0)
             {
-                var leftCapturedPieceType = DetermineCapturedPieceType(position, leftCaptureMask, isWhite);
+                var leftCapturedPieceType = DetermineCapturedPieceType(position, leftCaptureTo);
 
                 if (leftCapturedPieceType != PieceType.None)
                 {
@@ -117,7 +117,7 @@ internal static class MoveGeneration
             var rightCaptureMask = Bitboard.Mask(rightCaptureTo);
             if (rightCaptureTo.IsValid() && rightCaptureMask.Intersects(enemyPieces) && fromFile != 7)
             {
-                var rightCapturedPieceType = DetermineCapturedPieceType(position, rightCaptureMask, isWhite);
+                var rightCapturedPieceType = DetermineCapturedPieceType(position, rightCaptureTo);
                 if (rightCapturedPieceType != PieceType.None)
                 {
                     if ((int)rightCaptureTo is > 55 or < 8)
@@ -144,26 +144,10 @@ internal static class MoveGeneration
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static PieceType DetermineCapturedPieceType(Position position, Bitboard toMask, bool isWhite)
+    private static PieceType DetermineCapturedPieceType(Position position, Square to)
     {
-        if (isWhite)
-        {
-            if ((position.BlackPawns & toMask) != 0) return PieceType.BlackPawn;
-            if ((position.BlackKnights & toMask) != 0) return PieceType.BlackKnight;
-            if ((position.BlackBishops & toMask) != 0) return PieceType.BlackBishop;
-            if ((position.BlackRooks & toMask) != 0) return PieceType.BlackRook;
-            if ((position.BlackQueens & toMask) != 0) return PieceType.BlackQueen;
-            return PieceType.None;
-        }
-        else
-        {
-            if ((position.WhitePawns & toMask) != 0) return PieceType.WhitePawn;
-            if ((position.WhiteKnights & toMask) != 0) return PieceType.WhiteKnight;
-            if ((position.WhiteBishops & toMask) != 0) return PieceType.WhiteBishop;
-            if ((position.WhiteRooks & toMask) != 0) return PieceType.WhiteRook;
-            if ((position.WhiteQueens & toMask) != 0) return PieceType.WhiteQueen;
-            return PieceType.None;
-        }
+        var pieceType = position.Mailbox[(int)to];
+        return pieceType is PieceType.WhiteKing or PieceType.BlackKing ? PieceType.None : pieceType;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -186,7 +170,7 @@ internal static class MoveGeneration
             while (captures != 0)
             {
                 var to = captures.GetFirstSquare();
-                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), position.WhiteToMove);
+                var capturedPieceType = DetermineCapturedPieceType(position, to);
                 movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
                 captures &= captures - 1;
             }
@@ -223,7 +207,7 @@ internal static class MoveGeneration
             while (captures != 0)
             {
                 var to = captures.GetFirstSquare();
-                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), isWhite);
+                var capturedPieceType = DetermineCapturedPieceType(position, to);
                 movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
                 captures &= captures - 1;
             }
@@ -260,7 +244,7 @@ internal static class MoveGeneration
             while (captures != 0)
             {
                 var to = captures.GetFirstSquare();
-                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), isWhite);
+                var capturedPieceType = DetermineCapturedPieceType(position, to);
                 movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
                 captures &= captures - 1;
             }
@@ -297,7 +281,7 @@ internal static class MoveGeneration
             while (captures != 0)
             {
                 var to = captures.GetFirstSquare();
-                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), isWhite);
+                var capturedPieceType = DetermineCapturedPieceType(position, to);
                 movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
                 captures &= captures - 1;
             }
@@ -334,7 +318,7 @@ internal static class MoveGeneration
             while (captures != 0)
             {
                 var to = captures.GetFirstSquare();
-                var capturedPieceType = DetermineCapturedPieceType(position, Bitboard.Mask(to), isWhite);
+                var capturedPieceType = DetermineCapturedPieceType(position, to);
                 movesBuffer[bufferIndex++] = Move.CreateCapture(from, to, pieceType, capturedPieceType);
                 captures &= captures - 1;
             }
