@@ -14,17 +14,17 @@ internal static class MoveGeneration
         // Double check: only king can move
         if (state.CheckCount > 1)
         {
-            return GenerateKingMovesOnly(position, legalMovesBuffer);
+            return GenerateKingMovesOnly(position, legalMovesBuffer, state);
         }
 
         // Single check: only evasions (capture checker or block)
         if (state.CheckCount == 1)
         {
-            return GenerateCheckEvasions(position, legalMovesBuffer, state.CheckEvasionMask);
+            return GenerateCheckEvasions(position, legalMovesBuffer, state);
         }
 
         // Normal position (no check): optimized generation
-        return GenerateNormalMoves(position, legalMovesBuffer);
+        return GenerateNormalMoves(position, legalMovesBuffer, state);
     }
 
     private static int GeneratePseudoLegalMoves(Position position, Span<Move> movesBuffer)
@@ -401,10 +401,12 @@ internal static class MoveGeneration
     /// </summary>
     private struct PositionState
     {
-        public bool InCheck;
+        public Square KingSquare;
+        public Bitboard Checkers;
         public int CheckCount;
         public Square CheckerSquare;  // Only valid when CheckCount == 1
         public Bitboard CheckEvasionMask;  // Capture checker OR block squares (only valid when CheckCount == 1)
+        public Bitboard PinnedPieces;
     }
 
     /// <summary>
@@ -415,24 +417,46 @@ internal static class MoveGeneration
     private static PositionState AnalyzePosition(Position position)
     {
         var state = new PositionState();
-        var kingSquare = position.WhiteToMove
+        state.KingSquare = position.WhiteToMove
             ? position.WhiteKing.GetFirstSquare()
             : position.BlackKing.GetFirstSquare();
 
-        // Check if king is in check (uses cached attack bitboards from Position)
-        state.InCheck = IsSquareAttacked(position, kingSquare, !position.WhiteToMove);
+        var isWhite = position.WhiteToMove;
+        var enemyPawns = isWhite ? position.BlackPawns : position.WhitePawns;
+        var enemyKnights = isWhite ? position.BlackKnights : position.WhiteKnights;
+        var enemyBishopsQueens = isWhite ? position.BlackBishops | position.BlackQueens : position.WhiteBishops | position.WhiteQueens;
+        var enemyRooksQueens = isWhite ? position.BlackRooks | position.BlackQueens : position.WhiteRooks | position.WhiteQueens;
+        var friendlyPieces = isWhite ? position.WhitePieces : position.BlackPieces;
 
-        if (state.InCheck)
+        state.Checkers = (isWhite ? AttackTables.WhitePawnAttacks[(int)state.KingSquare] : AttackTables.BlackPawnAttacks[(int)state.KingSquare]) & enemyPawns;
+        state.Checkers |= AttackTables.KnightAttacks[(int)state.KingSquare] & enemyKnights;
+
+        var candidatePinners = (MagicBitboards.GetBishopAttacks(state.KingSquare, 0) & enemyBishopsQueens)
+            | (MagicBitboards.GetRookAttacks(state.KingSquare, 0) & enemyRooksQueens);
+
+        while (candidatePinners.IsNotEmpty())
         {
-            // Find all pieces attacking the king
-            var checkers = LegalityChecker.FindAttackingPieces(position, kingSquare, !position.WhiteToMove);
-            state.CheckCount = checkers.Count();
-
-            if (state.CheckCount == 1)
+            var pinnerSquare = candidatePinners.GetFirstSquare();
+            var blockers = AttackTables.RayBetween[(int)state.KingSquare][(int)pinnerSquare] & position.AllPieces;
+            var blockerCount = blockers.Count();
+            if (blockerCount == 0)
             {
-                state.CheckerSquare = checkers.GetFirstSquare();
-                state.CheckEvasionMask = ComputeCheckEvasionMask(position, kingSquare, state.CheckerSquare);
+                state.Checkers |= Bitboard.Mask(pinnerSquare);
             }
+            else if (blockerCount == 1 && blockers.Intersects(friendlyPieces))
+            {
+                state.PinnedPieces |= blockers;
+            }
+
+            candidatePinners &= candidatePinners - 1;
+        }
+
+        state.CheckCount = state.Checkers.Count();
+
+        if (state.CheckCount == 1)
+        {
+            state.CheckerSquare = state.Checkers.GetFirstSquare();
+            state.CheckEvasionMask = ComputeCheckEvasionMask(position, state.KingSquare, state.CheckerSquare);
         }
 
         return state;
@@ -518,7 +542,7 @@ internal static class MoveGeneration
     /// Generates legal moves when the king is in double check.
     /// Only king moves can resolve a double check.
     /// </summary>
-    private static int GenerateKingMovesOnly(Position position, Span<Move> legalMovesBuffer)
+    private static int GenerateKingMovesOnly(Position position, Span<Move> legalMovesBuffer, PositionState state)
     {
         var moveCount = 0;
 
@@ -547,7 +571,7 @@ internal static class MoveGeneration
     /// Generates legal moves when the king is in single check.
     /// Only moves that capture the checker or block the attack are legal (plus king moves).
     /// </summary>
-    private static int GenerateCheckEvasions(Position position, Span<Move> legalMovesBuffer, Bitboard evasionMask)
+    private static int GenerateCheckEvasions(Position position, Span<Move> legalMovesBuffer, PositionState state)
     {
         var moveCount = 0;
 
@@ -559,10 +583,6 @@ internal static class MoveGeneration
         var enemyAttacks = position.WhiteToMove
             ? position.BlackAttacksWithoutWhiteKing
             : position.WhiteAttacksWithoutBlackKing;
-
-        var kingSquare = position.WhiteToMove
-            ? position.WhiteKing.GetFirstSquare()
-            : position.BlackKing.GetFirstSquare();
 
         // Filter pseudo-legal moves
         for (var i = 0; i < pseudoCount; i++)
@@ -578,21 +598,21 @@ internal static class MoveGeneration
                 }
             }
             // Non-king pieces: must capture checker or block, and respect pins
-            else if (evasionMask.Intersects(move.To))
+            else if (state.CheckEvasionMask.Intersects(move.To))
             {
                 // Check if piece is pinned
-                if (position.PinnedPieces.Intersects(move.From))
+                if (state.PinnedPieces.Intersects(move.From))
                 {
                     // For en passant, need both pin ray AND horizontal pin checks
                     if (move.SpecialMoveType == SpecialMoveType.EnPassant)
                     {
-                        if (IsMovingAlongPinRay(move, kingSquare) &&
-                            !LegalityChecker.IsEnPassantPinned(position, move, kingSquare))
+                        if (IsMovingAlongPinRay(move, state.KingSquare) &&
+                            !LegalityChecker.IsEnPassantPinned(position, move, state.KingSquare))
                         {
                             legalMovesBuffer[moveCount++] = move;
                         }
                     }
-                    else if (IsMovingAlongPinRay(move, kingSquare))
+                    else if (IsMovingAlongPinRay(move, state.KingSquare))
                     {
                         legalMovesBuffer[moveCount++] = move;
                     }
@@ -600,7 +620,7 @@ internal static class MoveGeneration
                 // Unpinned pieces - but still need en passant check
                 else if (move.SpecialMoveType == SpecialMoveType.EnPassant)
                 {
-                    if (!LegalityChecker.IsEnPassantPinned(position, move, kingSquare))
+                    if (!LegalityChecker.IsEnPassantPinned(position, move, state.KingSquare))
                     {
                         legalMovesBuffer[moveCount++] = move;
                     }
@@ -620,7 +640,7 @@ internal static class MoveGeneration
     /// Generates legal moves for positions where the king is not in check.
     /// Optimizes by skipping legality checks for unpinned non-king pieces.
     /// </summary>
-    private static int GenerateNormalMoves(Position position, Span<Move> legalMovesBuffer)
+    private static int GenerateNormalMoves(Position position, Span<Move> legalMovesBuffer, PositionState state)
     {
         var moveCount = 0;
 
@@ -632,10 +652,6 @@ internal static class MoveGeneration
         var enemyAttacks = position.WhiteToMove
             ? position.BlackAttacksWithoutWhiteKing
             : position.WhiteAttacksWithoutBlackKing;
-
-        var kingSquare = position.WhiteToMove
-            ? position.WhiteKing.GetFirstSquare()
-            : position.BlackKing.GetFirstSquare();
 
         // Filter pseudo-legal moves based on piece state
         for (var i = 0; i < pseudoCount; i++)
@@ -651,19 +667,19 @@ internal static class MoveGeneration
                 }
             }
             // Pinned pieces: must move along the pin ray
-            else if (position.PinnedPieces.Intersects(move.From))
+            else if (state.PinnedPieces.Intersects(move.From))
             {
                 // For en passant, need to check BOTH pin ray AND horizontal pin
                 if (move.SpecialMoveType == SpecialMoveType.EnPassant)
                 {
                     // Must satisfy pin ray constraint AND not create horizontal discovered check
-                    if (IsMovingAlongPinRay(move, kingSquare) &&
-                        !LegalityChecker.IsEnPassantPinned(position, move, kingSquare))
+                    if (IsMovingAlongPinRay(move, state.KingSquare) &&
+                        !LegalityChecker.IsEnPassantPinned(position, move, state.KingSquare))
                     {
                         legalMovesBuffer[moveCount++] = move;
                     }
                 }
-                else if (IsMovingAlongPinRay(move, kingSquare))
+                else if (IsMovingAlongPinRay(move, state.KingSquare))
                 {
                     legalMovesBuffer[moveCount++] = move;
                 }
@@ -671,7 +687,7 @@ internal static class MoveGeneration
             // En passant always needs horizontal pin check (even if pawn itself isn't pinned)
             else if (move.SpecialMoveType == SpecialMoveType.EnPassant)
             {
-                if (!LegalityChecker.IsEnPassantPinned(position, move, kingSquare))
+                if (!LegalityChecker.IsEnPassantPinned(position, move, state.KingSquare))
                 {
                     legalMovesBuffer[moveCount++] = move;
                 }

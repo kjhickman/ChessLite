@@ -54,7 +54,6 @@ internal class MoveExecutor
         UpdateCombinedBitboards(position);
         position.UpdateAttacks(movedByWhite);
         position.WhiteToMove = !position.WhiteToMove;
-        position.UpdatePinnedPieces(); // Must be called after toggling the turn
         position.ZobristHash = UpdateZobristHash(previousHash, move, previousCastlingRights, previousEnPassantTarget, position);
     }
 
@@ -69,7 +68,6 @@ internal class MoveExecutor
         position.HalfmoveClock++;
         UpdateFullmoveNumber(position);
         position.WhiteToMove = !position.WhiteToMove;
-        position.UpdatePinnedPieces();
         position.ZobristHash = UpdateNullMoveZobristHash(previousHash, previousEnPassantTarget);
     }
 
@@ -96,7 +94,6 @@ internal class MoveExecutor
         moveHistory.PreviousWhiteAttacksWithoutBlackKing = position.WhiteAttacksWithoutBlackKing;
         moveHistory.PreviousBlackAttacks = position.BlackAttacks;
         moveHistory.PreviousBlackAttacksWithoutWhiteKing = position.BlackAttacksWithoutWhiteKing;
-        moveHistory.PreviousPinnedPieces = position.PinnedPieces;
     }
 
     private void EnsureMoveHistoryCapacity()
@@ -601,7 +598,6 @@ internal class MoveExecutor
         position.WhiteAttacksWithoutBlackKing = moveHistory.PreviousWhiteAttacksWithoutBlackKing;
         position.BlackAttacks = moveHistory.PreviousBlackAttacks;
         position.BlackAttacksWithoutWhiteKing = moveHistory.PreviousBlackAttacksWithoutWhiteKing;
-        position.PinnedPieces = moveHistory.PreviousPinnedPieces;
     }
 
     private static void UndoSpecialMove(Position position, Move move)

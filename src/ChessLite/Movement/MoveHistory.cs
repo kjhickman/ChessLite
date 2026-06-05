@@ -16,5 +16,4 @@ internal struct MoveHistory
     internal Bitboard PreviousWhiteAttacksWithoutBlackKing;
     internal Bitboard PreviousBlackAttacks;
     internal Bitboard PreviousBlackAttacksWithoutWhiteKing;
-    internal Bitboard PreviousPinnedPieces;
 }
