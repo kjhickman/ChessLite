@@ -6,20 +6,20 @@ namespace ChessLite.Movement;
 
 internal class MoveExecutor
 {
-    private readonly Stack<MoveHistory> _moveHistory = new(256);
+    private MoveHistory[] _moveHistory = new MoveHistory[256];
+    private int _moveHistoryCount;
 
     internal void ClearMoveHistory()
     {
-        _moveHistory.Clear();
+        _moveHistoryCount = 0;
     }
 
     internal MoveExecutor Clone()
     {
         var clone = new MoveExecutor();
-        foreach (var moveHistory in _moveHistory.Reverse())
-        {
-            clone._moveHistory.Push(moveHistory);
-        }
+        clone._moveHistory = new MoveHistory[_moveHistory.Length];
+        Array.Copy(_moveHistory, clone._moveHistory, _moveHistoryCount);
+        clone._moveHistoryCount = _moveHistoryCount;
 
         return clone;
     }
@@ -74,26 +74,38 @@ internal class MoveExecutor
 
     internal IEnumerable<Move> GetMoveHistory()
     {
-        return _moveHistory.Select(x => x.Move).Reverse();
+        for (var i = 0; i < _moveHistoryCount; i++)
+        {
+            yield return _moveHistory[i].Move;
+        }
     }
 
     private void SaveMoveHistory(Position position, Move move)
     {
-        var moveHistory = new MoveHistory
+        EnsureMoveHistoryCapacity();
+
+        ref var moveHistory = ref _moveHistory[_moveHistoryCount++];
+        moveHistory.Move = move;
+        moveHistory.PreviousCastlingRights = position.CastlingRights;
+        moveHistory.PreviousEnPassantTarget = position.EnPassantTarget;
+        moveHistory.PreviousHalfmoveClock = position.HalfmoveClock;
+        moveHistory.PreviousFullmoveNumber = position.FullmoveNumber;
+        moveHistory.PreviousZobristHash = position.ZobristHash;
+        moveHistory.PreviousWhiteAttacks = position.WhiteAttacks;
+        moveHistory.PreviousWhiteAttacksWithoutBlackKing = position.WhiteAttacksWithoutBlackKing;
+        moveHistory.PreviousBlackAttacks = position.BlackAttacks;
+        moveHistory.PreviousBlackAttacksWithoutWhiteKing = position.BlackAttacksWithoutWhiteKing;
+        moveHistory.PreviousPinnedPieces = position.PinnedPieces;
+    }
+
+    private void EnsureMoveHistoryCapacity()
+    {
+        if (_moveHistoryCount < _moveHistory.Length)
         {
-            Move = move,
-            PreviousCastlingRights = position.CastlingRights,
-            PreviousEnPassantTarget = position.EnPassantTarget,
-            PreviousHalfmoveClock = position.HalfmoveClock,
-            PreviousFullmoveNumber = position.FullmoveNumber,
-            PreviousZobristHash = position.ZobristHash,
-            PreviousWhiteAttacks = position.WhiteAttacks,
-            PreviousWhiteAttacksWithoutBlackKing = position.WhiteAttacksWithoutBlackKing,
-            PreviousBlackAttacks = position.BlackAttacks,
-            PreviousBlackAttacksWithoutWhiteKing = position.BlackAttacksWithoutWhiteKing,
-            PreviousPinnedPieces = position.PinnedPieces,
-        };
-        _moveHistory.Push(moveHistory);
+            return;
+        }
+
+        Array.Resize(ref _moveHistory, _moveHistory.Length * 2);
     }
 
     private static void HandleSpecialMove(Position position, Move move)
@@ -550,7 +562,12 @@ internal class MoveExecutor
 
     internal void UndoMove(Position position)
     {
-        var moveHistory = _moveHistory.Pop();
+        if (_moveHistoryCount == 0)
+        {
+            throw new InvalidOperationException("Move history is empty.");
+        }
+
+        var moveHistory = _moveHistory[--_moveHistoryCount];
         var previousMove = moveHistory.Move;
 
         if (previousMove == Move.NullMove)
