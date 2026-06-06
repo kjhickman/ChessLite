@@ -20,6 +20,20 @@ public class UnmakeMoveTests
     }
 
     [Test]
+    public async Task UnmakeMove_WhenNullMoveIsNestedAfterNormalMove_RestoresOriginalPosition()
+    {
+        var game = new Game();
+        var expected = Fen.Format(game);
+
+        game.MakeUciMove("e2e4");
+        game.MakeNullMove();
+        game.UndoMove();
+        game.UndoMove();
+
+        await Assert.That(Fen.Format(game)).IsEqualTo(expected);
+    }
+
+    [Test]
     public async Task UnmakeMove_KingsideCastlingWhite_RestoresOriginalPosition()
     {
         // Set up a position with only the white king on e1 and a white rook on h1.

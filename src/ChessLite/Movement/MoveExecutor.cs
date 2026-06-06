@@ -570,9 +570,20 @@ internal class MoveExecutor
 
         if (previousMove == Move.NullMove)
         {
-            // No board pieces moved; restore only saved state below.
+            position.EnPassantTarget = moveHistory.PreviousEnPassantTarget;
+            position.CastlingRights = moveHistory.PreviousCastlingRights;
+            position.HalfmoveClock = moveHistory.PreviousHalfmoveClock;
+            position.FullmoveNumber = moveHistory.PreviousFullmoveNumber;
+            position.WhiteToMove = !position.WhiteToMove;
+            position.ZobristHash = moveHistory.PreviousZobristHash;
+            position.WhiteAttacks = moveHistory.PreviousWhiteAttacks;
+            position.WhiteAttacksWithoutBlackKing = moveHistory.PreviousWhiteAttacksWithoutBlackKing;
+            position.BlackAttacks = moveHistory.PreviousBlackAttacks;
+            position.BlackAttacksWithoutWhiteKing = moveHistory.PreviousBlackAttacksWithoutWhiteKing;
+            return;
         }
-        else if (previousMove.SpecialMoveType != SpecialMoveType.None)
+
+        if (previousMove.SpecialMoveType != SpecialMoveType.None)
         {
             UndoSpecialMove(position, previousMove);
         }
