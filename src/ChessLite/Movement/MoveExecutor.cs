@@ -53,8 +53,37 @@ internal class MoveExecutor
         UpdateFullmoveNumber(position);
         UpdateCombinedBitboards(position);
         position.UpdateAttacks(movedByWhite);
+        if (ShouldUpdateOpponentAttacks(position, move, movedByWhite))
+        {
+            position.UpdateAttacks(!movedByWhite);
+        }
+
         position.WhiteToMove = !position.WhiteToMove;
         position.ZobristHash = UpdateZobristHash(previousHash, move, previousCastlingRights, previousEnPassantTarget, position);
+    }
+
+    private static bool ShouldUpdateOpponentAttacks(Position position, Move move, bool movedByWhite)
+    {
+        if (move.IsCapture || move.SpecialMoveType is SpecialMoveType.ShortCastle or SpecialMoveType.LongCastle)
+        {
+            return true;
+        }
+
+        var diagonalSliders = movedByWhite
+            ? position.BlackBishops | position.BlackQueens
+            : position.WhiteBishops | position.WhiteQueens;
+        var orthogonalSliders = movedByWhite
+            ? position.BlackRooks | position.BlackQueens
+            : position.WhiteRooks | position.WhiteQueens;
+
+        return SquareMayAffectSliderAttacks(move.From, diagonalSliders, orthogonalSliders)
+            || SquareMayAffectSliderAttacks(move.To, diagonalSliders, orthogonalSliders);
+    }
+
+    private static bool SquareMayAffectSliderAttacks(Square square, Bitboard diagonalSliders, Bitboard orthogonalSliders)
+    {
+        return (diagonalSliders.IsNotEmpty() && MagicBitboards.GetBishopAttacks(square, 0).Intersects(diagonalSliders))
+            || (orthogonalSliders.IsNotEmpty() && MagicBitboards.GetRookAttacks(square, 0).Intersects(orthogonalSliders));
     }
 
     internal void MakeNullMove(Position position)

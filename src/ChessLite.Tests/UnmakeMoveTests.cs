@@ -1,4 +1,5 @@
 using ChessLite.Parsing;
+using ChessLite.Movement;
 using ChessLite.State;
 
 namespace ChessLite.Tests;
@@ -31,6 +32,46 @@ public class UnmakeMoveTests
         game.UndoMove();
 
         await Assert.That(Fen.Format(game)).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task LegalMoves_WhenBlackKingOnE7AndWhiteBishopAttacksD7_ExcludesE7D7()
+    {
+        const string fen = "r1bn1b1r/ppq1kppp/4pn2/1B6/3P4/1QN2N2/PP3PPP/R1B2RK1 b - - 8 11";
+        var position = Fen.Parse(fen);
+        var game = new Game(position);
+
+        Span<Move> moves = stackalloc Move[218];
+        var moveCount = game.WriteLegalMoves(moves);
+        var containsIllegalKingMove = false;
+
+        for (var i = 0; i < moveCount; i++)
+        {
+            containsIllegalKingMove |= moves[i].ToString() == "e7d7";
+        }
+
+        await Assert.That(containsIllegalKingMove).IsFalse();
+    }
+
+    [Test]
+    public async Task LegalMoves_WhenBlockerMovesOffEnemyBishopRay_RefreshesEnemyAttacks()
+    {
+        const string fen = "r1b2b1r/ppq1kppp/2n1pn2/1B6/3P4/1QN2N2/PP3PPP/R1B2RK1 b - - 8 11";
+        var game = new Game(Fen.Parse(fen));
+
+        game.MakeUciMove("c6d8");
+        game.MakeNullMove();
+
+        Span<Move> moves = stackalloc Move[218];
+        var moveCount = game.WriteLegalMoves(moves);
+        var containsIllegalKingMove = false;
+
+        for (var i = 0; i < moveCount; i++)
+        {
+            containsIllegalKingMove |= moves[i].ToString() == "e7d7";
+        }
+
+        await Assert.That(containsIllegalKingMove).IsFalse();
     }
 
     [Test]
