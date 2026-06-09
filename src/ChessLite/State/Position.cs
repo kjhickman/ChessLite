@@ -214,6 +214,21 @@ public class Position
         AllPieces = WhitePieces | BlackPieces;
     }
 
+    /// <summary>
+    /// Enumerates all occupied squares and their piece types.
+    /// </summary>
+    /// <returns>Occupied squares and piece types in square index order, from a1 to h8.</returns>
+    public IEnumerable<(Square Square, PieceType PieceType)> EnumeratePieces()
+    {
+        var occupied = AllPieces;
+        while (occupied.IsNotEmpty())
+        {
+            var square = occupied.GetFirstSquare();
+            yield return (square, Mailbox[(int)square]);
+            occupied &= occupied - 1;
+        }
+    }
+
     internal void Reset()
     {
         WhitePawns = 0;
