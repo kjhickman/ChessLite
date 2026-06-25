@@ -148,7 +148,7 @@ internal static class MoveGeneration
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static PieceType DetermineCapturedPieceType(Position position, Square to)
     {
-        var pieceType = position.Mailbox[(int)to];
+        var pieceType = position.PieceAt(to);
         return pieceType is PieceType.WhiteKing or PieceType.BlackKing ? PieceType.None : pieceType;
     }
 

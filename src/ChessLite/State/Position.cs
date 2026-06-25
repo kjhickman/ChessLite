@@ -96,7 +96,7 @@ public class Position
     /// <summary>
     /// Array-based board representation mapping each square index (0-63) to the piece type occupying it.
     /// </summary>
-    public PieceType[] Mailbox = new PieceType[64];
+    internal PieceType[] Mailbox = new PieceType[64];
 
     #endregion
 
@@ -207,6 +207,22 @@ public class Position
         }
     }
 
+    /// <summary>
+    /// Gets the piece occupying the specified square, or <see cref="PieceType.None"/> if the square is empty.
+    /// </summary>
+    /// <param name="square">The square to inspect.</param>
+    /// <returns>The piece occupying <paramref name="square"/>, or <see cref="PieceType.None"/>.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="square"/> is not a valid board square.</exception>
+    public PieceType PieceAt(Square square)
+    {
+        if (!square.IsValid())
+        {
+            throw new ArgumentOutOfRangeException(nameof(square));
+        }
+
+        return Mailbox[(int)square];
+    }
+
     internal void UpdateCombinedBitboards()
     {
         WhitePieces = WhitePawns | WhiteKnights | WhiteBishops | WhiteRooks | WhiteQueens | WhiteKing;
@@ -224,7 +240,7 @@ public class Position
         while (occupied.IsNotEmpty())
         {
             var square = occupied.GetFirstSquare();
-            yield return (square, Mailbox[(int)square]);
+            yield return (square, PieceAt(square));
             occupied &= occupied - 1;
         }
     }

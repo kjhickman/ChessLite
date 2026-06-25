@@ -1,6 +1,5 @@
 using BenchmarkDotNet.Attributes;
 using ChessLite.Parsing;
-using ChessLite.Primitives;
 using ChessLite.State;
 
 namespace ChessLite.Benchmarks;
@@ -35,7 +34,7 @@ public class FenParsingBenchmarks
     [IterationSetup]
     public void Setup()
     {
-        Position = new Position { Mailbox = new PieceType[64] };;
+        Position = new Position();
     }
 
     [Benchmark]

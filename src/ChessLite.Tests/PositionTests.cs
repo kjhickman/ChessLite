@@ -41,4 +41,28 @@ public class PositionTests
         await Assert.That(pieces[1]).IsEqualTo((Square.e2, PieceType.WhiteKing));
         await Assert.That(pieces[2]).IsEqualTo((Square.d4, PieceType.BlackQueen));
     }
+
+    [Test]
+    public async Task PieceAt_OccupiedSquare_ReturnsPiece()
+    {
+        var position = new Position();
+
+        await Assert.That(position.PieceAt(Square.e1)).IsEqualTo(PieceType.WhiteKing);
+    }
+
+    [Test]
+    public async Task PieceAt_EmptySquare_ReturnsNone()
+    {
+        var position = new Position();
+
+        await Assert.That(position.PieceAt(Square.e4)).IsEqualTo(PieceType.None);
+    }
+
+    [Test]
+    public async Task PieceAt_InvalidSquare_Throws()
+    {
+        var position = new Position();
+
+        await Assert.That(() => position.PieceAt(Square.None)).Throws<ArgumentOutOfRangeException>();
+    }
 }

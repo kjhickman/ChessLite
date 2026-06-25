@@ -34,7 +34,7 @@ internal static class FenWriter
             for (var file = 0; file < 8; file++)
             {
                 var square = SquareExtensions.FromRankFile(rank, file);
-                var piece = position.Mailbox[(int)square];
+                var piece = position.PieceAt(square);
                 if (piece == PieceType.None)
                 {
                     emptyCount++;
