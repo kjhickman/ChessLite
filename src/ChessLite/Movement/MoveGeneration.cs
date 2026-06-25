@@ -6,6 +6,8 @@ namespace ChessLite.Movement;
 
 internal static class MoveGeneration
 {
+    public const int MaxLegalMoves = 218; // Maximum legal moves in any chess position
+
     internal static int GenerateLegalMoves(Position position, Span<Move> legalMovesBuffer)
     {
         // Analyze position state once
