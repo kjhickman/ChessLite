@@ -1,3 +1,4 @@
+using ChessLite.Movement;
 using ChessLite.Parsing;
 using ChessLite.Primitives;
 
@@ -84,5 +85,55 @@ public class GameMoveTests
         var exception = Assert.Throws<ArgumentException>(() => game.MakeUciMove("g1f3x"));
 
         await Assert.That(exception).IsNotNull();
+    }
+
+    [Test]
+    public async Task WriteLegalMovesFrom_InitialPawn_ReturnsPawnMoves()
+    {
+        var game = new Game();
+        Span<Move> moves = stackalloc Move[4];
+
+        var count = game.WriteLegalMovesFrom(Square.e2, moves);
+        var writtenMoves = moves[..count].ToArray();
+
+        await Assert.That(count).IsEqualTo(2);
+        await Assert.That(writtenMoves).Contains(x => x.To == Square.e3);
+        await Assert.That(writtenMoves).Contains(x => x.To == Square.e4);
+    }
+
+    [Test]
+    public async Task TryGetLegalMove_LegalMove_ReturnsMove()
+    {
+        var game = new Game();
+
+        var found = game.TryGetLegalMove(Square.e2, Square.e4, PromotedPieceType.None, out var move);
+
+        await Assert.That(found).IsTrue();
+        await Assert.That(move.From).IsEqualTo(Square.e2);
+        await Assert.That(move.To).IsEqualTo(Square.e4);
+    }
+
+    [Test]
+    public async Task TryGetLegalMove_IllegalMove_ReturnsFalse()
+    {
+        var game = new Game();
+
+        var found = game.TryGetLegalMove(Square.e2, Square.e5, PromotedPieceType.None, out var move);
+
+        await Assert.That(found).IsFalse();
+        await Assert.That(move).IsEqualTo(Move.NullMove);
+    }
+
+    [Test]
+    public async Task TryGetLegalMove_Promotion_MatchesPromotionPiece()
+    {
+        var game = new Game(Fen.Parse("k7/4P3/8/8/8/8/8/4K3 w - - 0 1"));
+
+        var foundQueen = game.TryGetLegalMove(Square.e7, Square.e8, PromotedPieceType.Queen, out var queenMove);
+        var foundNoPromotion = game.TryGetLegalMove(Square.e7, Square.e8, PromotedPieceType.None, out _);
+
+        await Assert.That(foundQueen).IsTrue();
+        await Assert.That(queenMove.PromotedPieceType).IsEqualTo(PromotedPieceType.Queen);
+        await Assert.That(foundNoPromotion).IsFalse();
     }
 }

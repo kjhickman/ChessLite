@@ -1,5 +1,6 @@
 using ChessLite.Movement;
 using ChessLite.Parsing;
+using ChessLite.Primitives;
 using ChessLite.State;
 
 namespace ChessLite;
@@ -64,6 +65,57 @@ public class Game
     public int WriteLegalMoves(Span<Move> moves)
     {
         return MoveGeneration.GenerateLegalMoves(Position, moves);
+    }
+
+    /// <summary>
+    /// Writes all legal moves from the specified square to the specified span.
+    /// </summary>
+    /// <param name="from">The source square to filter by.</param>
+    /// <param name="moves">The span to write the matching legal moves to.</param>
+    /// <returns>The number of matching legal moves written to the span.</returns>
+    public int WriteLegalMovesFrom(Square from, Span<Move> moves)
+    {
+        Span<Move> legalMoves = stackalloc Move[MoveGeneration.MaxLegalMoves];
+        var count = MoveGeneration.GenerateLegalMoves(Position, legalMoves);
+        var written = 0;
+
+        for (var i = 0; i < count; i++)
+        {
+            var move = legalMoves[i];
+            if (move.From == from)
+            {
+                moves[written++] = move;
+            }
+        }
+
+        return written;
+    }
+
+    /// <summary>
+    /// Gets the legal move matching the specified source, destination, and promotion piece.
+    /// </summary>
+    /// <param name="from">The source square.</param>
+    /// <param name="to">The destination square.</param>
+    /// <param name="promotion">The promotion piece, or <see cref="PromotedPieceType.None"/> for non-promotion moves.</param>
+    /// <param name="move">The matching legal move, or <see cref="Move.NullMove"/> if no match was found.</param>
+    /// <returns><c>true</c> if a matching legal move was found; otherwise, <c>false</c>.</returns>
+    public bool TryGetLegalMove(Square from, Square to, PromotedPieceType promotion, out Move move)
+    {
+        Span<Move> legalMoves = stackalloc Move[MoveGeneration.MaxLegalMoves];
+        var count = MoveGeneration.GenerateLegalMoves(Position, legalMoves);
+
+        for (var i = 0; i < count; i++)
+        {
+            var candidate = legalMoves[i];
+            if (candidate.From == from && candidate.To == to && candidate.PromotedPieceType == promotion)
+            {
+                move = candidate;
+                return true;
+            }
+        }
+
+        move = Move.NullMove;
+        return false;
     }
 
     /// <summary>
