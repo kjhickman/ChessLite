@@ -119,6 +119,14 @@ public class MakeMoveTests
     }
 
     [Test]
+    public async Task Move_ToString_KnightPromotion_UsesUciKnightLetter()
+    {
+        var move = Move.CreatePromotion(Square.e7, Square.e8, PieceType.WhitePawn, PromotedPieceType.Knight);
+
+        await Assert.That(move.ToString()).IsEqualTo("e7e8n");
+    }
+
+    [Test]
     public async Task MakeMove_CastlingKingsideWhite_UpdatesKingAndRookPositions()
     {
         // Set up a position with only the white king on e1 and a white rook on h1

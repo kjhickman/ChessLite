@@ -119,7 +119,7 @@ public readonly struct Move : IEquatable<Move>
         var promotion = PromotedPieceType switch
         {
             PromotedPieceType.None => string.Empty,
-            PromotedPieceType.Knight => "k",
+            PromotedPieceType.Knight => "n",
             PromotedPieceType.Bishop => "b",
             PromotedPieceType.Rook => "r",
             PromotedPieceType.Queen => "q",
