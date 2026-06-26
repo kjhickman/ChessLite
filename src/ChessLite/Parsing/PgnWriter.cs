@@ -29,7 +29,7 @@ internal static class PgnWriter
                 builder.Append(". ");
             }
 
-            builder.Append(WriteSanMove(position, move, executor));
+            builder.Append(FormatSan(position, move, executor));
             executor.MakeMove(position, move);
             moveIndex++;
         }
@@ -59,7 +59,12 @@ internal static class PgnWriter
         return game.Position.WhiteToMove ? "0-1" : "1-0";
     }
 
-    private static string WriteSanMove(Position position, Move move, MoveExecutor executor)
+    internal static string FormatSan(Position position, Move move)
+    {
+        return FormatSan(position, move, new MoveExecutor());
+    }
+
+    private static string FormatSan(Position position, Move move, MoveExecutor executor)
     {
         if (move.SpecialMoveType == SpecialMoveType.ShortCastle)
         {
